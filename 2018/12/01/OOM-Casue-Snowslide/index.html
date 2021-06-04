@@ -4,16 +4,19 @@
   <meta charset="utf-8">
   
   
-  <title>归档 | 一凡之客</title>
+  <title>一次OOM引发服务雪崩的思考 | 一凡之客</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="description" content="互联网 分布式 微服务 高并发">
-<meta property="og:type" content="website">
-<meta property="og:title" content="一凡之客">
-<meta property="og:url" content="https://yinghuzhu.github.io/archives/index.html">
+  <meta name="description" content="前几天核心基础服务(简称S,两节点)发生了一次线上故障，导致整个基础服务雪崩，最终，该基础服务故障导致整站多项功能失效；">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一次OOM引发服务雪崩的思考">
+<meta property="og:url" content="https://yinghuzhu.github.io/2018/12/01/OOM-Casue-Snowslide/index.html">
 <meta property="og:site_name" content="一凡之客">
-<meta property="og:description" content="互联网 分布式 微服务 高并发">
+<meta property="og:description" content="前几天核心基础服务(简称S,两节点)发生了一次线上故障，导致整个基础服务雪崩，最终，该基础服务故障导致整站多项功能失效；">
 <meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2018-12-01T08:36:04.000Z">
+<meta property="article:modified_time" content="2021-06-04T14:43:54.127Z">
 <meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="线上问题">
 <meta name="twitter:card" content="summary">
   
     <link rel="alternate" href="/atom.xml" title="一凡之客" type="application/atom+xml">
@@ -71,226 +74,85 @@
 </header>
 
       <div class="outer">
-        <section id="main">
-  
-  
-    
-    
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2020" class="archive-year">2020</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2020/05/30/History-Bug-And-Code-Review/" class="archive-article-date">
-  <time class="dt-published" datetime="2020-05-30T03:16:26.000Z" itemprop="datePublished">5月 30</time>
+        <section id="main"><article id="post-OOM-Casue-Snowslide" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2018/12/01/OOM-Casue-Snowslide/" class="article-date">
+  <time class="dt-published" datetime="2018-12-01T08:36:04.000Z" itemprop="datePublished">2018-12-01</time>
 </a>
-      
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2020/05/30/History-Bug-And-Code-Review/">一个三年前的Bug导致上线失败</a>
+    <h1 class="p-name article-title" itemprop="headline name">
+      一次OOM引发服务雪崩的思考
     </h1>
   
 
-    </header>
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>前几天核心基础服务(简称S,两节点)发生了一次线上故障，导致整个基础服务雪崩，最终，该基础服务故障导致整站多项功能失效；</p>
+<span id="more"></span>
+<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
+<li>4:15 开始S的多个上游服务开始出现大量超时,而且出现告警</li>
+<li>4:30 S的节点S1出现OOM停止服务 ,同时告警系统发出了告警信息</li>
+<li>4:50 S的节点S2由于操作系统内存不足被系统kill ,同时告警系统发出了告警信息<br> ….</li>
+<li>8:00 运营同学反馈问题,技术同学开始排查</li>
+<li>8:05 技术同学发现S故障,重启S服务，服务正常 </li>
+</ol>
+<h3 id="原因分析"><a href="#原因分析" class="headerlink" title="原因分析"></a>原因分析</h3><ol>
+<li>S的上游应用某定时任务在凌晨4:10请求了大量(一次超过200w)的数据将S1先拖死，导致流量全部到S2，S2逐渐不堪重负,导致被系统kill </li>
+<li>S对上游数据请求量没有限制，没有启用限流分组功能</li>
+<li>告警信息没有引起足够重视,告警被忽略</li>
+<li>告警信息仅仅报告给monitor，没有到系统的owner</li>
+</ol>
+<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
+<li>启用限流，分组功能</li>
+<li>必须严格执行code review</li>
+<li>告警信息必须分级，而且必须同时报告给monitor和系统owner;接警人接到报警后根据不同的级别进行处理</li>
+</ol>
+<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>在互联网领域我们为了追求n个9，会采取一系列的流程措施来保障系统的可用性;但，真正落实到位的有多少? 其实，线上故障不可怕，可怕的是没有相应的应对措施；更可怕的是有相应的应对措施，但没有落实到位; 比如: 在服务化推进的过程中架构团队已经提供了限流，分组等功能，而且也进行了宣讲；但，最终这些措施还是没有落实到位；也许这就是大厂和创业公司的区别，大厂里面的架构师大部分也是螺丝钉，只要自己有产出符合预期完成KPI就是一个合格的架构师；但是，创业公司的架构师要考虑更多的因素，从最初的技术方案到设计，实现，最终的落地执行都需要全程参与确保每一个功能真正落实到位</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://yinghuzhu.github.io/2018/12/01/OOM-Casue-Snowslide/" data-id="ckpifw65f0007rgxt6azo8rux" data-title="一次OOM引发服务雪崩的思考" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E7%BA%BF%E4%B8%8A%E9%97%AE%E9%A2%98/" rel="tag">线上问题</a></li></ul>
+
+    </footer>
   </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2018/12/23/how-to-question/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">前一篇</strong>
+      <div class="article-nav-title">
+        
+          如何提一个问题
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2018/09/24/Service-Split/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">服务化-服务拆分</div>
+    </a>
+  
+</nav>
+
+  
 </article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2020/04/11/ShardingSphere-Springboot/" class="archive-article-date">
-  <time class="dt-published" datetime="2020-04-11T10:54:30.000Z" itemprop="datePublished">4月 11</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2020/04/11/ShardingSphere-Springboot/">Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</a>
-    </h1>
-  
 
-    </header>
-  </div>
-</article>
-  
-    
-    
-      
-        </div></section>
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2019" class="archive-year">2019</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/12/27/Jaeger-Thread/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-12-27T10:33:50.000Z" itemprop="datePublished">12月 27</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/12/27/Jaeger-Thread/">Open Tracing(Jaeger) 遭遇多线程</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/06/02/gRPC-Go-Java/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-06-02T01:29:15.000Z" itemprop="datePublished">6月 2</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/06/02/gRPC-Go-Java/">Java与Go之间gRPC调用失败问题排查</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/05/21/wx-mp-backup/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-05-21T09:44:09.000Z" itemprop="datePublished">5月 21</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/05/21/wx-mp-backup/">微信公众号文章备份与采集</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/04/27/Tech-VS-Biz/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-04-27T07:40:16.000Z" itemprop="datePublished">4月 27</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/04/27/Tech-VS-Biz/">技术给业务赋能</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/03/30/Schedule-Job/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-03-30T05:56:45.000Z" itemprop="datePublished">3月 30</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/03/30/Schedule-Job/">分布式调度系统选型</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/03/01/product-bug/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-03-01T14:03:43.000Z" itemprop="datePublished">3月 1</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/03/01/product-bug/">海恩法则与生产Bug</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/02/13/Multi-Project-Test-Env/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-02-13T13:33:10.000Z" itemprop="datePublished">2月 13</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/02/13/Multi-Project-Test-Env/">服务化多项目测试环境隔离</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/01/20/shadowsocks-auto-config/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-01-20T06:30:42.000Z" itemprop="datePublished">1月 20</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/01/20/shadowsocks-auto-config/">服务器自动配置shadowsocks</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-  
-    </div></section>
-  
-
-
-  <nav id="page-nav">
-    
-    <span class="page-number current">1</span><a class="page-number" href="/archives/page/2/">2</a><a class="extend next" rel="next" href="/archives/page/2/">下一页 &raquo;</a>
-  </nav>
 
 </section>
         

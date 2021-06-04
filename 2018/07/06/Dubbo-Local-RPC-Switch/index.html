@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>基于配置中心属性,Dubbo Consumer动态切换调用RPC/本地方法 | 一凡之客</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="需求缘由最近部分只读服务已经切换到了Dubbo提供的服务化接口；经过一段时间的生产验证, 各种监控指标显示非常稳定，所以打算开始切换写服务接口; 但大家对写操作跑服务化没有信心，于是提了一个需求能随时将远程rpc调用切换打本地jar方法调用；">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基于配置中心属性,Dubbo Consumer动态切换调用RPC&#x2F;本地方法">
+<meta property="og:url" content="https://yinghuzhu.github.io/2018/07/06/Dubbo-Local-RPC-Switch/index.html">
+<meta property="og:site_name" content="一凡之客">
+<meta property="og:description" content="需求缘由最近部分只读服务已经切换到了Dubbo提供的服务化接口；经过一段时间的生产验证, 各种监控指标显示非常稳定，所以打算开始切换写服务接口; 但大家对写操作跑服务化没有信心，于是提了一个需求能随时将远程rpc调用切换打本地jar方法调用；">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2018-07-06T06:11:48.000Z">
+<meta property="article:modified_time" content="2021-06-04T14:43:54.119Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="微服务">
+<meta property="article:tag" content="Dubbo">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="一凡之客" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">一凡之客</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS 订阅"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://yinghuzhu.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-Dubbo-Local-RPC-Switch" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2018/07/06/Dubbo-Local-RPC-Switch/" class="article-date">
+  <time class="dt-published" datetime="2018-07-06T06:11:48.000Z" itemprop="datePublished">2018-07-06</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      基于配置中心属性,Dubbo Consumer动态切换调用RPC/本地方法
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="需求缘由"><a href="#需求缘由" class="headerlink" title="需求缘由"></a>需求缘由</h2><p>最近部分只读服务已经切换到了Dubbo提供的服务化接口；经过一段时间的生产验证, 各种监控指标显示非常稳定，所以打算开始切换写服务接口; 但大家对写操作跑服务化没有信心，于是提了一个需求能随时将远程rpc调用切换打本地jar方法调用；<span id="more"></span></p>
+<h2 id="dubbo的stub"><a href="#dubbo的stub" class="headerlink" title="dubbo的stub"></a>dubbo的stub</h2><p>听到这个需求，马上想到dubbo的stub属性；但需要在原来代码中做部分改造,具体步骤是：</p>
+<ol>
+<li>原来的jar包实现方法中增加带自身接口类型参数的构造函数;</li>
+<li>在所有的接口实现方法中判断开关状态决定调用RPC/本地方法;<br>但是，这样对原代码有极强入侵性；我们认为这不是最好的方案，于是有了下面的方案；</li>
+</ol>
+<h2 id="扩展dubbo-reference标签属性"><a href="#扩展dubbo-reference标签属性" class="headerlink" title="扩展dubbo:reference标签属性"></a>扩展dubbo:reference标签属性</h2><p>首先需要说明，我们在实际使用dubbo的过程中并没有直接使用dubbo这个命名空间，而是自定义了自己的命名空间，自定义命名空间兼容了dubbo命名空间的所有属性，而且扩展了自己的属性；于是针对该需求我们有了新的方案，具体流程如下 ：</p>
+<ol>
+<li>增加<strong>reference</strong>的属性<strong>localbean</strong>，这个属性值为一个本地bean的id；类似的xml配置如下：<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">bean</span> <span class="attr">id</span>=<span class="string">&quot;localDemoService&quot;</span> <span class="attr">class</span>=<span class="string">&quot;com.example.Service.impl.DemoServiceImpl&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">mydubbo:reference</span> <span class="attr">interface</span>=<span class="string">&quot;com.example.Service.DemoService&quot;</span> <span class="attr">id</span>=<span class="string">&quot;remoteDemoService&quot;</span></span></span><br><span class="line"><span class="tag">                 <span class="attr">localbean</span> =<span class="string">&quot;localDemoService&quot;</span> <span class="attr">version</span>=<span class="string">&quot;1.0&quot;</span>/&gt;</span></span><br></pre></td></tr></table></figure></li>
+<li>继承ReferenceBean实现自定义属性locbean；</li>
+<li>继承DubboNamespaceHandler重写init方法,如下:<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">init</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.init();</span><br><span class="line">        <span class="keyword">this</span>.registerBeanDefinitionParser(<span class="string">&quot;reference&quot;</span>, <span class="keyword">new</span> MyBeanDefinitionParser(LocalReferenceBean.class, <span class="keyword">false</span>));</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></li>
+<li>自定义filter<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">RPCLocalSwitchFilter</span>&lt;<span class="title">T</span>&gt; <span class="keyword">implements</span> <span class="title">Filter</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Logger logger = LoggerFactory.getLogger(RPCLocalSwitchFilter.class);</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ProxyFactory PROXY_FACTORY = (ProxyFactory)ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">RPCLocalSwitchFilter</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Result <span class="title">invoke</span><span class="params">(Invoker&lt;?&gt; invoker, Invocation invocation)</span> <span class="keyword">throws</span> RpcException </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(cfg.getBooleanProperty(<span class="string">&quot;&quot;</span>)) &#123;  <span class="comment">//判断配置中心开工状态</span></span><br><span class="line">            Object bean = <span class="keyword">this</span>.getLocalBean(invoker);</span><br><span class="line">            <span class="keyword">return</span> bean != <span class="keyword">null</span>?<span class="keyword">this</span>.executeLocalMethod(bean, invoker, invocation):invoker.invoke(invocation);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> invoker.invoke(invocation);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> Result <span class="title">executeLocalMethod</span><span class="params">(T bean, Invoker&lt;?&gt; invoker, Invocation invocation)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(logger.isDebugEnabled()) &#123;</span><br><span class="line">            logger.debug(<span class="string">&quot;execute local method instead of rpc &quot;</span> + bean.getClass().getCanonicalName() + <span class="string">&quot;.&quot;</span> + invocation.getMethodName());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        Invoker localInvoker = PROXY_FACTORY.getInvoker(bean, invoker.getInterface(), invoker.getUrl());</span><br><span class="line">        <span class="keyword">return</span> localInvoker.invoke(invocation);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> &lt;T&gt; <span class="function">T <span class="title">getLocalBean</span><span class="params">(Invoker&lt;?&gt; invoker)</span> </span>&#123;</span><br><span class="line">        String refLocal = invoker.getUrl().getParameter(<span class="string">&quot;localBean&quot;</span>);</span><br><span class="line">        <span class="keyword">if</span>(refLocal != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                ApplicationContext e = LocalReferenceBean.getSpringContext();</span><br><span class="line">                <span class="keyword">return</span> e.getBean(refLocal, invoker.getInterface());</span><br><span class="line">            &#125; <span class="keyword">catch</span> (BeansException e) &#123;</span><br><span class="line">                logger.error(var4.getMessage() + <span class="string">&quot; couldn\&#x27;t find the bean[&quot;</span> + localBean + <span class="string">&quot;], please check&quot;</span>, e);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>配置filter<br>在resources/META-INF/dubbo/com.alibaba.dubbo.rpc.Filter文件中增加如下内容:<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">reflocal=com.example.filter. RPCLocalSwitchFilter</span><br></pre></td></tr></table></figure>
+配置consumer的filter属性<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">mydubbo:consumer</span> <span class="attr">filter</span>=<span class="string">&quot;reflocal&quot;</span> /&gt;</span></span><br></pre></td></tr></table></figure>
+至此可以通过配置中的开关状态来控制远程RPC/本地jar方法调用 ;</li>
+</ol>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://yinghuzhu.github.io/2018/07/06/Dubbo-Local-RPC-Switch/" data-id="ckpifw6550000rgxthn45gso0" data-title="基于配置中心属性,Dubbo Consumer动态切换调用RPC/本地方法" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Dubbo/" rel="tag">Dubbo</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag">微服务</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2018/09/24/Service-Split/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">前一篇</strong>
+      <div class="article-nav-title">
+        
+          服务化-服务拆分
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2018/06/18/Parepare-Service/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">服务化准备工作</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Dubbo/" rel="tag">Dubbo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/gRPC/" rel="tag">gRPC</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag">分布式</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1/" rel="tag">定时任务</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%B7%A5%E5%85%B7/" rel="tag">工具</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag">微服务</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%BA%BF%E4%B8%8A%E9%97%AE%E9%A2%98/" rel="tag">线上问题</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E8%81%8C%E5%9C%BA/" rel="tag">职场</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E9%93%BE%E8%B7%AF%E8%B7%9F%E8%B8%AA/" rel="tag">链路跟踪</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/Dubbo/" style="font-size: 13.33px;">Dubbo</a> <a href="/tags/gRPC/" style="font-size: 10px;">gRPC</a> <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" style="font-size: 13.33px;">分布式</a> <a href="/tags/%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1/" style="font-size: 10px;">定时任务</a> <a href="/tags/%E5%B7%A5%E5%85%B7/" style="font-size: 13.33px;">工具</a> <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" style="font-size: 20px;">微服务</a> <a href="/tags/%E7%BA%BF%E4%B8%8A%E9%97%AE%E9%A2%98/" style="font-size: 16.67px;">线上问题</a> <a href="/tags/%E8%81%8C%E5%9C%BA/" style="font-size: 16.67px;">职场</a> <a href="/tags/%E9%93%BE%E8%B7%AF%E8%B7%9F%E8%B8%AA/" style="font-size: 10px;">链路跟踪</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/12/">十二月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/06/">六月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/05/">五月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/04/">四月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/03/">三月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/02/">二月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/01/">一月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/12/">十二月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/07/">七月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/06/">六月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/05/">五月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/04/">四月 2018</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2020/05/30/History-Bug-And-Code-Review/">一个三年前的Bug导致上线失败</a>
+          </li>
+        
+          <li>
+            <a href="/2020/04/11/ShardingSphere-Springboot/">Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</a>
+          </li>
+        
+          <li>
+            <a href="/2019/12/27/Jaeger-Thread/">Open Tracing(Jaeger) 遭遇多线程</a>
+          </li>
+        
+          <li>
+            <a href="/2019/06/02/gRPC-Go-Java/">Java与Go之间gRPC调用失败问题排查</a>
+          </li>
+        
+          <li>
+            <a href="/2019/05/21/wx-mp-backup/">微信公众号文章备份与采集</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 yhzhu<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

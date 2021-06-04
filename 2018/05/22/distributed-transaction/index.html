@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>分布式事务实现 | 一凡之客</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="在分布式系统中，同时满足“CAP定律”中的“一致性”、“可用性”和“分区容错性”三者是不可能的。在互联网领域的绝大多数的场景，都需要牺牲强一致性来换取系统的高可用性，系统往往只需要保证“最终一致性”，只要这个最终时间是在用户可以接受的范围内即可。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="分布式事务实现">
+<meta property="og:url" content="https://yinghuzhu.github.io/2018/05/22/distributed-transaction/index.html">
+<meta property="og:site_name" content="一凡之客">
+<meta property="og:description" content="在分布式系统中，同时满足“CAP定律”中的“一致性”、“可用性”和“分区容错性”三者是不可能的。在互联网领域的绝大多数的场景，都需要牺牲强一致性来换取系统的高可用性，系统往往只需要保证“最终一致性”，只要这个最终时间是在用户可以接受的范围内即可。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2018-05-22T07:17:36.000Z">
+<meta property="article:modified_time" content="2021-06-04T14:43:54.136Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="微服务">
+<meta property="article:tag" content="分布式">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="一凡之客" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">一凡之客</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS 订阅"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://yinghuzhu.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-distributed-transaction" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2018/05/22/distributed-transaction/" class="article-date">
+  <time class="dt-published" datetime="2018-05-22T07:17:36.000Z" itemprop="datePublished">2018-05-22</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      分布式事务实现
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>在分布式系统中，同时满足“CAP定律”中的“一致性”、“可用性”和“分区容错性”三者是不可能的。在互联网领域的绝大多数的场景，都需要牺牲强一致性来换取系统的高可用性，系统往往只需要保证“最终一致性”，只要这个最终时间是在用户可以接受的范围内即可。<span id="more"></span></p>
+<h3 id="XA"><a href="#XA" class="headerlink" title="XA"></a>XA</h3><p>XA规范主要定义了事务管理器(Transaction Manager)和资源管理器(Resource Manager)之间的接口. XA引入事务管理器是因为在分布式系统中，从理论上讲两台机器上无法达到一致的状态，需要引入一个外部点进行协调。事务管理器控制着全局事务，管理事务生命周期，并协调资源, 资源管理器负责控制和管理实际资源 。XA是一个两阶段提交协议，该协议分为以下两个阶段：</p>
+<ol>
+<li> 事务协调器要求每个涉及到事务的数据库预提交，并反映是否可以提交 。</li>
+<li>事务协调器要求每个数据库提交数据 。</li>
+</ol>
+<p>如果有任何一个数据库否决此次提交，那么所有数据库都会被要求回滚它们在此事务中的那部分信息 。</p>
+<h3 id="JTA"><a href="#JTA" class="headerlink" title="JTA"></a>JTA</h3><p>JTA作为JAVA平台上的事务规范，同时定义了对XA事务的支持；在JTA中，事务管理器抽象为javax.transaction.TransactionManager接口，通过底层事务服务（即JTS）实现,JTA仅仅定义了接口，具体的实现则是由供应商(如J2EE厂商)负责提供，目前JTA的实现主要由J2EE容器所提供的JTA实现(如JBOSS)和独立的JTA实现(如JOTM，Atomikos)。</p>
+<blockquote>
+<p>JTA本质上是两阶段提交，实现复杂，牺牲了可用性，对性能影响较大, 适合对数据强一致(<strong>其实也不能100%保证强一致</strong>)要求很高的关键领域; 大部分互联网业务都不会采用两阶段提交的方式 。</p>
+</blockquote>
+<h3 id="链式事务管理"><a href="#链式事务管理" class="headerlink" title="链式事务管理"></a>链式事务管理</h3><p>这种方式也Spring提供的，可以将两个或多个数据库资源的事务串联到一起，公用一个TransactionManager来实现对多个资源的事务。配置方式如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">  &lt;bean id=&quot;transactionManager&quot; class=&quot;org.springframework.data.transaction.ChainedTransactionManager&quot;&gt;</span><br><span class="line">  &lt;property name=&quot;transactionManagers&quot;&gt;</span><br><span class="line">    &lt;list&gt;</span><br><span class="line">      &lt;bean</span><br><span class="line">        class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;</span><br><span class="line">        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource1&quot; /&gt;</span><br><span class="line">      &lt;/bean&gt;</span><br><span class="line">      &lt;bean</span><br><span class="line">        class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;</span><br><span class="line">        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource2&quot; /&gt;</span><br><span class="line">      &lt;/bean&gt;</span><br><span class="line">    &lt;/list&gt;</span><br><span class="line">  &lt;/property&gt;</span><br><span class="line">&lt;/bean&gt;</span><br><span class="line"> &lt;/code&gt;</span><br></pre></td></tr></table></figure>
+<p>针对多个数据库实现事务。使用这种方式时，在Spring事务提交的时候，它会依次调用里面的多个dataSource的commit()方法，如果业务方法出错，就会按照相反的顺序调用rollback()方法。这种方法可能会出现先前的提交成功，之后的提交失败，所以还是会有事务失败的可能。</p>
+<blockquote>
+<p>实现简单，但可能会出现先前的提交成功，之后的提交失败，所以还是会有事务失败的可能</p>
+</blockquote>
+<h3 id="最大努力一次提交-Best-Efforts-1PC"><a href="#最大努力一次提交-Best-Efforts-1PC" class="headerlink" title="最大努力一次提交(Best Efforts 1PC)"></a>最大努力一次提交(Best Efforts 1PC)</h3><p>在一个系统中使用数据库和带事务功能的消息中间件，业务流程如下</p>
+<ol>
+<li>开始消息事务</li>
+<li>发送消息</li>
+<li>开始数据库事务</li>
+<li>更新数据库</li>
+<li>提交数据库事务</li>
+<li>提交消息事务</li>
+</ol>
+<p>有两个事务，分别是DB的和JMS的事务，事务的开启和提交都是相互独立的。依次提交这两个事务，只要第二个事务顺利提交，整个方法就能够保证数据的一致性。实际上，在绝大多数情况下，只要数据库和MQ能够正常访问，这也确实能够保证。所以，这种方式就叫’最大努力’一次提交。</p>
+<p>使用这种方式，事物提交的顺序是非常重要的。假设在提交messaging transaction的时候发生错误，这时数据库的事务已经提交，无法回滚，但是消息的事务被回滚，那么这一条消息会被重新放回队列中，该业务方法会被再次触发，再次在一个新的事务中处理。但是，这时数据的处理已经完成，只是最后JMS的事物提交出错，那么就需要通过防止重复提交的方式，来避免数据库的再次处理。</p>
+<h3 id="事务补偿型-TCC型事务–Try-Confirm-Cancel"><a href="#事务补偿型-TCC型事务–Try-Confirm-Cancel" class="headerlink" title="事务补偿型(TCC型事务–Try/Confirm/Cancel)"></a>事务补偿型(TCC型事务–Try/Confirm/Cancel)</h3><p>其核心思想是：针对每个操作，都要注册一个与其对应的确认和补偿（撤销）操作。它分为三个阶段：</p>
+<ul>
+<li>Try 阶段主要是对业务系统做检测及资源预留</li>
+<li>Confirm 阶段主要是对业务系统做确认提交，Try阶段执行成功并开始执行 Confirm阶段时，默认 Confirm阶段是不会出错的, 即：只要Try成功，Confirm一定成功</li>
+<li>Cancel 阶段主要是在业务执行错误，需要回滚的状态下执行的业务取消，预留资源释放</li>
+</ul>
+<p>在一个长事务，一个由两台服务器一起参与的事务，服务器A发起事务，服务器B参与事务，B所处理时间可能比较长。如果按照ACID的原则，要保持事务的隔离性、一致性，服务器A中发起的事务中使用到的事务资源将会被锁定，不允许其他应用访问到事务过程中的中间结果，直到整个事务被提交或者回滚。这就造成事务A中的资源被长时间锁定，系统的可用性将不可接受。服务器A的事务如果执行顺利，那么事务A就先行提交，如果事务B也执行顺利，则事务B也提交，整个事务就算完成。但是如果事务B执行失败，事务B本身回滚，这时事务A已经被提交，所以需要执行一个<strong>补偿</strong>操作，将已经提交的事务A执行的操作作反操作，恢复到未执行前事务A的状态。这样的事务模型，是牺牲了一定的隔离性和一致性的，但是提高了事务的可用性。</p>
+<blockquote>
+<p>与两阶段提交相比实现及流程相对简单，但应用层要写很多补偿代码(而且补偿也不能保证一定成功)</p>
+</blockquote>
+<h3 id="本地流水表实现最终一致性"><a href="#本地流水表实现最终一致性" class="headerlink" title="本地流水表实现最终一致性"></a>本地流水表实现最终一致性</h3><p>以电商下单场景为例，主要涉及到两个操作，<strong>扣减库存</strong>和<strong>生成订单</strong>,因为两个操作在不同的数据库，无法保证强一致性,可以通过本地流水表来实现最终一致性 ， 具体流程如下:</p>
+<ul>
+<li>生成交易操作唯一标示token</li>
+<li>事务一(库存系统): <ul>
+<li>冻结库存</li>
+<li>根据下单流水号生成商品的库存冻结记录,冻结记录主要包括<strong>skuId</strong>,<strong>token</strong>,<strong>冻结数量</strong>,<strong>状态</strong> .状态有3种状态: <strong>已冻结</strong>，<strong>下单成功扣减</strong>，<strong>下单失败释放</strong>,初始状态为已冻结</li>
+</ul>
+</li>
+<li>如果事务一失败，直接返回；如果成功进入事务二 </li>
+<li>事务二(订单系统, 本地事务)：根据token生成订单,订单的状态主要包括：<strong>未支付</strong>,<strong>已支付</strong>,<strong>超时未支付</strong>,订单的初始状态为<strong>未支付</strong></li>
+<li>事务二如果成功，则进行后续的流程,</li>
+<li>事务二如果失败，调用库存系统的回滚接口，返回下单失败;</li>
+<li>定时任务: 因为存在<strong>事务一成功</strong>而<strong>事务二</strong>失败的情况，这样会冻结商品的部分库存，所以可以捞取出创建超过一定时间状态为<strong>已冻结</strong>的所有冻结记录，根据每个冻结记录的token去订单表查询，若不存在对应的订单，则将冻结记录的状态更新为<strong>下单失败释放</strong>，并回滚商品库存数量</li>
+</ul>
+<h3 id="异步确保型"><a href="#异步确保型" class="headerlink" title="异步确保型"></a>异步确保型</h3><p>将一些有同步的事务操作变为异步操作，避免对数据库事务的争用；继续以以电商下单场景为例，支付成功后增加用户积分；</p>
+<ul>
+<li>事务一(订单系统)，订单状态修改为支付成功，发送支付成功消息</li>
+<li>事务二(用户系统)，用户系统接到支付成功消息后，增加用户积分</li>
+</ul>
+<h3 id="MQ事务消息"><a href="#MQ事务消息" class="headerlink" title="MQ事务消息"></a>MQ事务消息</h3><p>一些第支持事务消息MQ，比如RocketMQ，他们支持事务消息的方式也是类似于采用的二阶段提交，其思路大致为：</p>
+<ul>
+<li>第一阶段Prepared消息，会拿到消息的地址。</li>
+<li>第二阶段执行本地事务，第三阶段通过第一阶段拿到的地址去访问消息，并修改状态。</li>
+</ul>
+<p>在业务方法内要想消息队列提交两次请求，一次发送消息和一次确认消息。如果确认消息发送失败了RocketMQ会定期扫描消息集群中的事务消息，这时候发现了Prepared消息，它会向消息发送者确认，是回滚还是继续发送确认消息。这样就保证了消息发送保证与本地事务同时成功或同时失败 </p>
+<h3 id="分布式事务实现的原则"><a href="#分布式事务实现的原则" class="headerlink" title="分布式事务实现的原则"></a>分布式事务实现的原则</h3><ul>
+<li>大事务拆成小事务，每个小事务都是单机上的事务</li>
+<li>补偿 + 重试， 业务上设计补偿机制，而且保证补偿失败后有重试机制</li>
+<li>幂等, 保证每次事务操作是幂等的，保证幂等的方式可以采用：<ul>
+<li>状态值，每次写操作的时候检查状态值</li>
+<li>唯一标示，每次写操作都带入业务唯一标示</li>
+</ul>
+</li>
+</ul>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://yinghuzhu.github.io/2018/05/22/distributed-transaction/" data-id="ckpifw65l000lrgxt90p281yy" data-title="分布式事务实现" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag">分布式</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag">微服务</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2018/06/18/Parepare-Service/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">前一篇</strong>
+      <div class="article-nav-title">
+        
+          服务化准备工作
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">微服务框架选型之 Dubbo VS. Spring Cloud</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Dubbo/" rel="tag">Dubbo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/gRPC/" rel="tag">gRPC</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag">分布式</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1/" rel="tag">定时任务</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%B7%A5%E5%85%B7/" rel="tag">工具</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag">微服务</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%BA%BF%E4%B8%8A%E9%97%AE%E9%A2%98/" rel="tag">线上问题</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E8%81%8C%E5%9C%BA/" rel="tag">职场</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E9%93%BE%E8%B7%AF%E8%B7%9F%E8%B8%AA/" rel="tag">链路跟踪</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/Dubbo/" style="font-size: 13.33px;">Dubbo</a> <a href="/tags/gRPC/" style="font-size: 10px;">gRPC</a> <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" style="font-size: 13.33px;">分布式</a> <a href="/tags/%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1/" style="font-size: 10px;">定时任务</a> <a href="/tags/%E5%B7%A5%E5%85%B7/" style="font-size: 13.33px;">工具</a> <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" style="font-size: 20px;">微服务</a> <a href="/tags/%E7%BA%BF%E4%B8%8A%E9%97%AE%E9%A2%98/" style="font-size: 16.67px;">线上问题</a> <a href="/tags/%E8%81%8C%E5%9C%BA/" style="font-size: 16.67px;">职场</a> <a href="/tags/%E9%93%BE%E8%B7%AF%E8%B7%9F%E8%B8%AA/" style="font-size: 10px;">链路跟踪</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/12/">十二月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/06/">六月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/05/">五月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/04/">四月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/03/">三月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/02/">二月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/01/">一月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/12/">十二月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/07/">七月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/06/">六月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/05/">五月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/04/">四月 2018</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2020/05/30/History-Bug-And-Code-Review/">一个三年前的Bug导致上线失败</a>
+          </li>
+        
+          <li>
+            <a href="/2020/04/11/ShardingSphere-Springboot/">Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</a>
+          </li>
+        
+          <li>
+            <a href="/2019/12/27/Jaeger-Thread/">Open Tracing(Jaeger) 遭遇多线程</a>
+          </li>
+        
+          <li>
+            <a href="/2019/06/02/gRPC-Go-Java/">Java与Go之间gRPC调用失败问题排查</a>
+          </li>
+        
+          <li>
+            <a href="/2019/05/21/wx-mp-backup/">微信公众号文章备份与采集</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 yhzhu<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

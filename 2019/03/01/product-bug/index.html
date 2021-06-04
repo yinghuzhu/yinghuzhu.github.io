@@ -4,17 +4,23 @@
   <meta charset="utf-8">
   
   
-  <title>归档 | 一凡之客</title>
+  <title>海恩法则与生产Bug | 一凡之客</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta name="description" content="互联网 分布式 微服务 高并发">
-<meta property="og:type" content="website">
-<meta property="og:title" content="一凡之客">
-<meta property="og:url" content="https://yinghuzhu.github.io/archives/index.html">
+  <meta name="description" content="「海恩法则」是航空涡轮发动机的发明者帕布斯·海恩提出一个在航空界关于飞行安全的法则。海恩指出：每一起严重事故的背后，必然有29次轻微事故和300起未遂先兆以及1000起事故隐患。法则强调两点：一是事故的发生是量的积累的结果；二是再好的技术，再完美的规章，在实际操作层面，也无法取代人自身的素质和责任心。「海恩法则」虽然针对的是飞行领域，在软件开发领域遭遇生产bug">
+<meta property="og:type" content="article">
+<meta property="og:title" content="海恩法则与生产Bug">
+<meta property="og:url" content="https://yinghuzhu.github.io/2019/03/01/product-bug/index.html">
 <meta property="og:site_name" content="一凡之客">
-<meta property="og:description" content="互联网 分布式 微服务 高并发">
+<meta property="og:description" content="「海恩法则」是航空涡轮发动机的发明者帕布斯·海恩提出一个在航空界关于飞行安全的法则。海恩指出：每一起严重事故的背后，必然有29次轻微事故和300起未遂先兆以及1000起事故隐患。法则强调两点：一是事故的发生是量的积累的结果；二是再好的技术，再完美的规章，在实际操作层面，也无法取代人自身的素质和责任心。「海恩法则」虽然针对的是飞行领域，在软件开发领域遭遇生产bug">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://yinghuzhu.github.io/2019/03/01/product-bug/product-bug/heinrich-law.jpeg">
+<meta property="article:published_time" content="2019-03-01T14:03:43.000Z">
+<meta property="article:modified_time" content="2021-06-04T14:43:54.139Z">
 <meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="线上问题">
+<meta property="article:tag" content="职场">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://yinghuzhu.github.io/2019/03/01/product-bug/product-bug/heinrich-law.jpeg">
   
     <link rel="alternate" href="/atom.xml" title="一凡之客" type="application/atom+xml">
   
@@ -71,226 +77,69 @@
 </header>
 
       <div class="outer">
-        <section id="main">
-  
-  
-    
-    
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2020" class="archive-year">2020</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2020/05/30/History-Bug-And-Code-Review/" class="archive-article-date">
-  <time class="dt-published" datetime="2020-05-30T03:16:26.000Z" itemprop="datePublished">5月 30</time>
+        <section id="main"><article id="post-product-bug" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2019/03/01/product-bug/" class="article-date">
+  <time class="dt-published" datetime="2019-03-01T14:03:43.000Z" itemprop="datePublished">2019-03-01</time>
 </a>
-      
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2020/05/30/History-Bug-And-Code-Review/">一个三年前的Bug导致上线失败</a>
+    <h1 class="p-name article-title" itemprop="headline name">
+      海恩法则与生产Bug
     </h1>
   
 
-    </header>
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p><img src="product-bug/heinrich-law.jpeg"><br>「海恩法则」是航空涡轮发动机的发明者帕布斯·海恩提出一个在航空界关于飞行安全的法则。海恩指出：每一起严重事故的背后，必然有29次轻微事故和300起未遂先兆以及1000起事故隐患。法则强调两点：一是事故的发生是量的积累的结果；二是再好的技术，再完美的规章，在实际操作层面，也无法取代人自身的素质和责任心。「海恩法则」虽然针对的是飞行领域，在软件开发领域遭遇生产bug<span id="more"></span>，用「海恩法则」也可以解释。</p>
+<p>当生产环境出现bug的时候，通常情况下，我们会很快定位出bug产生的原因具体在哪一行代码上，然后根据实际情况决定回滚或者修复。然而事后总结发现，每一个线上bug的出现绝不仅仅是代码的问题，会涉及到开发、测试和运维多个环节；更多暴露出的是流程的问题，管理的问题，执行力的问题。特别是初创团队和架构大规模升级后最容易暴露出代码以外的问题。以我个人处理过的生产bug，事后分析原因最多的一次有14项措施要么缺失，要么执行不到位，其中与代码相关的只有2项，更多的原因是方案和流程执行不到位。</p>
+<p>上线前通常会采取一些措施来保证质量；比如：开发阶段的code review，ut以及测试阶段的压测等；而且会有配套的流程确保必要的步骤都执行到位；然而即便采取多么复杂的流程也不能避免bug的出现。归根结底，代码是人写的，是人就可能出错 ；我们要做的<strong>不是不出bug，而是不出低级bug</strong> 。对于可能出现的低级bug要擅于通过工具发现；诚然，再好的工具和流程也比不上人自身的素质和责任心。</p>
+<p>上线后系统会有各种维度的监控确保系统正常运行；在出现生产bug前监控系统通常会有异常表现，比如CPU，内存，IO，线程等指标可能会有同比变化；此时报警策略的精准性和人的责任心就比较重要；发现异常后第一时间根据各项指标分析出异常的根本原因，是正常波动，是受到攻击还是程序bug。特别是新功能或者bug修复后上线要特别注意这些指标。在确认系统出现问题时候后立刻采取相应措施，回滚，扩容，限流，熔断等，避免或者尽可能减少造成的损失 。</p>
+<p>其实所有的问题都可以归结为人的问题。最后想到奈飞文化准则的第一条「我们只招成年人」 。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://yinghuzhu.github.io/2019/03/01/product-bug/" data-id="ckpifw65p000rrgxtcaz5h836" data-title="海恩法则与生产Bug" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E7%BA%BF%E4%B8%8A%E9%97%AE%E9%A2%98/" rel="tag">线上问题</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E8%81%8C%E5%9C%BA/" rel="tag">职场</a></li></ul>
+
+    </footer>
   </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2019/03/30/Schedule-Job/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">前一篇</strong>
+      <div class="article-nav-title">
+        
+          分布式调度系统选型
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2019/02/13/Multi-Project-Test-Env/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">服务化多项目测试环境隔离</div>
+    </a>
+  
+</nav>
+
+  
 </article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2020/04/11/ShardingSphere-Springboot/" class="archive-article-date">
-  <time class="dt-published" datetime="2020-04-11T10:54:30.000Z" itemprop="datePublished">4月 11</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2020/04/11/ShardingSphere-Springboot/">Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</a>
-    </h1>
-  
 
-    </header>
-  </div>
-</article>
-  
-    
-    
-      
-        </div></section>
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2019" class="archive-year">2019</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/12/27/Jaeger-Thread/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-12-27T10:33:50.000Z" itemprop="datePublished">12月 27</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/12/27/Jaeger-Thread/">Open Tracing(Jaeger) 遭遇多线程</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/06/02/gRPC-Go-Java/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-06-02T01:29:15.000Z" itemprop="datePublished">6月 2</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/06/02/gRPC-Go-Java/">Java与Go之间gRPC调用失败问题排查</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/05/21/wx-mp-backup/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-05-21T09:44:09.000Z" itemprop="datePublished">5月 21</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/05/21/wx-mp-backup/">微信公众号文章备份与采集</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/04/27/Tech-VS-Biz/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-04-27T07:40:16.000Z" itemprop="datePublished">4月 27</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/04/27/Tech-VS-Biz/">技术给业务赋能</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/03/30/Schedule-Job/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-03-30T05:56:45.000Z" itemprop="datePublished">3月 30</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/03/30/Schedule-Job/">分布式调度系统选型</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/03/01/product-bug/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-03-01T14:03:43.000Z" itemprop="datePublished">3月 1</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/03/01/product-bug/">海恩法则与生产Bug</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/02/13/Multi-Project-Test-Env/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-02-13T13:33:10.000Z" itemprop="datePublished">2月 13</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/02/13/Multi-Project-Test-Env/">服务化多项目测试环境隔离</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2019/01/20/shadowsocks-auto-config/" class="archive-article-date">
-  <time class="dt-published" datetime="2019-01-20T06:30:42.000Z" itemprop="datePublished">1月 20</time>
-</a>
-      
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2019/01/20/shadowsocks-auto-config/">服务器自动配置shadowsocks</a>
-    </h1>
-  
-
-    </header>
-  </div>
-</article>
-  
-  
-    </div></section>
-  
-
-
-  <nav id="page-nav">
-    
-    <span class="page-number current">1</span><a class="page-number" href="/archives/page/2/">2</a><a class="extend next" rel="next" href="/archives/page/2/">下一页 &raquo;</a>
-  </nav>
 
 </section>
         

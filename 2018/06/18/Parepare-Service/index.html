@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>服务化准备工作 | 一凡之客</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="在决定进行服务化时，我们做了一些必要的准备工作；从服务治理，链路跟踪，监控以及报警方面到代码层面，运维，流程等多个方面做了相应的调整">
+<meta property="og:type" content="article">
+<meta property="og:title" content="服务化准备工作">
+<meta property="og:url" content="https://yinghuzhu.github.io/2018/06/18/Parepare-Service/index.html">
+<meta property="og:site_name" content="一凡之客">
+<meta property="og:description" content="在决定进行服务化时，我们做了一些必要的准备工作；从服务治理，链路跟踪，监控以及报警方面到代码层面，运维，流程等多个方面做了相应的调整">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://yinghuzhu.github.io/2018/06/18/Parepare-Service/Parepare-Service/arch.jpg">
+<meta property="og:image" content="https://yinghuzhu.github.io/2018/06/18/Parepare-Service/Parepare-Service/version.jpg">
+<meta property="article:published_time" content="2018-06-18T03:56:19.000Z">
+<meta property="article:modified_time" content="2021-06-04T14:43:54.129Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="微服务">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://yinghuzhu.github.io/2018/06/18/Parepare-Service/Parepare-Service/arch.jpg">
+  
+    <link rel="alternate" href="/atom.xml" title="一凡之客" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">一凡之客</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS 订阅"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://yinghuzhu.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-Parepare-Service" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2018/06/18/Parepare-Service/" class="article-date">
+  <time class="dt-published" datetime="2018-06-18T03:56:19.000Z" itemprop="datePublished">2018-06-18</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      服务化准备工作
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>在决定进行服务化时，我们做了一些必要的准备工作；从服务治理，链路跟踪，监控以及报警方面到代码层面，运维，流程等多个方面做了相应的调整</p>
+<span id="more"></span>
+<h2 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h2><p>我们的服务化是在dubbo的基础上进行的，首先适配了服务化需要的相关组件，包括配置中心，链路跟踪，监控，服务治理等，整体架构如图所示 </p>
+<p><img src="Parepare-Service/arch.jpg" alt="架构图"></p>
+<ul>
+<li>配置中心: Apollo </li>
+<li>链路跟踪: Zipkin, Kafka, ES</li>
+<li>服务治理: dubbo官方的dubbo-admin</li>
+<li>服务监控: dubbo官方的dubbo-monitor</li>
+</ul>
+<h2 id="准备工作"><a href="#准备工作" class="headerlink" title="准备工作"></a>准备工作</h2><h3 id="服务化SDK"><a href="#服务化SDK" class="headerlink" title="服务化SDK"></a>服务化SDK</h3><p>我们提供了服务化SDK给业务团队使用；SDK自定义了xsd文件继承了dubbo的xml标签，在此基础上集成了apollo配置；这样业务团队在使用的过程中对一些系统配置不需要关注，比如注册中心，启用监控，启用链路跟踪等 .</p>
+<h3 id="代码改造"><a href="#代码改造" class="headerlink" title="代码改造"></a>代码改造</h3><ol>
+<li>分离Service的API接口到独立的Jar包</li>
+<li>检查接口的输入输出参数是否实现了Serializable接口</li>
+<li>是否使用了接口参数在方法内部修改后的值，代码如下:  <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*服务端*/</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">call</span><span class="params">(List&lt;String&gt; list)</span></span>&#123;</span><br><span class="line">        list.add(<span class="string">&quot;b&quot;</span>);</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*客户端*/</span> </span><br><span class="line">List&lt;String&gt; list = <span class="keyword">new</span> ArrayList();</span><br><span class="line">service.call(list);</span><br><span class="line">list.get(<span class="number">0</span>)</span><br></pre></td></tr></table></figure>
+
+ 这个代码在同一个JVM是没有问题，但RPC调用并不能返还预期的结果；</li>
+<li>本地事务改造为分布式事务</li>
+<li>确保所有的单元测试通过</li>
+</ol>
+<h3 id="日志输出增加链路跟踪信息"><a href="#日志输出增加链路跟踪信息" class="headerlink" title="日志输出增加链路跟踪信息"></a>日志输出增加链路跟踪信息</h3><p>每条输出日志包括了zipkin的span id,这样每条日志都能清楚的跟踪到从整个调用链；</p>
+<h3 id="监控系统"><a href="#监控系统" class="headerlink" title="监控系统"></a>监控系统</h3><p>dubbo-monitor对接现有的报警系统，将采集到监控数据上报到现有报警系统,做到实时报警 </p>
+<h3 id="发布系统"><a href="#发布系统" class="headerlink" title="发布系统"></a>发布系统</h3><p>dubbo的服务在正常停止的过程中不再接受新的请求,但是启动后在注册中心完成注册马上开始接受新的请求；我们希望启动后由发布系统控制什么时候开始接受新请求；</p>
+<h3 id="版本控制"><a href="#版本控制" class="headerlink" title="版本控制"></a>版本控制</h3><p>服务化后对所有的依赖必须基于强版本，所以对每一个发布的服务都提供了强版本策略，而且正常情况下保证每个新版本必须兼容旧版本；版本路线如图所示:<br><img src="Parepare-Service/version.jpg" alt="版本"></p>
+<h3 id="流程控制"><a href="#流程控制" class="headerlink" title="流程控制"></a>流程控制</h3><p>  改造现有的流程控制系统，做到每个团队可以独立开发，独立测试，独立部署，独立上线以及独立回滚; 而且保证CI, CD能正常工作,所有流程能自动完成; </p>
+<h3 id="服务拆分"><a href="#服务拆分" class="headerlink" title="服务拆分"></a>服务拆分</h3><p>首先拆分出基础服务,包括地址服务，推送服务，图片服务，等与业务无关的服务；其次按照业务领域进行拆分，包括订单，用户中心，支付等</p>
+<h2 id="后续"><a href="#后续" class="headerlink" title="后续"></a>后续</h2><ul>
+<li>服务安全</li>
+<li>物理分组 </li>
+<li>多维度监控</li>
+<li>等…</li>
+</ul>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://yinghuzhu.github.io/2018/06/18/Parepare-Service/" data-id="ckpifw65g0009rgxtffowbwlf" data-title="服务化准备工作" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag">微服务</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2018/07/06/Dubbo-Local-RPC-Switch/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">前一篇</strong>
+      <div class="article-nav-title">
+        
+          基于配置中心属性,Dubbo Consumer动态切换调用RPC/本地方法
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2018/05/22/distributed-transaction/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">分布式事务实现</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Dubbo/" rel="tag">Dubbo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/gRPC/" rel="tag">gRPC</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag">分布式</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1/" rel="tag">定时任务</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%B7%A5%E5%85%B7/" rel="tag">工具</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag">微服务</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%BA%BF%E4%B8%8A%E9%97%AE%E9%A2%98/" rel="tag">线上问题</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E8%81%8C%E5%9C%BA/" rel="tag">职场</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E9%93%BE%E8%B7%AF%E8%B7%9F%E8%B8%AA/" rel="tag">链路跟踪</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/Dubbo/" style="font-size: 13.33px;">Dubbo</a> <a href="/tags/gRPC/" style="font-size: 10px;">gRPC</a> <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" style="font-size: 13.33px;">分布式</a> <a href="/tags/%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1/" style="font-size: 10px;">定时任务</a> <a href="/tags/%E5%B7%A5%E5%85%B7/" style="font-size: 13.33px;">工具</a> <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" style="font-size: 20px;">微服务</a> <a href="/tags/%E7%BA%BF%E4%B8%8A%E9%97%AE%E9%A2%98/" style="font-size: 16.67px;">线上问题</a> <a href="/tags/%E8%81%8C%E5%9C%BA/" style="font-size: 16.67px;">职场</a> <a href="/tags/%E9%93%BE%E8%B7%AF%E8%B7%9F%E8%B8%AA/" style="font-size: 10px;">链路跟踪</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/05/">五月 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/04/">四月 2020</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/12/">十二月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/06/">六月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/05/">五月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/04/">四月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/03/">三月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/02/">二月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/01/">一月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/12/">十二月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/09/">九月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/07/">七月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/06/">六月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/05/">五月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/04/">四月 2018</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2020/05/30/History-Bug-And-Code-Review/">一个三年前的Bug导致上线失败</a>
+          </li>
+        
+          <li>
+            <a href="/2020/04/11/ShardingSphere-Springboot/">Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</a>
+          </li>
+        
+          <li>
+            <a href="/2019/12/27/Jaeger-Thread/">Open Tracing(Jaeger) 遭遇多线程</a>
+          </li>
+        
+          <li>
+            <a href="/2019/06/02/gRPC-Go-Java/">Java与Go之间gRPC调用失败问题排查</a>
+          </li>
+        
+          <li>
+            <a href="/2019/05/21/wx-mp-backup/">微信公众号文章备份与采集</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 yhzhu<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>
