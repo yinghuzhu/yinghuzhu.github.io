@@ -6,7 +6,7 @@
   <link href="https://www.yzhu.name/atom.xml" rel="self"/>
   
   <link href="https://www.yzhu.name/"/>
-  <updated>2022-01-19T07:06:58.601Z</updated>
+  <updated>2022-01-20T09:46:02.330Z</updated>
   <id>https://www.yzhu.name/</id>
   
   <author>
@@ -15,6 +15,21 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>reliable-message-delivery</title>
+    <link href="https://www.yzhu.name/2021/03/20/reliable-message-delivery/"/>
+    <id>https://www.yzhu.name/2021/03/20/reliable-message-delivery/</id>
+    <published>2021-03-20T09:43:57.000Z</published>
+    <updated>2022-01-20T09:46:02.330Z</updated>
+    
+    
+    
+    
+    
+    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
+    
+  </entry>
   
   <entry>
     <title>一个三年前的Bug导致上线失败</title>
