@@ -2,15 +2,6 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>https://www.yzhu.name/2021/03/20/reliable-message-delivery/</loc>
-    
-    <lastmod>2022-01-20</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
     <loc>https://www.yzhu.name/tools/asi-converter.html</loc>
     
     <lastmod>2022-01-19</lastmod>
@@ -74,15 +65,6 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2018/12/23/how-to-question/</loc>
-    
-    <lastmod>2022-01-19</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
     <loc>https://www.yzhu.name/2018/05/22/distributed-transaction/</loc>
     
     <lastmod>2022-01-19</lastmod>
@@ -93,6 +75,15 @@
   
   <url>
     <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
+    
+    <lastmod>2022-01-19</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/2018/12/23/how-to-question/</loc>
     
     <lastmod>2022-01-19</lastmod>
     
@@ -200,7 +191,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2019/12/27/Jaeger-Thread/</loc>
+    <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
     
     <lastmod>2022-01-19</lastmod>
     
@@ -209,7 +200,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
+    <loc>https://www.yzhu.name/2019/12/27/Jaeger-Thread/</loc>
     
     <lastmod>2022-01-19</lastmod>
     
