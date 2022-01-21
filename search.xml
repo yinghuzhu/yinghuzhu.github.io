@@ -22,7 +22,7 @@
 ]]></content>
       <tags>
         <tag>微服务</tag>
-        <tag>Dubbo</tag>
+        <tag>RPC</tag>
       </tags>
   </entry>
   <entry>
@@ -55,6 +55,34 @@
 <div class="pdfobject-container" data-target="/pdf/jvm.pdf" data-height="500px"></div>]]></content>
       <tags>
         <tag>JVM</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Open Tracing(Jaeger) 遭遇多线程</title>
+    <url>/2019/12/27/Jaeger-Thread/</url>
+    <content><![CDATA[<p>我们知道在Java技术体系中，链路跟踪严重依赖ThreadLocal；因此在多线程的场景下会导致链路跟踪失效.<span id="more"></span></p>
+<h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>前几天一位开发同学反馈了一个问题，在链路跟踪UI上看到某个链路Rpc的span数量比实际调用少了很多；我听完第一反映是我们最近升级的SDK出问题了? 根据该同学反馈该接口是一个新接口，上线后一直没关注过链路；我们随即在链路跟踪UI上将多个系统的常用接口都检查了一遍发现一切正常，基本排除了SDK可能引起的问题。接着开始检查开发同学的代码,顺着该请求发现代码里面用到了<strong>线程池</strong> ,该同学解释该接口内部需要多次调用多个Rpc接口，为了提升效率所以采用了多线程。</p>
+<h3 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h3><p>分析opentracing的源码发现tracing相关的的信息保存在<code>io.opentracing.util.ThreadLocalScopeManager</code>的ThreadLocal变量里:</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ThreadLocalScopeManager</span> <span class="keyword">implements</span> <span class="title">ScopeManager</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> ThreadLocal&lt;ThreadLocalScope&gt; tlsScope = <span class="keyword">new</span> ThreadLocal&lt;ThreadLocalScope&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Scope <span class="title">activate</span><span class="params">(Span span, <span class="keyword">boolean</span> finishOnClose)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> ThreadLocalScope(<span class="keyword">this</span>, span, finishOnClose);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Scope <span class="title">active</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> tlsScope.get();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这就可以解释为什么多线程中的Rpc请求没有将相关Tracing信息传递下去;</p>
+<h3 id="解决方法"><a href="#解决方法" class="headerlink" title="解决方法"></a>解决方法</h3><ol>
+<li><p>多线程中ThreadLocal变量的传递:<br>关于多线程中ThreadLocal变量的传递我们可以用阿里巴巴的<a href="https://github.com/alibaba/transmittable-thread-local">transmittable-thread-local</a> ,所以整个思路就是自己实现一遍<code>ThreadLocalScopeManager</code>用<code>TransmittableThreadLocal</code>替换<code>ThreadLocal</code>，以及跟它关联的类<code>ThreadLocalScope</code>(它里面申明了<code>ThreadLocalScopeManager</code>变量)； </p>
+</li>
+<li><p>修改Opentrcing里面默认的<code>ThreadLocalScopeManager</code>为用户自定义<code>ThreadLocalScopeManager</code><br>检查Jaeger的Springboot自动配置文件<code>io.opentracing.contrib.java.spring.jaeger.starter.JaegerAutoConfiguration</code>源码, 在构造Bean <code>io.opentracing.Tracer</code>时有用户自定义方法: <code>tracerCustomizers.forEach(c -&gt; c.customize(builder))</code></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">JaegerAutoConfiguration</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Autowired(required = false)</span></span><br><span class="line">  <span class="keyword">private</span> List&lt;TracerBuilderCustomizer&gt; tracerCustomizers = Collections.emptyList();</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Bean</span></span><br><span class="line">  <span class="keyword">public</span> io.opentracing.<span class="function">Tracer <span class="title">tracer</span><span class="params">(Sampler sampler,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      Reporter reporter,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      Metrics metrics,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      JaegerConfigurationProperties properties)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> JaegerTracer.Builder builder =</span><br><span class="line">        <span class="keyword">new</span> JaegerTracer.Builder(properties.getServiceName())</span><br><span class="line">            .withReporter(reporter)</span><br><span class="line">            .withSampler(sampler)</span><br><span class="line">            .withTags(properties.determineTags())</span><br><span class="line">            .withMetrics(metrics);</span><br><span class="line"></span><br><span class="line">    tracerCustomizers.forEach(c -&gt; c.customize(builder));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> builder.build();</span><br><span class="line">  &#125;</span><br><span class="line">  .....</span><br></pre></td></tr></table></figure>
+<p>于是，我们只需要自定义<code>TracerBuilderCustomizer</code>调用<code>builder.withScopeManager</code>方法即可</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TtlTracerBuilderCustomizer</span> <span class="keyword">implements</span> <span class="title">TracerBuilderCustomizer</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">customize</span><span class="params">(JaegerTracer.Builder builder)</span> </span>&#123;</span><br><span class="line">        builder.withScopeManager(<span class="keyword">new</span> TracingScopeManager());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在SpringBoot自动配置文件中构造Bean:</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> List&lt;TracerBuilderCustomizer&gt; <span class="title">tracerCustomizers</span><span class="params">()</span></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> Arrays.asList(<span class="keyword">new</span> TtlTracerBuilderCustomizer());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>至此，问题解决； 代码参考<a href="https://github.com/yinghuzhu/request-tracing">request-tracing</a></p>
+</li>
+</ol>
+<h3 id="关于多线程"><a href="#关于多线程" class="headerlink" title="关于多线程"></a>关于多线程</h3><p>我不建议在互联网高并发请求接口内部采用多线程；以Java技术体系为例，请求到达系统后一般会有容器(Tomcat之类)或者Rpc框架先接收，然而这些框架本来就是多线程在运行,如果系统本来已经到瓶颈了，即使增加线程也不会提升效率；如果系统需要增加线程，首先我们应该增加容器或者Rpc框架的线程数量；另外如果接口性能差，我们首先应该考虑是Sql的问题还是代码逻辑的问题；或者系统达到了瓶颈是否可以通过增加机器提升性能；如果接口逻辑本身太复杂，可能是我们的方案或者设计有问题，或许可以考虑按照离线请求的模式设计接口。</p>
+<h3 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h3><p>这个问题虽然没有对业务造成影响，但收集到链路肯定是有问题的；这也暴露出了我们开发过程中的一些问题，对非功能性验证做的不到位，这方面还需要加强。</p>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>链路跟踪</tag>
       </tags>
   </entry>
   <entry>
@@ -93,35 +121,6 @@
 ]]></content>
       <tags>
         <tag>微服务</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>一次OOM引发服务雪崩的思考</title>
-    <url>/2018/12/01/OOM-Casue-Snowslide/</url>
-    <content><![CDATA[<p>前几天核心基础服务(简称S,两节点)发生了一次线上故障，导致整个基础服务雪崩，最终，该基础服务故障导致整站多项功能失效；</p>
-<span id="more"></span>
-<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
-<li>4:15 开始S的多个上游服务开始出现大量超时,而且出现告警</li>
-<li>4:30 S的节点S1出现OOM停止服务 ,同时告警系统发出了告警信息</li>
-<li>4:50 S的节点S2由于操作系统内存不足被系统kill ,同时告警系统发出了告警信息<br> ….</li>
-<li>8:00 运营同学反馈问题,技术同学开始排查</li>
-<li>8:05 技术同学发现S故障,重启S服务，服务正常 </li>
-</ol>
-<h3 id="原因分析"><a href="#原因分析" class="headerlink" title="原因分析"></a>原因分析</h3><ol>
-<li>S的上游应用某定时任务在凌晨4:10请求了大量(一次超过200w)的数据将S1先拖死，导致流量全部到S2，S2逐渐不堪重负,导致被系统kill </li>
-<li>S对上游数据请求量没有限制，没有启用限流分组功能</li>
-<li>告警信息没有引起足够重视,告警被忽略</li>
-<li>告警信息仅仅报告给monitor，没有到系统的owner</li>
-</ol>
-<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
-<li>启用限流，分组功能</li>
-<li>必须严格执行code review</li>
-<li>告警信息必须分级，而且必须同时报告给monitor和系统owner;接警人接到报警后根据不同的级别进行处理</li>
-</ol>
-<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>在互联网领域我们为了追求n个9，会采取一系列的流程措施来保障系统的可用性;但，真正落实到位的有多少? 其实，线上故障不可怕，可怕的是没有相应的应对措施；更可怕的是有相应的应对措施，但没有落实到位; 比如: 在服务化推进的过程中架构团队已经提供了限流，分组等功能，而且也进行了宣讲；但，最终这些措施还是没有落实到位；也许这就是大厂和创业公司的区别，大厂里面的架构师大部分也是螺丝钉，只要自己有产出符合预期完成KPI就是一个合格的架构师；但是，创业公司的架构师要考虑更多的因素，从最初的技术方案到设计，实现，最终的落地执行都需要全程参与确保每一个功能真正落实到位</p>
-]]></content>
-      <tags>
-        <tag>线上问题</tag>
       </tags>
   </entry>
   <entry>
@@ -329,35 +328,7 @@
 ]]></content>
       <tags>
         <tag>微服务</tag>
-        <tag>Dubbo</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Open Tracing(Jaeger) 遭遇多线程</title>
-    <url>/2019/12/27/Jaeger-Thread/</url>
-    <content><![CDATA[<p>我们知道在Java技术体系中，链路跟踪严重依赖ThreadLocal；因此在多线程的场景下会导致链路跟踪失效.<span id="more"></span></p>
-<h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>前几天一位开发同学反馈了一个问题，在链路跟踪UI上看到某个链路Rpc的span数量比实际调用少了很多；我听完第一反映是我们最近升级的SDK出问题了? 根据该同学反馈该接口是一个新接口，上线后一直没关注过链路；我们随即在链路跟踪UI上将多个系统的常用接口都检查了一遍发现一切正常，基本排除了SDK可能引起的问题。接着开始检查开发同学的代码,顺着该请求发现代码里面用到了<strong>线程池</strong> ,该同学解释该接口内部需要多次调用多个Rpc接口，为了提升效率所以采用了多线程。</p>
-<h3 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h3><p>分析opentracing的源码发现tracing相关的的信息保存在<code>io.opentracing.util.ThreadLocalScopeManager</code>的ThreadLocal变量里:</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ThreadLocalScopeManager</span> <span class="keyword">implements</span> <span class="title">ScopeManager</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> ThreadLocal&lt;ThreadLocalScope&gt; tlsScope = <span class="keyword">new</span> ThreadLocal&lt;ThreadLocalScope&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Scope <span class="title">activate</span><span class="params">(Span span, <span class="keyword">boolean</span> finishOnClose)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> ThreadLocalScope(<span class="keyword">this</span>, span, finishOnClose);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Scope <span class="title">active</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> tlsScope.get();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>这就可以解释为什么多线程中的Rpc请求没有将相关Tracing信息传递下去;</p>
-<h3 id="解决方法"><a href="#解决方法" class="headerlink" title="解决方法"></a>解决方法</h3><ol>
-<li><p>多线程中ThreadLocal变量的传递:<br>关于多线程中ThreadLocal变量的传递我们可以用阿里巴巴的<a href="https://github.com/alibaba/transmittable-thread-local">transmittable-thread-local</a> ,所以整个思路就是自己实现一遍<code>ThreadLocalScopeManager</code>用<code>TransmittableThreadLocal</code>替换<code>ThreadLocal</code>，以及跟它关联的类<code>ThreadLocalScope</code>(它里面申明了<code>ThreadLocalScopeManager</code>变量)； </p>
-</li>
-<li><p>修改Opentrcing里面默认的<code>ThreadLocalScopeManager</code>为用户自定义<code>ThreadLocalScopeManager</code><br>检查Jaeger的Springboot自动配置文件<code>io.opentracing.contrib.java.spring.jaeger.starter.JaegerAutoConfiguration</code>源码, 在构造Bean <code>io.opentracing.Tracer</code>时有用户自定义方法: <code>tracerCustomizers.forEach(c -&gt; c.customize(builder))</code></p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">JaegerAutoConfiguration</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Autowired(required = false)</span></span><br><span class="line">  <span class="keyword">private</span> List&lt;TracerBuilderCustomizer&gt; tracerCustomizers = Collections.emptyList();</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Bean</span></span><br><span class="line">  <span class="keyword">public</span> io.opentracing.<span class="function">Tracer <span class="title">tracer</span><span class="params">(Sampler sampler,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      Reporter reporter,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      Metrics metrics,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      JaegerConfigurationProperties properties)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> JaegerTracer.Builder builder =</span><br><span class="line">        <span class="keyword">new</span> JaegerTracer.Builder(properties.getServiceName())</span><br><span class="line">            .withReporter(reporter)</span><br><span class="line">            .withSampler(sampler)</span><br><span class="line">            .withTags(properties.determineTags())</span><br><span class="line">            .withMetrics(metrics);</span><br><span class="line"></span><br><span class="line">    tracerCustomizers.forEach(c -&gt; c.customize(builder));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> builder.build();</span><br><span class="line">  &#125;</span><br><span class="line">  .....</span><br></pre></td></tr></table></figure>
-<p>于是，我们只需要自定义<code>TracerBuilderCustomizer</code>调用<code>builder.withScopeManager</code>方法即可</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TtlTracerBuilderCustomizer</span> <span class="keyword">implements</span> <span class="title">TracerBuilderCustomizer</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">customize</span><span class="params">(JaegerTracer.Builder builder)</span> </span>&#123;</span><br><span class="line">        builder.withScopeManager(<span class="keyword">new</span> TracingScopeManager());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>在SpringBoot自动配置文件中构造Bean:</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> List&lt;TracerBuilderCustomizer&gt; <span class="title">tracerCustomizers</span><span class="params">()</span></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> Arrays.asList(<span class="keyword">new</span> TtlTracerBuilderCustomizer());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>至此，问题解决； 代码参考<a href="https://github.com/yinghuzhu/request-tracing">request-tracing</a></p>
-</li>
-</ol>
-<h3 id="关于多线程"><a href="#关于多线程" class="headerlink" title="关于多线程"></a>关于多线程</h3><p>我不建议在互联网高并发请求接口内部采用多线程；以Java技术体系为例，请求到达系统后一般会有容器(Tomcat之类)或者Rpc框架先接收，然而这些框架本来就是多线程在运行,如果系统本来已经到瓶颈了，即使增加线程也不会提升效率；如果系统需要增加线程，首先我们应该增加容器或者Rpc框架的线程数量；另外如果接口性能差，我们首先应该考虑是Sql的问题还是代码逻辑的问题；或者系统达到了瓶颈是否可以通过增加机器提升性能；如果接口逻辑本身太复杂，可能是我们的方案或者设计有问题，或许可以考虑按照离线请求的模式设计接口。</p>
-<h3 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h3><p>这个问题虽然没有对业务造成影响，但收集到链路肯定是有问题的；这也暴露出了我们开发过程中的一些问题，对非功能性验证做的不到位，这方面还需要加强。</p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>链路跟踪</tag>
+        <tag>RPC</tag>
       </tags>
   </entry>
   <entry>
@@ -398,6 +369,35 @@
 ]]></content>
       <tags>
         <tag>微服务</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>一次OOM引发服务雪崩的思考</title>
+    <url>/2018/12/01/OOM-Casue-Snowslide/</url>
+    <content><![CDATA[<p>前几天核心基础服务(简称S,两节点)发生了一次线上故障，导致整个基础服务雪崩，最终，该基础服务故障导致整站多项功能失效；</p>
+<span id="more"></span>
+<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
+<li>4:15 开始S的多个上游服务开始出现大量超时,而且出现告警</li>
+<li>4:30 S的节点S1出现OOM停止服务 ,同时告警系统发出了告警信息</li>
+<li>4:50 S的节点S2由于操作系统内存不足被系统kill ,同时告警系统发出了告警信息<br> ….</li>
+<li>8:00 运营同学反馈问题,技术同学开始排查</li>
+<li>8:05 技术同学发现S故障,重启S服务，服务正常 </li>
+</ol>
+<h3 id="原因分析"><a href="#原因分析" class="headerlink" title="原因分析"></a>原因分析</h3><ol>
+<li>S的上游应用某定时任务在凌晨4:10请求了大量(一次超过200w)的数据将S1先拖死，导致流量全部到S2，S2逐渐不堪重负,导致被系统kill </li>
+<li>S对上游数据请求量没有限制，没有启用限流分组功能</li>
+<li>告警信息没有引起足够重视,告警被忽略</li>
+<li>告警信息仅仅报告给monitor，没有到系统的owner</li>
+</ol>
+<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
+<li>启用限流，分组功能</li>
+<li>必须严格执行code review</li>
+<li>告警信息必须分级，而且必须同时报告给monitor和系统owner;接警人接到报警后根据不同的级别进行处理</li>
+</ol>
+<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>在互联网领域我们为了追求n个9，会采取一系列的流程措施来保障系统的可用性;但，真正落实到位的有多少? 其实，线上故障不可怕，可怕的是没有相应的应对措施；更可怕的是有相应的应对措施，但没有落实到位; 比如: 在服务化推进的过程中架构团队已经提供了限流，分组等功能，而且也进行了宣讲；但，最终这些措施还是没有落实到位；也许这就是大厂和创业公司的区别，大厂里面的架构师大部分也是螺丝钉，只要自己有产出符合预期完成KPI就是一个合格的架构师；但是，创业公司的架构师要考虑更多的因素，从最初的技术方案到设计，实现，最终的落地执行都需要全程参与确保每一个功能真正落实到位</p>
+]]></content>
+      <tags>
+        <tag>线上问题</tag>
       </tags>
   </entry>
   <entry>
@@ -579,32 +579,62 @@
       </tags>
   </entry>
   <entry>
-    <title>Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</title>
-    <url>/2020/04/11/ShardingSphere-Springboot/</url>
-    <content><![CDATA[<p>Sharding-JDBC(ShardingSphere)作为分布式数据库中间件,在Java的JDBC层提供的额外服务。它使用客户端直连数据库，以jar包形式提供服务。引入<code>sharding-jdbc-spring-boot-starter</code>可以快速完成与springboot的集成; 但是默认情况下只能支持到一个数据库，如果支持多数据库，需要做部分扩展；本文记录支持多数据库所做的扩展。<span id="more"></span></p>
-<h3 id="引入依赖"><a href="#引入依赖" class="headerlink" title="引入依赖"></a>引入依赖</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">  &lt;groupId&gt;org.apache.shardingsphere&lt;/groupId&gt;</span><br><span class="line">  &lt;artifactId&gt;sharding-jdbc-spring-boot-starter&lt;/artifactId&gt;</span><br><span class="line">  &lt;version&gt;4.0.1&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
-
-<h3 id="扩展部分"><a href="#扩展部分" class="headerlink" title="扩展部分"></a>扩展部分</h3><ul>
-<li><p> 实现<code>EnvironmentAware</code>接口 ，在方法<code>setEnvironment</code>解析properties配置可以获取所有配置信息</p>
-</li>
-<li><p>获取以<code>spring.ydal</code>为前缀的所有数据库配置</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Map&lt;String, Object&gt; databases = PropertyUtil.handle(environment, &quot;spring.ydal&quot; , Map.class);</span><br></pre></td></tr></table></figure></li>
-<li><p>构造每个数据库的数据库的MasterSlave数据源</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> Map&lt;String, Object&gt; dataSourceProps = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;datasource&quot;, Map.class);</span><br><span class="line"> Preconditions.checkState(!dataSourceProps.isEmpty(), &quot;Wrong datasource properties!&quot;);</span><br><span class="line"></span><br><span class="line"> DataSource datasource = DataSourceUtil.getDataSource(dataSourceProps.get(&quot;type&quot;).toString(), dataSourceProps);</span><br><span class="line"> Optional&lt;DataSourcePropertiesSetter&gt; dataSourcePropertiesSetter = DataSourcePropertiesSetterHolder.getDataSourcePropertiesSetterByType(dataSourceProps.get(&quot;type&quot;).toString());</span><br><span class="line"> if (dataSourcePropertiesSetter.isPresent()) &#123;</span><br><span class="line">     dataSourcePropertiesSetter.get().propertiesSet(environment, prefix, dataSourceName, datasource);</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">masterSlaveRule = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;.masterslave&quot;, YamlMasterSlaveRuleConfiguration.class);</span><br><span class="line">MasterSlaveRuleConfiguration msConfig = new MasterSlaveRuleConfigurationYamlSwapper().swap(masterSlaveRule);</span><br><span class="line"></span><br><span class="line">Properties dsProps = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;.props&quot;, Properties.class);</span><br><span class="line">MasterSlaveDataSourceFactory.createDataSource(datasource, msConfig, dsProps)</span><br></pre></td></tr></table></figure></li>
-</ul>
-<h3 id="禁用ShardingSphere的Springboot的自动配置"><a href="#禁用ShardingSphere的Springboot的自动配置" class="headerlink" title="禁用ShardingSphere的Springboot的自动配置"></a>禁用ShardingSphere的Springboot的自动配置</h3><p>实现该扩展后以jar包的形式提供出去供多个项目使用，所以我们必须在jar里面禁用ShardingSphere的Springboot的自动配置；可以实现如下接口:</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">public class YdalAutoConfigurationImportFilter implements AutoConfigurationImportFilter &#123;</span><br><span class="line">    private static final Set&lt;String&gt; SHOULD_SKIP = new HashSet&lt;&gt;(</span><br><span class="line">            Arrays.asList(&quot;org.apache.shardingsphere.shardingjdbc.spring.boot.SpringBootConfiguration&quot;));</span><br><span class="line">    @Override</span><br><span class="line">    public boolean[] match(String[] autoConfigurationClasses, AutoConfigurationMetadata autoConfigurationMetadata) &#123;</span><br><span class="line">        boolean[] matches = new boolean[autoConfigurationClasses.length];</span><br><span class="line"></span><br><span class="line">        for(int i = 0; i&lt; autoConfigurationClasses.length; i++) &#123;</span><br><span class="line">            matches[i] = !SHOULD_SKIP.contains(autoConfigurationClasses[i]);</span><br><span class="line">        &#125;</span><br><span class="line">        return matches;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<ul>
-<li>将<code>YdalAutoConfigurationImportFilter</code>加入<code>META-INF/spring.factories</code></li>
-</ul>
-<h5 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h5><ul>
-<li>详细代码： <a href="https://github.com/yinghuzhu/ydal-spring-boot-starter">https://github.com/yinghuzhu/ydal-spring-boot-starter</a></li>
-</ul>
+    <title>Java与Go之间gRPC调用失败问题排查</title>
+    <url>/2019/06/02/gRPC-Go-Java/</url>
+    <content><![CDATA[<p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
+<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
+<ol>
+<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
+<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
+<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
+<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
+<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
+</ol>
+<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
+<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
+<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
+<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
+</ol>
+<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
+<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
+<ol>
+<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
+<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
+<li>最终还是要升级到新版本</li>
+</ol>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
+<ol>
+<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
+<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
+</ol>
+<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
+<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a href="https://grpc.io/">https://grpc.io/</a><br><a href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
 ]]></content>
       <tags>
         <tag>微服务</tag>
-        <tag>分布式</tag>
+        <tag>RPC</tag>
       </tags>
+  </entry>
+  <entry>
+    <title>如何提一个问题</title>
+    <url>/2018/12/23/how-to-question/</url>
+    <content><![CDATA[<p>在我们日常生活以及工作中经常会遇到提问题, 我们有没有想过如何提一个好问题？也许有人会说，「提问谁不回？会讲话的小孩子就会问为什么，这有什么值得说的？」没错，从这个角度上说机会每个人都会提问。但是，我们有没有想过，我们问问题的目的是什么？是得到对问题的解答。大家有没有遇到过这样的情况，自己问题发给对方后始终得不到回复，或者对方敷衍了事，更有甚者被对方怼回去。如果遇到这些情况，我们应该好好反思一下，我们是不是提了一个好问题；在说好问题之前结合个人的经历谈谈什么样的问题不是一个好问题。<span id="more"></span></p>
+<ol>
+<li>提问者在im上发一个截图，截图里面是一个异常栈，没有任何上下文，然后就没有然后了；解答者在那里等对方进一步的信息，结果什么也等到；过了很久(估计等很久没回复)，亲自过来说「帮我看看我的问题」；这个时候才开始沟通，问题是怎么出现的，什么环境，上下文，等… </li>
+<li>有些问题在技术文档，产品文档上都已经说的很清楚；但提问者不看文档，直接把问题抛过来；也许是提问者自己没有按照文档要求操作，或者真的是一个问题但文档FAQ部分已经解释的很清楚 ；</li>
+<li>提问者直接将问题抛出来，不做任何思考和尝试，只在那里等答案；不知道提问者有没有想过，解答者也要花费大量的时间去调研；</li>
+<li>提问者提问道时候，发的关键信息是一张截图，截图中可能有id之类的标示，此时解答者可能需要根据id搜索，只能手工输入，这样既浪费时间也容易出错；</li>
+</ol>
+<p>对于以上的案例，个人觉得提问者需要加强独立思考的能力，不然会给对方留下「伸手党」的感觉；个人觉得可以按照如下的方式考虑提问:</p>
+<ol>
+<li>对于技术问题或者产品问题，一般作者会提供相应的文档；首先我们应该阅读相关文档，特别注意FAQ部分；</li>
+<li>善于使用搜索引擎，具备基本的搜商(SQ) ,推荐用google(对技术工作者，这个不需要解释), 百度请忽略所有「广告」字样的文章，微信，知乎等工具;</li>
+<li>在以上两步都没有找到答案情况下，可以参考第二步搜索过程中出现的文章以及官方提供的文档尝试；比如是否可以升级软件版本，是否可以调整某些参数；相信在尝试过程中会加深自己对问题的理解以及提升自己解决问题的能力</li>
+<li>经过以上步骤能解决95%的问题了；如果还没有解决，这时候再提问，相信这个时候提出的问题质量是非常高的；比如: 该问题是如何出现的，什么环境，硬件型号是什么，软件版本是什么，我的操作步骤是什么，我做了哪些调研，尝试了哪些方式，得到结果是什么,等.. </li>
+</ol>
+<p>那么提一个好问题有那么重要吗？我认为提一个好问题比解答一个问题更能体现一个人的真实水平，因为这证明提问者有独立思考的能力；比如在职场中一个常见的场景是这样的，面试最后部分面试官会问面试者有什么问题吗？这个时候如果提一个高质量的问题，相信会加深面试官的印象,在同等条件的候选者中相信胜出的概率会更高;</p>
+<p>最后关于什么是好问题，这里引用某大佬的一句话 「什么是好问题，你对某个领域有一定研究，你已经翻阅和查询了足够的资料，然后你基于你的理解，对这些资料中，某几个无法理解的细节提出来，希望专业人士给与解惑，而这个细节问题确实具有足够代表性，是理解一些关键问题的钥匙，这就是好问题。」</p>
+]]></content>
   </entry>
   <entry>
     <title>技术给业务赋能</title>
@@ -631,8 +661,33 @@
 <h3 id="与产品人员沟通"><a href="#与产品人员沟通" class="headerlink" title="与产品人员沟通"></a>与产品人员沟通</h3><p>我们经常看到一些关于产品人员和技术人员相爱相杀的段子，我认为现实中这样的例子并不多「也许我经历少」。技术人员拿到PRD后要仔细分析PRD背后的逻辑和诉求，有些看似简单需求背后可能需要复杂的技术支撑，不是每一个产品人员都有技术背景，此时需要技术人员跟产品人员充分沟通该需求的实现成本「理论上来说所有的需求都是可以实现的」，帮助产品人员梳理出重点和优先级，适当的时候可以减少需求或者改变产品逻辑。切忌一句“这是一个伪需求”或“这个需求实现不了” ；如果认为是伪需求请给出具体的数据，一切以数据为依据 ，即使实现不了也应该告知当前的困难，是资源问题，还是时间的问题等。如果多次沟通都没效果建议换个产品人员伺候，如果你没有选择的余地或者你认为公司都是这种产品人员，建议还是换工作吧。</p>
 <h3 id="一些思考"><a href="#一些思考" class="headerlink" title="一些思考"></a>一些思考</h3><p>技术的世界比较简单，确定的输入一定可以得到确定的输出，然而，我们的世界并不总是这样，有很多东西是没有绝对的对错之分。技术人员可以经常与非技术人员聊聊，听听他们看问题的角度，听听他们的诉求；也许这样可以让技术更好的帮助业务成长。</p>
 ]]></content>
+  </entry>
+  <entry>
+    <title>Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</title>
+    <url>/2020/04/11/ShardingSphere-Springboot/</url>
+    <content><![CDATA[<p>Sharding-JDBC(ShardingSphere)作为分布式数据库中间件,在Java的JDBC层提供的额外服务。它使用客户端直连数据库，以jar包形式提供服务。引入<code>sharding-jdbc-spring-boot-starter</code>可以快速完成与springboot的集成; 但是默认情况下只能支持到一个数据库，如果支持多数据库，需要做部分扩展；本文记录支持多数据库所做的扩展。<span id="more"></span></p>
+<h3 id="引入依赖"><a href="#引入依赖" class="headerlink" title="引入依赖"></a>引入依赖</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">  &lt;groupId&gt;org.apache.shardingsphere&lt;/groupId&gt;</span><br><span class="line">  &lt;artifactId&gt;sharding-jdbc-spring-boot-starter&lt;/artifactId&gt;</span><br><span class="line">  &lt;version&gt;4.0.1&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+
+<h3 id="扩展部分"><a href="#扩展部分" class="headerlink" title="扩展部分"></a>扩展部分</h3><ul>
+<li><p> 实现<code>EnvironmentAware</code>接口 ，在方法<code>setEnvironment</code>解析properties配置可以获取所有配置信息</p>
+</li>
+<li><p>获取以<code>spring.ydal</code>为前缀的所有数据库配置</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Map&lt;String, Object&gt; databases = PropertyUtil.handle(environment, &quot;spring.ydal&quot; , Map.class);</span><br></pre></td></tr></table></figure></li>
+<li><p>构造每个数据库的数据库的MasterSlave数据源</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> Map&lt;String, Object&gt; dataSourceProps = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;datasource&quot;, Map.class);</span><br><span class="line"> Preconditions.checkState(!dataSourceProps.isEmpty(), &quot;Wrong datasource properties!&quot;);</span><br><span class="line"></span><br><span class="line"> DataSource datasource = DataSourceUtil.getDataSource(dataSourceProps.get(&quot;type&quot;).toString(), dataSourceProps);</span><br><span class="line"> Optional&lt;DataSourcePropertiesSetter&gt; dataSourcePropertiesSetter = DataSourcePropertiesSetterHolder.getDataSourcePropertiesSetterByType(dataSourceProps.get(&quot;type&quot;).toString());</span><br><span class="line"> if (dataSourcePropertiesSetter.isPresent()) &#123;</span><br><span class="line">     dataSourcePropertiesSetter.get().propertiesSet(environment, prefix, dataSourceName, datasource);</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">masterSlaveRule = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;.masterslave&quot;, YamlMasterSlaveRuleConfiguration.class);</span><br><span class="line">MasterSlaveRuleConfiguration msConfig = new MasterSlaveRuleConfigurationYamlSwapper().swap(masterSlaveRule);</span><br><span class="line"></span><br><span class="line">Properties dsProps = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;.props&quot;, Properties.class);</span><br><span class="line">MasterSlaveDataSourceFactory.createDataSource(datasource, msConfig, dsProps)</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="禁用ShardingSphere的Springboot的自动配置"><a href="#禁用ShardingSphere的Springboot的自动配置" class="headerlink" title="禁用ShardingSphere的Springboot的自动配置"></a>禁用ShardingSphere的Springboot的自动配置</h3><p>实现该扩展后以jar包的形式提供出去供多个项目使用，所以我们必须在jar里面禁用ShardingSphere的Springboot的自动配置；可以实现如下接口:</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">public class YdalAutoConfigurationImportFilter implements AutoConfigurationImportFilter &#123;</span><br><span class="line">    private static final Set&lt;String&gt; SHOULD_SKIP = new HashSet&lt;&gt;(</span><br><span class="line">            Arrays.asList(&quot;org.apache.shardingsphere.shardingjdbc.spring.boot.SpringBootConfiguration&quot;));</span><br><span class="line">    @Override</span><br><span class="line">    public boolean[] match(String[] autoConfigurationClasses, AutoConfigurationMetadata autoConfigurationMetadata) &#123;</span><br><span class="line">        boolean[] matches = new boolean[autoConfigurationClasses.length];</span><br><span class="line"></span><br><span class="line">        for(int i = 0; i&lt; autoConfigurationClasses.length; i++) &#123;</span><br><span class="line">            matches[i] = !SHOULD_SKIP.contains(autoConfigurationClasses[i]);</span><br><span class="line">        &#125;</span><br><span class="line">        return matches;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>将<code>YdalAutoConfigurationImportFilter</code>加入<code>META-INF/spring.factories</code></li>
+</ul>
+<h5 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h5><ul>
+<li>详细代码： <a href="https://github.com/yinghuzhu/ydal-spring-boot-starter">https://github.com/yinghuzhu/ydal-spring-boot-starter</a></li>
+</ul>
+]]></content>
       <tags>
-        <tag>职场</tag>
+        <tag>微服务</tag>
+        <tag>分布式</tag>
       </tags>
   </entry>
   <entry>
@@ -717,67 +772,6 @@
       </tags>
   </entry>
   <entry>
-    <title>Java与Go之间gRPC调用失败问题排查</title>
-    <url>/2019/06/02/gRPC-Go-Java/</url>
-    <content><![CDATA[<p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
-<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
-<ol>
-<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
-<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
-<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
-<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
-<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
-</ol>
-<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
-<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
-<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
-<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
-</ol>
-<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
-<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
-<ol>
-<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
-<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
-<li>最终还是要升级到新版本</li>
-</ol>
-<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
-<ol>
-<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
-<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
-</ol>
-<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
-<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a href="https://grpc.io/">https://grpc.io/</a><br><a href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>gRPC</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>如何提一个问题</title>
-    <url>/2018/12/23/how-to-question/</url>
-    <content><![CDATA[<p>在我们日常生活以及工作中经常会遇到提问题, 我们有没有想过如何提一个好问题？也许有人会说，「提问谁不回？会讲话的小孩子就会问为什么，这有什么值得说的？」没错，从这个角度上说机会每个人都会提问。但是，我们有没有想过，我们问问题的目的是什么？是得到对问题的解答。大家有没有遇到过这样的情况，自己问题发给对方后始终得不到回复，或者对方敷衍了事，更有甚者被对方怼回去。如果遇到这些情况，我们应该好好反思一下，我们是不是提了一个好问题；在说好问题之前结合个人的经历谈谈什么样的问题不是一个好问题。<span id="more"></span></p>
-<ol>
-<li>提问者在im上发一个截图，截图里面是一个异常栈，没有任何上下文，然后就没有然后了；解答者在那里等对方进一步的信息，结果什么也等到；过了很久(估计等很久没回复)，亲自过来说「帮我看看我的问题」；这个时候才开始沟通，问题是怎么出现的，什么环境，上下文，等… </li>
-<li>有些问题在技术文档，产品文档上都已经说的很清楚；但提问者不看文档，直接把问题抛过来；也许是提问者自己没有按照文档要求操作，或者真的是一个问题但文档FAQ部分已经解释的很清楚 ；</li>
-<li>提问者直接将问题抛出来，不做任何思考和尝试，只在那里等答案；不知道提问者有没有想过，解答者也要花费大量的时间去调研；</li>
-<li>提问者提问道时候，发的关键信息是一张截图，截图中可能有id之类的标示，此时解答者可能需要根据id搜索，只能手工输入，这样既浪费时间也容易出错；</li>
-</ol>
-<p>对于以上的案例，个人觉得提问者需要加强独立思考的能力，不然会给对方留下「伸手党」的感觉；个人觉得可以按照如下的方式考虑提问:</p>
-<ol>
-<li>对于技术问题或者产品问题，一般作者会提供相应的文档；首先我们应该阅读相关文档，特别注意FAQ部分；</li>
-<li>善于使用搜索引擎，具备基本的搜商(SQ) ,推荐用google(对技术工作者，这个不需要解释), 百度请忽略所有「广告」字样的文章，微信，知乎等工具;</li>
-<li>在以上两步都没有找到答案情况下，可以参考第二步搜索过程中出现的文章以及官方提供的文档尝试；比如是否可以升级软件版本，是否可以调整某些参数；相信在尝试过程中会加深自己对问题的理解以及提升自己解决问题的能力</li>
-<li>经过以上步骤能解决95%的问题了；如果还没有解决，这时候再提问，相信这个时候提出的问题质量是非常高的；比如: 该问题是如何出现的，什么环境，硬件型号是什么，软件版本是什么，我的操作步骤是什么，我做了哪些调研，尝试了哪些方式，得到结果是什么,等.. </li>
-</ol>
-<p>那么提一个好问题有那么重要吗？我认为提一个好问题比解答一个问题更能体现一个人的真实水平，因为这证明提问者有独立思考的能力；比如在职场中一个常见的场景是这样的，面试最后部分面试官会问面试者有什么问题吗？这个时候如果提一个高质量的问题，相信会加深面试官的印象,在同等条件的候选者中相信胜出的概率会更高;</p>
-<p>最后关于什么是好问题，这里引用某大佬的一句话 「什么是好问题，你对某个领域有一定研究，你已经翻阅和查询了足够的资料，然后你基于你的理解，对这些资料中，某几个无法理解的细节提出来，希望专业人士给与解惑，而这个细节问题确实具有足够代表性，是理解一些关键问题的钥匙，这就是好问题。」</p>
-]]></content>
-      <tags>
-        <tag>职场</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>海恩法则与生产Bug</title>
     <url>/2019/03/01/product-bug/</url>
     <content><![CDATA[<p><img src="/2019/03/01/product-bug/heinrich-law.jpeg"><br>「海恩法则」是航空涡轮发动机的发明者帕布斯·海恩提出一个在航空界关于飞行安全的法则。海恩指出：每一起严重事故的背后，必然有29次轻微事故和300起未遂先兆以及1000起事故隐患。法则强调两点：一是事故的发生是量的积累的结果；二是再好的技术，再完美的规章，在实际操作层面，也无法取代人自身的素质和责任心。「海恩法则」虽然针对的是飞行领域，在软件开发领域遭遇生产bug<span id="more"></span>，用「海恩法则」也可以解释。</p>
@@ -788,7 +782,6 @@
 ]]></content>
       <tags>
         <tag>线上问题</tag>
-        <tag>职场</tag>
       </tags>
   </entry>
   <entry>
