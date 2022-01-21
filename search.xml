@@ -811,7 +811,8 @@
 <li>确保exchange和queue的持久化<h4 id="生产端可靠性"><a href="#生产端可靠性" class="headerlink" title="生产端可靠性"></a>生产端可靠性</h4></li>
 <li>发送消息时候设置消息持久化属性<strong>DeliverModel</strong> </li>
 <li>消息持久化到数据库状态为发送中</li>
-<li>开启confirm模式，生产者发送完消息后等待broker的ack，超过一定时间没有收到broker的ack后启动job重试，直到收到broker的ack，数据库消息状态更新为已发送<h4 id="消费端的可靠性"><a href="#消费端的可靠性" class="headerlink" title="消费端的可靠性"></a>消费端的可靠性</h4></li>
+<li>消息到达exchange开启confirm模式，生产者发送完消息后等待broker的ack，超过一定时间没有收到broker的ack后启动job重试，直到收到broker的ack，数据库消息状态更新为已发送</li>
+<li>消息未到达队列开启回退机制，如果消息从exchange无法投递到队列，回调通知调用者，调用者可以重试<h4 id="消费端的可靠性"><a href="#消费端的可靠性" class="headerlink" title="消费端的可靠性"></a>消费端的可靠性</h4></li>
 <li>消费端确保消息处理逻辑的幂等性</li>
 <li>关闭自动ack</li>
 <li>消费端每处理完一次消息后手动回复ack; 如果处理消息程失败回复nack, 默认情况下broker会继续下发消息直到消费成功；注意：消息处理失败必须回复nack，否则broker认为该consumer节点down，不再下发消息到该节点</li>
@@ -895,6 +896,17 @@
       </tags>
   </entry>
   <entry>
+    <title>微信公众号文章备份与采集</title>
+    <url>/2019/05/21/wx-mp-backup/</url>
+    <content><![CDATA[<p>最近发现某公众号文章由于不可描述的原因被删除了，个人认为该公众号是可以经得起时间考验的。遂产生备份该公众号的想法，Google一番后写了几行代码立马开跑，很快文章就下载下来了；然后将下载下来的文章转为PDF同步到Kindle，效果还不错。<span id="more"></span></p>
+<p>目前已经备份了个人经常阅读的几个公众号，为避免广告嫌疑，这里就不列相关名称了，如果你有这方面的需要可以联系我 。</p>
+<p>最后，声明一点，所有公众号文章版权归属该公众号作者，采集到的文章请勿用作商业用途。</p>
+]]></content>
+      <tags>
+        <tag>工具</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>服务器自动配置shadowsocks</title>
     <url>/2019/01/20/shadowsocks-auto-config/</url>
     <content><![CDATA[<p>最近几个朋友买了vps后让我帮忙配置shadowsocks ;于是我写了一个小工具在CentOS上完成shadowsocks的自动配置 .<span id="more"></span></p>
@@ -927,17 +939,6 @@
 </li>
 </ol>
 <p>至此整个配置结束。</p>
-]]></content>
-      <tags>
-        <tag>工具</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>微信公众号文章备份与采集</title>
-    <url>/2019/05/21/wx-mp-backup/</url>
-    <content><![CDATA[<p>最近发现某公众号文章由于不可描述的原因被删除了，个人认为该公众号是可以经得起时间考验的。遂产生备份该公众号的想法，Google一番后写了几行代码立马开跑，很快文章就下载下来了；然后将下载下来的文章转为PDF同步到Kindle，效果还不错。<span id="more"></span></p>
-<p>目前已经备份了个人经常阅读的几个公众号，为避免广告嫌疑，这里就不列相关名称了，如果你有这方面的需要可以联系我 。</p>
-<p>最后，声明一点，所有公众号文章版权归属该公众号作者，采集到的文章请勿用作商业用途。</p>
 ]]></content>
       <tags>
         <tag>工具</tag>
