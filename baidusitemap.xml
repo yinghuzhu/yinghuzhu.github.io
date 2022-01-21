@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://www.yzhu.name/2021/04/13/reliable-message-delivery/</loc>
+    <lastmod>2022-01-21</lastmod>
+  </url>
+  <url>
     <loc>https://www.yzhu.name/2019/05/21/wx-mp-backup/</loc>
     <lastmod>2022-01-19</lastmod>
   </url>
@@ -69,11 +73,11 @@
     <lastmod>2022-01-19</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
+    <loc>https://www.yzhu.name/2019/12/27/Jaeger-Thread/</loc>
     <lastmod>2022-01-19</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2019/12/27/Jaeger-Thread/</loc>
+    <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
     <lastmod>2022-01-19</lastmod>
   </url>
 </urlset> 

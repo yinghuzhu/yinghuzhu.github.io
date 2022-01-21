@@ -22,19 +22,21 @@
     var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="ASI Converter   ASI Converter      编号:            详情：     function myFunction() {      map_data &#x3D; &#39;&#x2F;asi-data&#x2F;map_name.map&#39;     no &#x3D; document.getElementById(&quot;no&quot;).value     if (no &#x3D;&#x3D; &quot;&quot;){">
-<meta property="og:type" content="website">
-<meta property="og:title" content="一凡之客">
-<meta property="og:url" content="https://www.yzhu.name/tools/asi-converter.html">
+  <meta name="description" content="在大型互联网项目中我们经常会用到消息队列(简称MQ)；主要用在异步消息，应用解耦，流量削锋等场景；在实际应用中经常需要保证消息的可靠投递">
+<meta property="og:type" content="article">
+<meta property="og:title" content="消息的可靠投递">
+<meta property="og:url" content="https://www.yzhu.name/2021/04/13/reliable-message-delivery/index.html">
 <meta property="og:site_name" content="一凡之客">
-<meta property="og:description" content="ASI Converter   ASI Converter      编号:            详情：     function myFunction() {      map_data &#x3D; &#39;&#x2F;asi-data&#x2F;map_name.map&#39;     no &#x3D; document.getElementById(&quot;no&quot;).value     if (no &#x3D;&#x3D; &quot;&quot;){">
+<meta property="og:description" content="在大型互联网项目中我们经常会用到消息队列(简称MQ)；主要用在异步消息，应用解耦，流量削锋等场景；在实际应用中经常需要保证消息的可靠投递">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2022-01-19T10:33:34.177Z">
-<meta property="article:modified_time" content="2022-01-19T10:33:34.177Z">
+<meta property="article:published_time" content="2021-04-13T09:43:57.000Z">
+<meta property="article:modified_time" content="2022-01-21T04:35:13.733Z">
 <meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="微服务">
+<meta property="article:tag" content="分布式">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="https://www.yzhu.name/tools/asi-converter">
+<link rel="canonical" href="https://www.yzhu.name/2021/04/13/reliable-message-delivery/">
 
 
 <script id="page-configurations">
@@ -42,13 +44,12 @@
   CONFIG.page = {
     sidebar: "",
     isHome : false,
-    isPost : false,
+    isPost : true,
     lang   : 'zh-CN'
   };
 </script>
 
-  <title> | 一凡之客
-</title>
+  <title>消息的可靠投递 | 一凡之客</title>
   
 
 
@@ -151,95 +152,104 @@
       <div class="main-inner">
         <div class="content-wrap">
           
-  
-  
 
-          <div class="content page posts-expand">
+          <div class="content post posts-expand">
             
 
     
-    
-    
-    <div class="post-block" lang="zh-CN">
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2021/04/13/reliable-message-delivery/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="一凡之客">
+    </span>
       <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          消息的可靠投递
+        </h1>
 
-<h1 class="post-title" itemprop="name headline">
-</h1>
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
 
-<div class="post-meta">
+              <time title="创建时间：2021-04-13 17:43:57" itemprop="dateCreated datePublished" datetime="2021-04-13T17:43:57+08:00">2021-04-13</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在大型互联网项目中我们经常会用到消息队列(简称MQ)；主要用在异步消息，应用解耦，流量削锋等场景；在实际应用中经常需要保证消息的可靠投递<span id="more"></span>,即：不能丢消息。</p>
+<h3 id="MQ消费术语"><a href="#MQ消费术语" class="headerlink" title="MQ消费术语"></a>MQ消费术语</h3><pre><code>为了保证保证消息的可靠投递，先了解一下MQ的消费术语
+</code></pre>
+<ul>
+<li><p>At Lest Once(至少一次)<br> 消息在消费的过程中，至少被发送到一个consumer; 如果consumer处理失败，会再次发送到consumer； 所以消息可能会重复被消费，通常会要求consumer保证幂等性</p>
+</li>
+<li><p>At Most Once(至多一次)<br> 消息在消费的过程中，至多被一个consumer消费; 如果consumer处理失败，消息可能会丢失；只能用于可接受消息丢失的场景  </p>
+</li>
+<li><p>Exactly Once(仅有一次)<br>发送到消息系统的消息只能被消费端处理且仅处理一次，即使生产端重试消息发送导致某消息重复投递，该消息在消费端也只被消费一次。常用MQ产品没有太多理想的实现 。</p>
+</li>
+</ul>
+<h3 id="消息的可靠投递"><a href="#消息的可靠投递" class="headerlink" title="消息的可靠投递"></a>消息的可靠投递</h3><p>我们以<a target="_blank" rel="noopener" href="https://www.rabbitmq.com/">RabbitMQ</a>为例从以下几个方面保证说明如何实现消息的可靠投递</p>
+<h4 id="消息中间件可靠性"><a href="#消息中间件可靠性" class="headerlink" title="消息中间件可靠性"></a>消息中间件可靠性</h4><ul>
+<li>使用RabbitMQ的集群模式，basic模式和镜像模式都可以保证消息不丢失；根据业务特点在吞吐量和高可用之间权衡选择合适的集群模式</li>
+<li>确保exchange和queue的持久化<h4 id="生产端可靠性"><a href="#生产端可靠性" class="headerlink" title="生产端可靠性"></a>生产端可靠性</h4></li>
+<li>发送消息时候设置消息持久化属性<strong>DeliverModel</strong> </li>
+<li>消息持久化到数据库状态为发送中</li>
+<li>开启confirm模式，生产者发送完消息后等待broker的ack，超过一定时间没有收到broker的ack后启动job重试，直到收到broker的ack，数据库消息状态更新为已发送<h4 id="消费端的可靠性"><a href="#消费端的可靠性" class="headerlink" title="消费端的可靠性"></a>消费端的可靠性</h4></li>
+<li>消费端确保消息处理逻辑的幂等性</li>
+<li>关闭自动ack</li>
+<li>消费端每处理完一次消息后手动回复ack; 如果处理消息程失败回复nack, 默认情况下broker会继续下发消息直到消费成功；注意：消息处理失败必须回复nack，否则broker认为该consumer节点down，不再下发消息到该节点</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag"># 微服务</a>
+              <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag"># 分布式</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/05/30/History-Bug-And-Code-Review/" rel="prev" title="一个三年前的Bug导致上线失败">
+      <i class="fa fa-chevron-left"></i> 一个三年前的Bug导致上线失败
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
   
 
-</div>
-
-</header>
-
-      
-      
-      
-      <div class="post-body">
-          <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>ASI Converter</title>
-</head>
-<body>
-<h1 align="center">ASI Converter</h1>
-<div align="center">
-    <label>编号: </label><input id="no" type="text"> <input type="button" onclick="myFunction()" value="确定">
-    <p>
-    <label>详情：</label> <a id="url" href target="_blank"></a>
-</p></div>
-<script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.0/jquery.js"></script>
-<script>
-function myFunction() {
-<!--    map_data = ['/asi-data/cp-03_name.map']-->
-    map_data = '/asi-data/map_name.map'
-    no = document.getElementById("no").value
-    if (no == ""){
-      alert('编号为空')
-      return
-    }
-
-<!--    for (let i = 0; i < data.length; i++) {-->
-<!--        $.getJSON(map_data[i], function(data) {-->
-<!--         alert(data);-->
-<!--        });-->
-<!--    }-->
-    
-    var name 
-    $.getJSON(map_data, function(data) {
-        for (let i = 0; i < data.length; i++){
-            var o = data[i]
-            if(no == o.no) {
-                name = o.name;
-                break
-            }
-         }
-         if (name == undefined){
-            alert('没有发现原始数据连接')
-            document.getElementById("url").text = ''
-            document.getElementById("url").href = ''
-            return
-         }
-         url = 'https://detail.1688.com/offer/'+name+'.html'
-         document.getElementById("url").text = url
-         document.getElementById("url").href = url
-        });
-}
-</script>
-</body>
-</html>
-      </div>
-      
-      
-      
-    </div>
-    
-
-    
-    
-    
 
 
           </div>
@@ -290,7 +300,7 @@ function myFunction() {
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link"><span class="nav-number">1.</span> <span class="nav-text">ASI Converter</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#MQ%E6%B6%88%E8%B4%B9%E6%9C%AF%E8%AF%AD"><span class="nav-number">1.</span> <span class="nav-text">MQ消费术语</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B6%88%E6%81%AF%E7%9A%84%E5%8F%AF%E9%9D%A0%E6%8A%95%E9%80%92"><span class="nav-number">2.</span> <span class="nav-text">消息的可靠投递</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%B6%88%E6%81%AF%E4%B8%AD%E9%97%B4%E4%BB%B6%E5%8F%AF%E9%9D%A0%E6%80%A7"><span class="nav-number">2.1.</span> <span class="nav-text">消息中间件可靠性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%94%9F%E4%BA%A7%E7%AB%AF%E5%8F%AF%E9%9D%A0%E6%80%A7"><span class="nav-number">2.2.</span> <span class="nav-text">生产端可靠性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%B6%88%E8%B4%B9%E7%AB%AF%E7%9A%84%E5%8F%AF%E9%9D%A0%E6%80%A7"><span class="nav-number">2.3.</span> <span class="nav-text">消费端的可靠性</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
