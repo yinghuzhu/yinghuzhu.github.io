@@ -6,7 +6,7 @@
   <link href="https://www.yzhu.name/atom.xml" rel="self"/>
   
   <link href="https://www.yzhu.name/"/>
-  <updated>2022-01-21T05:47:48.822Z</updated>
+  <updated>2022-01-21T07:06:03.079Z</updated>
   <id>https://www.yzhu.name/</id>
   
   <author>
@@ -21,9 +21,9 @@
     <link href="https://www.yzhu.name/2021/04/13/reliable-message-delivery/"/>
     <id>https://www.yzhu.name/2021/04/13/reliable-message-delivery/</id>
     <published>2021-04-13T09:43:57.000Z</published>
-    <updated>2022-01-21T05:47:48.822Z</updated>
+    <updated>2022-01-21T07:06:03.079Z</updated>
     
-    <content type="html"><![CDATA[<p>在大型互联网项目中我们经常会用到消息队列(简称MQ)；主要用在异步消息，应用解耦，流量削锋等场景；在实际应用中经常需要保证消息的可靠投递<span id="more"></span>,即：不能丢消息。</p><h3 id="MQ消费术语"><a href="#MQ消费术语" class="headerlink" title="MQ消费术语"></a>MQ消费术语</h3><pre><code>为了保证保证消息的可靠投递，先了解一下MQ的消费术语</code></pre><ul><li><p>At Lest Once(至少一次)<br> 消息在消费的过程中，至少被发送到一个consumer; 如果consumer处理失败，会再次发送到consumer； 所以消息可能会重复被消费，通常会要求consumer保证幂等性</p></li><li><p>At Most Once(至多一次)<br> 消息在消费的过程中，至多被一个consumer消费; 如果consumer处理失败，消息可能会丢失；只能用于可接受消息丢失的场景  </p></li><li><p>Exactly Once(仅有一次)<br>发送到消息系统的消息只能被消费端处理且仅处理一次，即使生产端重试消息发送导致某消息重复投递，该消息在消费端也只被消费一次。常用MQ产品没有太多理想的实现 。</p></li></ul><h3 id="消息的可靠投递"><a href="#消息的可靠投递" class="headerlink" title="消息的可靠投递"></a>消息的可靠投递</h3><p>我们以<a href="https://www.rabbitmq.com/">RabbitMQ</a>为例从以下几个方面保证说明如何实现消息的可靠投递</p><h4 id="消息中间件可靠性"><a href="#消息中间件可靠性" class="headerlink" title="消息中间件可靠性"></a>消息中间件可靠性</h4><ul><li>使用RabbitMQ的集群模式，basic模式和镜像模式都可以保证消息不丢失；根据业务特点在吞吐量和高可用之间权衡选择合适的集群模式</li><li>确保exchange和queue的持久化<h4 id="生产端可靠性"><a href="#生产端可靠性" class="headerlink" title="生产端可靠性"></a>生产端可靠性</h4></li><li>发送消息时候设置消息持久化属性<strong>DeliverModel</strong> </li><li>消息持久化到数据库状态为发送中</li><li>消息到达exchange开启confirm模式，生产者发送完消息后等待broker的ack，超过一定时间没有收到broker的ack后启动job重试，直到收到broker的ack，数据库消息状态更新为已发送</li><li>消息未到达队列开启回退机制，如果消息从exchange无法投递到队列，回调通知调用者，调用者可以重试<h4 id="消费端的可靠性"><a href="#消费端的可靠性" class="headerlink" title="消费端的可靠性"></a>消费端的可靠性</h4></li><li>消费端确保消息处理逻辑的幂等性</li><li>关闭自动ack</li><li>消费端每处理完一次消息后手动回复ack; 如果处理消息程失败回复nack, 默认情况下broker会继续下发消息直到消费成功；注意：消息处理失败必须回复nack，否则broker认为该consumer节点down，不再下发消息到该节点</li></ul>]]></content>
+    <content type="html"><![CDATA[<p>在大型互联网项目中我们经常会用到消息队列(简称MQ)；主要用在异步消息，应用解耦，流量削锋等场景；在实际应用中经常需要保证消息的可靠投递<span id="more"></span>,即：不能丢消息。</p><h3 id="MQ消费术语"><a href="#MQ消费术语" class="headerlink" title="MQ消费术语"></a>MQ消费术语</h3><pre><code>为了保证保证消息的可靠投递，先了解一下MQ的消费术语</code></pre><ul><li><p>At Lest Once(至少一次)<br> 消息在消费的过程中，至少被发送到一个consumer; 如果consumer处理失败，会再次发送到consumer； 所以消息可能会重复被消费，通常会要求consumer保证幂等性</p></li><li><p>At Most Once(至多一次)<br> 消息在消费的过程中，至多被一个consumer消费; 如果consumer处理失败，消息可能会丢失；只能用于可接受消息丢失的场景  </p></li><li><p>Exactly Once(仅有一次)<br>发送到消息系统的消息只能被消费端处理且仅处理一次，即使生产端重试消息发送导致某消息重复投递，该消息在消费端也只被消费一次。常用MQ产品没有太多理想的实现 。</p></li></ul><h3 id="消息的可靠投递"><a href="#消息的可靠投递" class="headerlink" title="消息的可靠投递"></a>消息的可靠投递</h3><p>我们以<a href="https://www.rabbitmq.com/">RabbitMQ</a>为例从以下几个方面保证说明如何实现消息的可靠投递</p><h4 id="消息中间件可靠性"><a href="#消息中间件可靠性" class="headerlink" title="消息中间件可靠性"></a>消息中间件可靠性</h4><ul><li>使用RabbitMQ的集群模式，basic模式和镜像模式都可以保证消息不丢失；根据业务特点在吞吐量和高可用之间权衡选择合适的集群模式</li><li>确保exchange和queue的持久化<h4 id="生产端可靠性"><a href="#生产端可靠性" class="headerlink" title="生产端可靠性"></a>生产端可靠性</h4></li><li>发送消息时候设置消息持久化属性<strong>DeliverModel</strong> </li><li>消息持久化到数据库状态为发送中</li><li>消息到达exchange开启confirm模式，生产者发送完消息后等待broker的ack，超过一定时间没有收到broker的ack后启动job重试，直到收到broker的ack，数据库消息状态更新为已发送</li><li>消息未到达队列开启回退机制，如果消息从exchange无法投递到队列，回调通知调用者，调用者可以重试<h4 id="消费端的可靠性"><a href="#消费端的可靠性" class="headerlink" title="消费端的可靠性"></a>消费端的可靠性</h4></li><li>消费端确保消息处理逻辑的幂等性</li><li>关闭自动ack</li><li>消费端每处理完一次消息后手动回复ack; 如果处理消息程失败回复nack, 默认情况下broker会继续下发消息直到消费成功；注意：消息处理失败必须回复nack，否则broker认为该consumer节点down，不再下发消息到该节点</li></ul><h4 id="监控报警"><a href="#监控报警" class="headerlink" title="监控报警"></a>监控报警</h4><p>对中间件，存储系统，应用等增加监控，在出现问题的时候能第一时间发现</p><p>综上所述，为了保证消息的可靠投递我们需要从开发和运维的角度去考虑；确保每一个环节都能可靠。</p>]]></content>
     
     
     <summary type="html">&lt;p&gt;在大型互联网项目中我们经常会用到消息队列(简称MQ)；主要用在异步消息，应用解耦，流量削锋等场景；在实际应用中经常需要保证消息的可靠投递&lt;/p&gt;</summary>
