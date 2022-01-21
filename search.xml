@@ -58,34 +58,6 @@
       </tags>
   </entry>
   <entry>
-    <title>Open Tracing(Jaeger) 遭遇多线程</title>
-    <url>/2019/12/27/Jaeger-Thread/</url>
-    <content><![CDATA[<p>我们知道在Java技术体系中，链路跟踪严重依赖ThreadLocal；因此在多线程的场景下会导致链路跟踪失效.<span id="more"></span></p>
-<h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>前几天一位开发同学反馈了一个问题，在链路跟踪UI上看到某个链路Rpc的span数量比实际调用少了很多；我听完第一反映是我们最近升级的SDK出问题了? 根据该同学反馈该接口是一个新接口，上线后一直没关注过链路；我们随即在链路跟踪UI上将多个系统的常用接口都检查了一遍发现一切正常，基本排除了SDK可能引起的问题。接着开始检查开发同学的代码,顺着该请求发现代码里面用到了<strong>线程池</strong> ,该同学解释该接口内部需要多次调用多个Rpc接口，为了提升效率所以采用了多线程。</p>
-<h3 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h3><p>分析opentracing的源码发现tracing相关的的信息保存在<code>io.opentracing.util.ThreadLocalScopeManager</code>的ThreadLocal变量里:</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ThreadLocalScopeManager</span> <span class="keyword">implements</span> <span class="title">ScopeManager</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> ThreadLocal&lt;ThreadLocalScope&gt; tlsScope = <span class="keyword">new</span> ThreadLocal&lt;ThreadLocalScope&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Scope <span class="title">activate</span><span class="params">(Span span, <span class="keyword">boolean</span> finishOnClose)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> ThreadLocalScope(<span class="keyword">this</span>, span, finishOnClose);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Scope <span class="title">active</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> tlsScope.get();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>这就可以解释为什么多线程中的Rpc请求没有将相关Tracing信息传递下去;</p>
-<h3 id="解决方法"><a href="#解决方法" class="headerlink" title="解决方法"></a>解决方法</h3><ol>
-<li><p>多线程中ThreadLocal变量的传递:<br>关于多线程中ThreadLocal变量的传递我们可以用阿里巴巴的<a href="https://github.com/alibaba/transmittable-thread-local">transmittable-thread-local</a> ,所以整个思路就是自己实现一遍<code>ThreadLocalScopeManager</code>用<code>TransmittableThreadLocal</code>替换<code>ThreadLocal</code>，以及跟它关联的类<code>ThreadLocalScope</code>(它里面申明了<code>ThreadLocalScopeManager</code>变量)； </p>
-</li>
-<li><p>修改Opentrcing里面默认的<code>ThreadLocalScopeManager</code>为用户自定义<code>ThreadLocalScopeManager</code><br>检查Jaeger的Springboot自动配置文件<code>io.opentracing.contrib.java.spring.jaeger.starter.JaegerAutoConfiguration</code>源码, 在构造Bean <code>io.opentracing.Tracer</code>时有用户自定义方法: <code>tracerCustomizers.forEach(c -&gt; c.customize(builder))</code></p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">JaegerAutoConfiguration</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Autowired(required = false)</span></span><br><span class="line">  <span class="keyword">private</span> List&lt;TracerBuilderCustomizer&gt; tracerCustomizers = Collections.emptyList();</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Bean</span></span><br><span class="line">  <span class="keyword">public</span> io.opentracing.<span class="function">Tracer <span class="title">tracer</span><span class="params">(Sampler sampler,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      Reporter reporter,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      Metrics metrics,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      JaegerConfigurationProperties properties)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> JaegerTracer.Builder builder =</span><br><span class="line">        <span class="keyword">new</span> JaegerTracer.Builder(properties.getServiceName())</span><br><span class="line">            .withReporter(reporter)</span><br><span class="line">            .withSampler(sampler)</span><br><span class="line">            .withTags(properties.determineTags())</span><br><span class="line">            .withMetrics(metrics);</span><br><span class="line"></span><br><span class="line">    tracerCustomizers.forEach(c -&gt; c.customize(builder));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> builder.build();</span><br><span class="line">  &#125;</span><br><span class="line">  .....</span><br></pre></td></tr></table></figure>
-<p>于是，我们只需要自定义<code>TracerBuilderCustomizer</code>调用<code>builder.withScopeManager</code>方法即可</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TtlTracerBuilderCustomizer</span> <span class="keyword">implements</span> <span class="title">TracerBuilderCustomizer</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">customize</span><span class="params">(JaegerTracer.Builder builder)</span> </span>&#123;</span><br><span class="line">        builder.withScopeManager(<span class="keyword">new</span> TracingScopeManager());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>在SpringBoot自动配置文件中构造Bean:</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> List&lt;TracerBuilderCustomizer&gt; <span class="title">tracerCustomizers</span><span class="params">()</span></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> Arrays.asList(<span class="keyword">new</span> TtlTracerBuilderCustomizer());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>至此，问题解决； 代码参考<a href="https://github.com/yinghuzhu/request-tracing">request-tracing</a></p>
-</li>
-</ol>
-<h3 id="关于多线程"><a href="#关于多线程" class="headerlink" title="关于多线程"></a>关于多线程</h3><p>我不建议在互联网高并发请求接口内部采用多线程；以Java技术体系为例，请求到达系统后一般会有容器(Tomcat之类)或者Rpc框架先接收，然而这些框架本来就是多线程在运行,如果系统本来已经到瓶颈了，即使增加线程也不会提升效率；如果系统需要增加线程，首先我们应该增加容器或者Rpc框架的线程数量；另外如果接口性能差，我们首先应该考虑是Sql的问题还是代码逻辑的问题；或者系统达到了瓶颈是否可以通过增加机器提升性能；如果接口逻辑本身太复杂，可能是我们的方案或者设计有问题，或许可以考虑按照离线请求的模式设计接口。</p>
-<h3 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h3><p>这个问题虽然没有对业务造成影响，但收集到链路肯定是有问题的；这也暴露出了我们开发过程中的一些问题，对非功能性验证做的不到位，这方面还需要加强。</p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>链路跟踪</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>服务化多项目测试环境隔离</title>
     <url>/2019/02/13/Multi-Project-Test-Env/</url>
     <content><![CDATA[<p>单体应用依赖比较少，大部分情况我们只需要启动一个应用就可以开始测试工作。架构升级到服务化后，每个应用依赖比较多，任何一个依赖有问题都会影响测试结果；如果服务化环境中多项目并行测试，测试效率会更差 。 <span id="more"></span> 为此，我们给出服务化多项目并行测试方案。</p>
@@ -121,6 +93,35 @@
 ]]></content>
       <tags>
         <tag>微服务</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>一次OOM引发服务雪崩的思考</title>
+    <url>/2018/12/01/OOM-Casue-Snowslide/</url>
+    <content><![CDATA[<p>前几天核心基础服务(简称S,两节点)发生了一次线上故障，导致整个基础服务雪崩，最终，该基础服务故障导致整站多项功能失效；</p>
+<span id="more"></span>
+<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
+<li>4:15 开始S的多个上游服务开始出现大量超时,而且出现告警</li>
+<li>4:30 S的节点S1出现OOM停止服务 ,同时告警系统发出了告警信息</li>
+<li>4:50 S的节点S2由于操作系统内存不足被系统kill ,同时告警系统发出了告警信息<br> ….</li>
+<li>8:00 运营同学反馈问题,技术同学开始排查</li>
+<li>8:05 技术同学发现S故障,重启S服务，服务正常 </li>
+</ol>
+<h3 id="原因分析"><a href="#原因分析" class="headerlink" title="原因分析"></a>原因分析</h3><ol>
+<li>S的上游应用某定时任务在凌晨4:10请求了大量(一次超过200w)的数据将S1先拖死，导致流量全部到S2，S2逐渐不堪重负,导致被系统kill </li>
+<li>S对上游数据请求量没有限制，没有启用限流分组功能</li>
+<li>告警信息没有引起足够重视,告警被忽略</li>
+<li>告警信息仅仅报告给monitor，没有到系统的owner</li>
+</ol>
+<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
+<li>启用限流，分组功能</li>
+<li>必须严格执行code review</li>
+<li>告警信息必须分级，而且必须同时报告给monitor和系统owner;接警人接到报警后根据不同的级别进行处理</li>
+</ol>
+<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>在互联网领域我们为了追求n个9，会采取一系列的流程措施来保障系统的可用性;但，真正落实到位的有多少? 其实，线上故障不可怕，可怕的是没有相应的应对措施；更可怕的是有相应的应对措施，但没有落实到位; 比如: 在服务化推进的过程中架构团队已经提供了限流，分组等功能，而且也进行了宣讲；但，最终这些措施还是没有落实到位；也许这就是大厂和创业公司的区别，大厂里面的架构师大部分也是螺丝钉，只要自己有产出符合预期完成KPI就是一个合格的架构师；但是，创业公司的架构师要考虑更多的因素，从最初的技术方案到设计，实现，最终的落地执行都需要全程参与确保每一个功能真正落实到位</p>
+]]></content>
+      <tags>
+        <tag>线上问题</tag>
       </tags>
   </entry>
   <entry>
@@ -332,32 +333,31 @@
       </tags>
   </entry>
   <entry>
-    <title>一次OOM引发服务雪崩的思考</title>
-    <url>/2018/12/01/OOM-Casue-Snowslide/</url>
-    <content><![CDATA[<p>前几天核心基础服务(简称S,两节点)发生了一次线上故障，导致整个基础服务雪崩，最终，该基础服务故障导致整站多项功能失效；</p>
-<span id="more"></span>
-<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
-<li>4:15 开始S的多个上游服务开始出现大量超时,而且出现告警</li>
-<li>4:30 S的节点S1出现OOM停止服务 ,同时告警系统发出了告警信息</li>
-<li>4:50 S的节点S2由于操作系统内存不足被系统kill ,同时告警系统发出了告警信息<br> ….</li>
-<li>8:00 运营同学反馈问题,技术同学开始排查</li>
-<li>8:05 技术同学发现S故障,重启S服务，服务正常 </li>
+    <title>Open Tracing(Jaeger) 遭遇多线程</title>
+    <url>/2019/12/27/Jaeger-Thread/</url>
+    <content><![CDATA[<p>我们知道在Java技术体系中，链路跟踪严重依赖ThreadLocal；因此在多线程的场景下会导致链路跟踪失效.<span id="more"></span></p>
+<h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>前几天一位开发同学反馈了一个问题，在链路跟踪UI上看到某个链路Rpc的span数量比实际调用少了很多；我听完第一反映是我们最近升级的SDK出问题了? 根据该同学反馈该接口是一个新接口，上线后一直没关注过链路；我们随即在链路跟踪UI上将多个系统的常用接口都检查了一遍发现一切正常，基本排除了SDK可能引起的问题。接着开始检查开发同学的代码,顺着该请求发现代码里面用到了<strong>线程池</strong> ,该同学解释该接口内部需要多次调用多个Rpc接口，为了提升效率所以采用了多线程。</p>
+<h3 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h3><p>分析opentracing的源码发现tracing相关的的信息保存在<code>io.opentracing.util.ThreadLocalScopeManager</code>的ThreadLocal变量里:</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ThreadLocalScopeManager</span> <span class="keyword">implements</span> <span class="title">ScopeManager</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> ThreadLocal&lt;ThreadLocalScope&gt; tlsScope = <span class="keyword">new</span> ThreadLocal&lt;ThreadLocalScope&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Scope <span class="title">activate</span><span class="params">(Span span, <span class="keyword">boolean</span> finishOnClose)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> ThreadLocalScope(<span class="keyword">this</span>, span, finishOnClose);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Scope <span class="title">active</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> tlsScope.get();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这就可以解释为什么多线程中的Rpc请求没有将相关Tracing信息传递下去;</p>
+<h3 id="解决方法"><a href="#解决方法" class="headerlink" title="解决方法"></a>解决方法</h3><ol>
+<li><p>多线程中ThreadLocal变量的传递:<br>关于多线程中ThreadLocal变量的传递我们可以用阿里巴巴的<a href="https://github.com/alibaba/transmittable-thread-local">transmittable-thread-local</a> ,所以整个思路就是自己实现一遍<code>ThreadLocalScopeManager</code>用<code>TransmittableThreadLocal</code>替换<code>ThreadLocal</code>，以及跟它关联的类<code>ThreadLocalScope</code>(它里面申明了<code>ThreadLocalScopeManager</code>变量)； </p>
+</li>
+<li><p>修改Opentrcing里面默认的<code>ThreadLocalScopeManager</code>为用户自定义<code>ThreadLocalScopeManager</code><br>检查Jaeger的Springboot自动配置文件<code>io.opentracing.contrib.java.spring.jaeger.starter.JaegerAutoConfiguration</code>源码, 在构造Bean <code>io.opentracing.Tracer</code>时有用户自定义方法: <code>tracerCustomizers.forEach(c -&gt; c.customize(builder))</code></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">JaegerAutoConfiguration</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Autowired(required = false)</span></span><br><span class="line">  <span class="keyword">private</span> List&lt;TracerBuilderCustomizer&gt; tracerCustomizers = Collections.emptyList();</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Bean</span></span><br><span class="line">  <span class="keyword">public</span> io.opentracing.<span class="function">Tracer <span class="title">tracer</span><span class="params">(Sampler sampler,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      Reporter reporter,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      Metrics metrics,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      JaegerConfigurationProperties properties)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> JaegerTracer.Builder builder =</span><br><span class="line">        <span class="keyword">new</span> JaegerTracer.Builder(properties.getServiceName())</span><br><span class="line">            .withReporter(reporter)</span><br><span class="line">            .withSampler(sampler)</span><br><span class="line">            .withTags(properties.determineTags())</span><br><span class="line">            .withMetrics(metrics);</span><br><span class="line"></span><br><span class="line">    tracerCustomizers.forEach(c -&gt; c.customize(builder));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> builder.build();</span><br><span class="line">  &#125;</span><br><span class="line">  .....</span><br></pre></td></tr></table></figure>
+<p>于是，我们只需要自定义<code>TracerBuilderCustomizer</code>调用<code>builder.withScopeManager</code>方法即可</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TtlTracerBuilderCustomizer</span> <span class="keyword">implements</span> <span class="title">TracerBuilderCustomizer</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">customize</span><span class="params">(JaegerTracer.Builder builder)</span> </span>&#123;</span><br><span class="line">        builder.withScopeManager(<span class="keyword">new</span> TracingScopeManager());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在SpringBoot自动配置文件中构造Bean:</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> List&lt;TracerBuilderCustomizer&gt; <span class="title">tracerCustomizers</span><span class="params">()</span></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> Arrays.asList(<span class="keyword">new</span> TtlTracerBuilderCustomizer());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>至此，问题解决； 代码参考<a href="https://github.com/yinghuzhu/request-tracing">request-tracing</a></p>
+</li>
 </ol>
-<h3 id="原因分析"><a href="#原因分析" class="headerlink" title="原因分析"></a>原因分析</h3><ol>
-<li>S的上游应用某定时任务在凌晨4:10请求了大量(一次超过200w)的数据将S1先拖死，导致流量全部到S2，S2逐渐不堪重负,导致被系统kill </li>
-<li>S对上游数据请求量没有限制，没有启用限流分组功能</li>
-<li>告警信息没有引起足够重视,告警被忽略</li>
-<li>告警信息仅仅报告给monitor，没有到系统的owner</li>
-</ol>
-<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
-<li>启用限流，分组功能</li>
-<li>必须严格执行code review</li>
-<li>告警信息必须分级，而且必须同时报告给monitor和系统owner;接警人接到报警后根据不同的级别进行处理</li>
-</ol>
-<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>在互联网领域我们为了追求n个9，会采取一系列的流程措施来保障系统的可用性;但，真正落实到位的有多少? 其实，线上故障不可怕，可怕的是没有相应的应对措施；更可怕的是有相应的应对措施，但没有落实到位; 比如: 在服务化推进的过程中架构团队已经提供了限流，分组等功能，而且也进行了宣讲；但，最终这些措施还是没有落实到位；也许这就是大厂和创业公司的区别，大厂里面的架构师大部分也是螺丝钉，只要自己有产出符合预期完成KPI就是一个合格的架构师；但是，创业公司的架构师要考虑更多的因素，从最初的技术方案到设计，实现，最终的落地执行都需要全程参与确保每一个功能真正落实到位</p>
+<h3 id="关于多线程"><a href="#关于多线程" class="headerlink" title="关于多线程"></a>关于多线程</h3><p>我不建议在互联网高并发请求接口内部采用多线程；以Java技术体系为例，请求到达系统后一般会有容器(Tomcat之类)或者Rpc框架先接收，然而这些框架本来就是多线程在运行,如果系统本来已经到瓶颈了，即使增加线程也不会提升效率；如果系统需要增加线程，首先我们应该增加容器或者Rpc框架的线程数量；另外如果接口性能差，我们首先应该考虑是Sql的问题还是代码逻辑的问题；或者系统达到了瓶颈是否可以通过增加机器提升性能；如果接口逻辑本身太复杂，可能是我们的方案或者设计有问题，或许可以考虑按照离线请求的模式设计接口。</p>
+<h3 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h3><p>这个问题虽然没有对业务造成影响，但收集到链路肯定是有问题的；这也暴露出了我们开发过程中的一些问题，对非功能性验证做的不到位，这方面还需要加强。</p>
 ]]></content>
       <tags>
-        <tag>线上问题</tag>
+        <tag>微服务</tag>
+        <tag>链路跟踪</tag>
       </tags>
   </entry>
   <entry>
@@ -930,17 +930,6 @@
 </li>
 </ol>
 <p>至此整个配置结束。</p>
-]]></content>
-      <tags>
-        <tag>工具</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>微信公众号文章备份与采集</title>
-    <url>/2019/05/21/wx-mp-backup/</url>
-    <content><![CDATA[<p>最近发现某公众号文章由于不可描述的原因被删除了，个人认为该公众号是可以经得起时间考验的。遂产生备份该公众号的想法，Google一番后写了几行代码立马开跑，很快文章就下载下来了；然后将下载下来的文章转为PDF同步到Kindle，效果还不错。<span id="more"></span></p>
-<p>目前已经备份了个人经常阅读的几个公众号，为避免广告嫌疑，这里就不列相关名称了，如果你有这方面的需要可以联系我 。</p>
-<p>最后，声明一点，所有公众号文章版权归属该公众号作者，采集到的文章请勿用作商业用途。</p>
 ]]></content>
       <tags>
         <tag>工具</tag>

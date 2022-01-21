@@ -2,6 +2,33 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
+    
+    <lastmod>2022-01-21</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/2018/05/22/distributed-transaction/</loc>
+    
+    <lastmod>2022-01-21</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/2018/07/06/Dubbo-Local-RPC-Switch/</loc>
+    
+    <lastmod>2022-01-21</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>https://www.yzhu.name/2021/04/13/reliable-message-delivery/</loc>
     
     <lastmod>2022-01-21</lastmod>
@@ -38,15 +65,6 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2019/05/21/wx-mp-backup/</loc>
-    
-    <lastmod>2022-01-19</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
     <loc>https://www.yzhu.name/about/index.html</loc>
     
     <lastmod>2022-01-19</lastmod>
@@ -66,24 +84,6 @@
   
   <url>
     <loc>https://www.yzhu.name/2019/01/20/shadowsocks-auto-config/</loc>
-    
-    <lastmod>2022-01-19</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/2018/05/22/distributed-transaction/</loc>
-    
-    <lastmod>2022-01-19</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
     
     <lastmod>2022-01-19</lastmod>
     
@@ -173,15 +173,6 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2018/07/06/Dubbo-Local-RPC-Switch/</loc>
-    
-    <lastmod>2022-01-19</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
     <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
     
     <lastmod>2022-01-19</lastmod>
@@ -200,7 +191,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2019/12/27/Jaeger-Thread/</loc>
+    <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
     
     <lastmod>2022-01-19</lastmod>
     
@@ -209,7 +200,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
+    <loc>https://www.yzhu.name/2019/12/27/Jaeger-Thread/</loc>
     
     <lastmod>2022-01-19</lastmod>
     
