@@ -1,29 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>一个三年前的Bug导致上线失败</title>
-    <url>/2020/05/30/History-Bug-And-Code-Review/</url>
-    <content><![CDATA[<p>上周某核心服务上线过程中内存瞬间飙升，导致上线失败。经查是一个三年前的bug引发的。<span id="more"></span></p>
-<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
-<li>17:10：开始发布B组 </li>
-<li>17:20：开始出现内存，接口超时报警；开发和SA开始介入</li>
-<li>17:25：认为是新版本有问题立刻回滚</li>
-<li>回滚后持续半小时问题没有出现</li>
-</ol>
-<h3 id="初步分析"><a href="#初步分析" class="headerlink" title="初步分析"></a>初步分析</h3><p>根据开发反馈，本次上线功能逻辑非常简单，只有20多行代码，而且测试过程中没发现任何问题；于是，大家开始review那段代码，review后得出一致多结论，该代码没问题。逻辑非常简单，只有一个地方调用了一个方法；这个方法已经存在了好你年了，而且被多个场景在调用；另外，这个方法逻辑复杂，团队内没有人了解。大家一致认为这个方法不会有问题，毕竟经历了「时间的考验」。</p>
-<h3 id="重现"><a href="#重现" class="headerlink" title="重现"></a>重现</h3><p>在测试环境又做了一轮压力测试，一切正常。根据目前点情况看来这个bug跟数据有关；就是说，可能是某条数据触发了这个bug的临界条件.所以，我们决定在生产环境发布一台机器做测试; 这次发布后5分钟后出现了内存飙升现象,马上切掉该机器的流量而且dump Jvm内存 。</p>
-<h3 id="问题处理"><a href="#问题处理" class="headerlink" title="问题处理"></a>问题处理</h3><p>拿到dump文件后立刻启动MAT分析；发现占用内存最多一个对象有3000多万个，分析该对象的调用盏都指向了同一行代码；「这段代码正是经历过时间考验的代码」。review这行代码相关部分马上发现有死循环的问题，只是满足这个条件的数据不容易出现。而这次的数据正好满足了这个条件。找到了原因，解决方法就很容易了；修改完代码review后没问题，测试，上线后一切正常；至此，该问题解决。这里可能有人会说死循环一般会首先导致CPU报警，怎么没看到我们提到CPU到问题；因为这台机器是16核CPU，所以一个核跑满并没有触发报警规则 。</p>
-<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
-<li>必须严格执行code review，从流程上去控制</li>
-<li>需要监控各项指标到同比变化 </li>
-</ol>
-<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>我们总是强调code review到重要性，但执行的时候总有这样那样的原因导致落实不彻底；我不了解当时的情况，但这次的问题我相信只要做过code review是一定可以发现的。另外，我始终相信代码质量最终要依赖开发人员来保证，测试只能保证功能性问题。特别是一些非功能性的边界条件，只能依赖开发保证。</p>
-]]></content>
-      <tags>
-        <tag>线上问题</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>基于配置中心属性,Dubbo Consumer动态切换调用RPC/本地方法</title>
     <url>/2018/07/06/Dubbo-Local-RPC-Switch/</url>
     <content><![CDATA[<h2 id="需求缘由"><a href="#需求缘由" class="headerlink" title="需求缘由"></a>需求缘由</h2><p>最近部分只读服务已经切换到了Dubbo提供的服务化接口；经过一段时间的生产验证, 各种监控指标显示非常稳定，所以打算开始切换写服务接口; 但大家对写操作跑服务化没有信心，于是提了一个需求能随时将远程rpc调用切换打本地jar方法调用；<span id="more"></span></p>
@@ -46,6 +23,29 @@
       <tags>
         <tag>微服务</tag>
         <tag>RPC</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>一个三年前的Bug导致上线失败</title>
+    <url>/2020/05/30/History-Bug-And-Code-Review/</url>
+    <content><![CDATA[<p>上周某核心服务上线过程中内存瞬间飙升，导致上线失败。经查是一个三年前的bug引发的。<span id="more"></span></p>
+<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
+<li>17:10：开始发布B组 </li>
+<li>17:20：开始出现内存，接口超时报警；开发和SA开始介入</li>
+<li>17:25：认为是新版本有问题立刻回滚</li>
+<li>回滚后持续半小时问题没有出现</li>
+</ol>
+<h3 id="初步分析"><a href="#初步分析" class="headerlink" title="初步分析"></a>初步分析</h3><p>根据开发反馈，本次上线功能逻辑非常简单，只有20多行代码，而且测试过程中没发现任何问题；于是，大家开始review那段代码，review后得出一致多结论，该代码没问题。逻辑非常简单，只有一个地方调用了一个方法；这个方法已经存在了好你年了，而且被多个场景在调用；另外，这个方法逻辑复杂，团队内没有人了解。大家一致认为这个方法不会有问题，毕竟经历了「时间的考验」。</p>
+<h3 id="重现"><a href="#重现" class="headerlink" title="重现"></a>重现</h3><p>在测试环境又做了一轮压力测试，一切正常。根据目前点情况看来这个bug跟数据有关；就是说，可能是某条数据触发了这个bug的临界条件.所以，我们决定在生产环境发布一台机器做测试; 这次发布后5分钟后出现了内存飙升现象,马上切掉该机器的流量而且dump Jvm内存 。</p>
+<h3 id="问题处理"><a href="#问题处理" class="headerlink" title="问题处理"></a>问题处理</h3><p>拿到dump文件后立刻启动MAT分析；发现占用内存最多一个对象有3000多万个，分析该对象的调用盏都指向了同一行代码；「这段代码正是经历过时间考验的代码」。review这行代码相关部分马上发现有死循环的问题，只是满足这个条件的数据不容易出现。而这次的数据正好满足了这个条件。找到了原因，解决方法就很容易了；修改完代码review后没问题，测试，上线后一切正常；至此，该问题解决。这里可能有人会说死循环一般会首先导致CPU报警，怎么没看到我们提到CPU到问题；因为这台机器是16核CPU，所以一个核跑满并没有触发报警规则 。</p>
+<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
+<li>必须严格执行code review，从流程上去控制</li>
+<li>需要监控各项指标到同比变化 </li>
+</ol>
+<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>我们总是强调code review到重要性，但执行的时候总有这样那样的原因导致落实不彻底；我不了解当时的情况，但这次的问题我相信只要做过code review是一定可以发现的。另外，我始终相信代码质量最终要依赖开发人员来保证，测试只能保证功能性问题。特别是一些非功能性的边界条件，只能依赖开发保证。</p>
+]]></content>
+      <tags>
+        <tag>线上问题</tag>
       </tags>
   </entry>
   <entry>
@@ -542,43 +542,6 @@
       </tags>
   </entry>
   <entry>
-    <title>服务化-服务拆分</title>
-    <url>/2018/09/24/Service-Split/</url>
-    <content><![CDATA[<p>服务化的过程中必然会面对服务拆分的问题；拆分粒度太粗不能体现服务化的优势，拆分过细会导致各项成本过高；所以架构师在服务拆分时要权衡各方面的利弊根据当前情况做出最优解;以下内容是我们团队在使用dubbo的过程，根据实际情况考虑的服务拆分方式；<span id="more"></span></p>
-<h3 id="拆分考虑的因素"><a href="#拆分考虑的因素" class="headerlink" title="拆分考虑的因素"></a>拆分考虑的因素</h3><ul>
-<li>业务领域</li>
-<li>上下层级调用关系</li>
-<li>技术因素</li>
-<li>成本</li>
-</ul>
-<p>我们在拆分过程中充分考虑以上4个因素；特别是在业务领域方面有较多的争议；业务领域下可以继续分子领域，所以在实际方案设计过程中部分团队服务拆分太细；经过多次沟通后我们将部分模块合并为一个provider，因为拆分过细对我们会有如下问题：</p>
-<ul>
-<li>目前我们数据库没有拆分(下阶段会根据个业务线拆库)，服务过细会增加数据库的连接数量</li>
-<li>增加了运维成本</li>
-<li>增加硬件成本</li>
-</ul>
-<h3 id="拆分原则"><a href="#拆分原则" class="headerlink" title="拆分原则"></a>拆分原则</h3><ul>
-<li>模块按照子业务领域和上下层级拆分</li>
-<li>服务调用只能上层服务调用下层服务</li>
-<li>禁止provider之间循环调用</li>
-<li>相同层级的模块可以作为同一个服务对外发布</li>
-<li>模块可以低成本的拆分为一个独立的provider</li>
-</ul>
-<h3 id="模型"><a href="#模型" class="headerlink" title="模型"></a>模型</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">                        ___Api</span><br><span class="line">                       |</span><br><span class="line">          ___Model_A--&gt;|</span><br><span class="line">          |            |___Impl</span><br><span class="line">          |            </span><br><span class="line">          |</span><br><span class="line">          |              ___Api</span><br><span class="line">          |             |</span><br><span class="line">Proider--&gt;|___Model_B--&gt;|</span><br><span class="line">          |             |</span><br><span class="line">          |             |___Impl</span><br><span class="line">          |              </span><br><span class="line">          |             </span><br><span class="line">          |____dubbo_provider.xml   </span><br></pre></td></tr></table></figure>
-
-<h4 id="模型特点"><a href="#模型特点" class="headerlink" title="模型特点"></a>模型特点</h4><ul>
-<li>Model_A和Model_B必须是同一层级的模块，比如: 同为数据访问层或者同为业务服务层</li>
-<li>对外仅提供各个model的Api</li>
-<li>同一个服务可以发布多个模块,节省成本</li>
-<li>服务调用只能是上层服务调用下层服务，从而避免服务循环调用</li>
-<li>各Model可以低成本的拆分为独立的provider</li>
-</ul>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</title>
     <url>/2020/04/11/ShardingSphere-Springboot/</url>
     <content><![CDATA[<p>Sharding-JDBC(ShardingSphere)作为分布式数据库中间件,在Java的JDBC层提供的额外服务。它使用客户端直连数据库，以jar包形式提供服务。引入<code>sharding-jdbc-spring-boot-starter</code>可以快速完成与springboot的集成; 但是默认情况下只能支持到一个数据库，如果支持多数据库，需要做部分扩展；本文记录支持多数据库所做的扩展。<span id="more"></span></p>
@@ -631,6 +594,43 @@
 <h3 id="与产品人员沟通"><a href="#与产品人员沟通" class="headerlink" title="与产品人员沟通"></a>与产品人员沟通</h3><p>我们经常看到一些关于产品人员和技术人员相爱相杀的段子，我认为现实中这样的例子并不多「也许我经历少」。技术人员拿到PRD后要仔细分析PRD背后的逻辑和诉求，有些看似简单需求背后可能需要复杂的技术支撑，不是每一个产品人员都有技术背景，此时需要技术人员跟产品人员充分沟通该需求的实现成本「理论上来说所有的需求都是可以实现的」，帮助产品人员梳理出重点和优先级，适当的时候可以减少需求或者改变产品逻辑。切忌一句“这是一个伪需求”或“这个需求实现不了” ；如果认为是伪需求请给出具体的数据，一切以数据为依据 ，即使实现不了也应该告知当前的困难，是资源问题，还是时间的问题等。如果多次沟通都没效果建议换个产品人员伺候，如果你没有选择的余地或者你认为公司都是这种产品人员，建议还是换工作吧。</p>
 <h3 id="一些思考"><a href="#一些思考" class="headerlink" title="一些思考"></a>一些思考</h3><p>技术的世界比较简单，确定的输入一定可以得到确定的输出，然而，我们的世界并不总是这样，有很多东西是没有绝对的对错之分。技术人员可以经常与非技术人员聊聊，听听他们看问题的角度，听听他们的诉求；也许这样可以让技术更好的帮助业务成长。</p>
 ]]></content>
+  </entry>
+  <entry>
+    <title>服务化-服务拆分</title>
+    <url>/2018/09/24/Service-Split/</url>
+    <content><![CDATA[<p>服务化的过程中必然会面对服务拆分的问题；拆分粒度太粗不能体现服务化的优势，拆分过细会导致各项成本过高；所以架构师在服务拆分时要权衡各方面的利弊根据当前情况做出最优解;以下内容是我们团队在使用dubbo的过程，根据实际情况考虑的服务拆分方式；<span id="more"></span></p>
+<h3 id="拆分考虑的因素"><a href="#拆分考虑的因素" class="headerlink" title="拆分考虑的因素"></a>拆分考虑的因素</h3><ul>
+<li>业务领域</li>
+<li>上下层级调用关系</li>
+<li>技术因素</li>
+<li>成本</li>
+</ul>
+<p>我们在拆分过程中充分考虑以上4个因素；特别是在业务领域方面有较多的争议；业务领域下可以继续分子领域，所以在实际方案设计过程中部分团队服务拆分太细；经过多次沟通后我们将部分模块合并为一个provider，因为拆分过细对我们会有如下问题：</p>
+<ul>
+<li>目前我们数据库没有拆分(下阶段会根据个业务线拆库)，服务过细会增加数据库的连接数量</li>
+<li>增加了运维成本</li>
+<li>增加硬件成本</li>
+</ul>
+<h3 id="拆分原则"><a href="#拆分原则" class="headerlink" title="拆分原则"></a>拆分原则</h3><ul>
+<li>模块按照子业务领域和上下层级拆分</li>
+<li>服务调用只能上层服务调用下层服务</li>
+<li>禁止provider之间循环调用</li>
+<li>相同层级的模块可以作为同一个服务对外发布</li>
+<li>模块可以低成本的拆分为一个独立的provider</li>
+</ul>
+<h3 id="模型"><a href="#模型" class="headerlink" title="模型"></a>模型</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">                        ___Api</span><br><span class="line">                       |</span><br><span class="line">          ___Model_A--&gt;|</span><br><span class="line">          |            |___Impl</span><br><span class="line">          |            </span><br><span class="line">          |</span><br><span class="line">          |              ___Api</span><br><span class="line">          |             |</span><br><span class="line">Proider--&gt;|___Model_B--&gt;|</span><br><span class="line">          |             |</span><br><span class="line">          |             |___Impl</span><br><span class="line">          |              </span><br><span class="line">          |             </span><br><span class="line">          |____dubbo_provider.xml   </span><br></pre></td></tr></table></figure>
+
+<h4 id="模型特点"><a href="#模型特点" class="headerlink" title="模型特点"></a>模型特点</h4><ul>
+<li>Model_A和Model_B必须是同一层级的模块，比如: 同为数据访问层或者同为业务服务层</li>
+<li>对外仅提供各个model的Api</li>
+<li>同一个服务可以发布多个模块,节省成本</li>
+<li>服务调用只能是上层服务调用下层服务，从而避免服务循环调用</li>
+<li>各Model可以低成本的拆分为独立的provider</li>
+</ul>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+      </tags>
   </entry>
   <entry>
     <title>分布式事务实现</title>
@@ -785,6 +785,40 @@
       </tags>
   </entry>
   <entry>
+    <title>消息的可靠投递</title>
+    <url>/2021/04/13/reliable-message-delivery/</url>
+    <content><![CDATA[<p>在大型互联网项目中我们经常会用到消息队列(简称MQ)；主要用在异步消息，应用解耦，流量削锋等场景；在实际应用中经常需要保证消息的可靠投递<span id="more"></span>,即：不能丢消息。</p>
+<h3 id="MQ消费术语"><a href="#MQ消费术语" class="headerlink" title="MQ消费术语"></a>MQ消费术语</h3><pre><code>为了保证保证消息的可靠投递，先了解一下MQ的消费术语
+</code></pre>
+<ul>
+<li><p>At Lest Once(至少一次)<br> 消息在消费的过程中，至少被发送到一个consumer; 如果consumer处理失败，会再次发送到consumer； 所以消息可能会重复被消费，通常会要求consumer保证幂等性</p>
+</li>
+<li><p>At Most Once(至多一次)<br> 消息在消费的过程中，至多被一个consumer消费; 如果consumer处理失败，消息可能会丢失；只能用于可接受消息丢失的场景  </p>
+</li>
+<li><p>Exactly Once(仅有一次)<br>发送到消息系统的消息只能被消费端处理且仅处理一次，即使生产端重试消息发送导致某消息重复投递，该消息在消费端也只被消费一次。常用MQ产品没有太多理想的实现 。</p>
+</li>
+</ul>
+<h3 id="消息的可靠投递"><a href="#消息的可靠投递" class="headerlink" title="消息的可靠投递"></a>消息的可靠投递</h3><p>我们以<a href="https://www.rabbitmq.com/">RabbitMQ</a>为例从以下几个方面保证说明如何实现消息的可靠投递</p>
+<h4 id="消息中间件可靠性"><a href="#消息中间件可靠性" class="headerlink" title="消息中间件可靠性"></a>消息中间件可靠性</h4><ul>
+<li>使用RabbitMQ的集群模式，basic模式和镜像模式都可以保证消息不丢失；根据业务特点在吞吐量和高可用之间权衡选择合适的集群模式</li>
+<li>确保exchange和queue的持久化<h4 id="生产端可靠性"><a href="#生产端可靠性" class="headerlink" title="生产端可靠性"></a>生产端可靠性</h4></li>
+<li>发送消息时候设置消息持久化属性<strong>DeliverModel</strong> </li>
+<li>消息持久化到数据库状态为发送中</li>
+<li>消息到达exchange开启confirm模式，生产者发送完消息后等待broker的ack，超过一定时间没有收到broker的ack后启动job重试，直到收到broker的ack，数据库消息状态更新为已发送</li>
+<li>消息未到达队列开启回退机制，如果消息从exchange无法投递到队列，回调通知调用者，调用者可以重试<h4 id="消费端的可靠性"><a href="#消费端的可靠性" class="headerlink" title="消费端的可靠性"></a>消费端的可靠性</h4></li>
+<li>消费端确保消息处理逻辑的幂等性</li>
+<li>关闭自动ack</li>
+<li>消费端每处理完一次消息后手动回复ack; 如果处理消息程失败回复nack, 默认情况下broker会继续下发消息直到消费成功；注意：消息处理失败必须回复nack，否则broker认为该consumer节点down，不再下发消息到该节点</li>
+</ul>
+<h4 id="监控报警"><a href="#监控报警" class="headerlink" title="监控报警"></a>监控报警</h4><p>对中间件，存储系统，应用等增加监控，在出现问题的时候能第一时间发现</p>
+<p>综上所述，为了保证消息的可靠投递我们需要从开发和运维的角度去考虑；确保每一个环节都能可靠。</p>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>分布式</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>服务化架构升级实践</title>
     <url>/2019/01/03/servcie-deploy-summary/</url>
     <content><![CDATA[<p>目前我们大部分业务都接入了服务化，在过去将近一年的时间里，我们踩了很多坑，也出现了几次生产事故，同时，从某种意义上讲，我们也做了某些「微创新」，使得架构更适合我们团队的实际情况。从目前的结果来看，基本达成了预定目标； <span id="more"></span></p>
@@ -854,40 +888,6 @@
 ]]></content>
       <tags>
         <tag>微服务</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>消息的可靠投递</title>
-    <url>/2021/04/13/reliable-message-delivery/</url>
-    <content><![CDATA[<p>在大型互联网项目中我们经常会用到消息队列(简称MQ)；主要用在异步消息，应用解耦，流量削锋等场景；在实际应用中经常需要保证消息的可靠投递<span id="more"></span>,即：不能丢消息。</p>
-<h3 id="MQ消费术语"><a href="#MQ消费术语" class="headerlink" title="MQ消费术语"></a>MQ消费术语</h3><pre><code>为了保证保证消息的可靠投递，先了解一下MQ的消费术语
-</code></pre>
-<ul>
-<li><p>At Lest Once(至少一次)<br> 消息在消费的过程中，至少被发送到一个consumer; 如果consumer处理失败，会再次发送到consumer； 所以消息可能会重复被消费，通常会要求consumer保证幂等性</p>
-</li>
-<li><p>At Most Once(至多一次)<br> 消息在消费的过程中，至多被一个consumer消费; 如果consumer处理失败，消息可能会丢失；只能用于可接受消息丢失的场景  </p>
-</li>
-<li><p>Exactly Once(仅有一次)<br>发送到消息系统的消息只能被消费端处理且仅处理一次，即使生产端重试消息发送导致某消息重复投递，该消息在消费端也只被消费一次。常用MQ产品没有太多理想的实现 。</p>
-</li>
-</ul>
-<h3 id="消息的可靠投递"><a href="#消息的可靠投递" class="headerlink" title="消息的可靠投递"></a>消息的可靠投递</h3><p>我们以<a href="https://www.rabbitmq.com/">RabbitMQ</a>为例从以下几个方面保证说明如何实现消息的可靠投递</p>
-<h4 id="消息中间件可靠性"><a href="#消息中间件可靠性" class="headerlink" title="消息中间件可靠性"></a>消息中间件可靠性</h4><ul>
-<li>使用RabbitMQ的集群模式，basic模式和镜像模式都可以保证消息不丢失；根据业务特点在吞吐量和高可用之间权衡选择合适的集群模式</li>
-<li>确保exchange和queue的持久化<h4 id="生产端可靠性"><a href="#生产端可靠性" class="headerlink" title="生产端可靠性"></a>生产端可靠性</h4></li>
-<li>发送消息时候设置消息持久化属性<strong>DeliverModel</strong> </li>
-<li>消息持久化到数据库状态为发送中</li>
-<li>消息到达exchange开启confirm模式，生产者发送完消息后等待broker的ack，超过一定时间没有收到broker的ack后启动job重试，直到收到broker的ack，数据库消息状态更新为已发送</li>
-<li>消息未到达队列开启回退机制，如果消息从exchange无法投递到队列，回调通知调用者，调用者可以重试<h4 id="消费端的可靠性"><a href="#消费端的可靠性" class="headerlink" title="消费端的可靠性"></a>消费端的可靠性</h4></li>
-<li>消费端确保消息处理逻辑的幂等性</li>
-<li>关闭自动ack</li>
-<li>消费端每处理完一次消息后手动回复ack; 如果处理消息程失败回复nack, 默认情况下broker会继续下发消息直到消费成功；注意：消息处理失败必须回复nack，否则broker认为该consumer节点down，不再下发消息到该节点</li>
-</ul>
-<h4 id="监控报警"><a href="#监控报警" class="headerlink" title="监控报警"></a>监控报警</h4><p>对中间件，存储系统，应用等增加监控，在出现问题的时候能第一时间发现</p>
-<p>综上所述，为了保证消息的可靠投递我们需要从开发和运维的角度去考虑；确保每一个环节都能可靠。</p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>分布式</tag>
       </tags>
   </entry>
   <entry>
