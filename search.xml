@@ -542,60 +542,6 @@
       </tags>
   </entry>
   <entry>
-    <title>Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</title>
-    <url>/2020/04/11/ShardingSphere-Springboot/</url>
-    <content><![CDATA[<p>Sharding-JDBC(ShardingSphere)作为分布式数据库中间件,在Java的JDBC层提供的额外服务。它使用客户端直连数据库，以jar包形式提供服务。引入<code>sharding-jdbc-spring-boot-starter</code>可以快速完成与springboot的集成; 但是默认情况下只能支持到一个数据库，如果支持多数据库，需要做部分扩展；本文记录支持多数据库所做的扩展。<span id="more"></span></p>
-<h3 id="引入依赖"><a href="#引入依赖" class="headerlink" title="引入依赖"></a>引入依赖</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">  &lt;groupId&gt;org.apache.shardingsphere&lt;/groupId&gt;</span><br><span class="line">  &lt;artifactId&gt;sharding-jdbc-spring-boot-starter&lt;/artifactId&gt;</span><br><span class="line">  &lt;version&gt;4.0.1&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
-
-<h3 id="扩展部分"><a href="#扩展部分" class="headerlink" title="扩展部分"></a>扩展部分</h3><ul>
-<li><p> 实现<code>EnvironmentAware</code>接口 ，在方法<code>setEnvironment</code>解析properties配置可以获取所有配置信息</p>
-</li>
-<li><p>获取以<code>spring.ydal</code>为前缀的所有数据库配置</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Map&lt;String, Object&gt; databases = PropertyUtil.handle(environment, &quot;spring.ydal&quot; , Map.class);</span><br></pre></td></tr></table></figure></li>
-<li><p>构造每个数据库的数据库的MasterSlave数据源</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> Map&lt;String, Object&gt; dataSourceProps = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;datasource&quot;, Map.class);</span><br><span class="line"> Preconditions.checkState(!dataSourceProps.isEmpty(), &quot;Wrong datasource properties!&quot;);</span><br><span class="line"></span><br><span class="line"> DataSource datasource = DataSourceUtil.getDataSource(dataSourceProps.get(&quot;type&quot;).toString(), dataSourceProps);</span><br><span class="line"> Optional&lt;DataSourcePropertiesSetter&gt; dataSourcePropertiesSetter = DataSourcePropertiesSetterHolder.getDataSourcePropertiesSetterByType(dataSourceProps.get(&quot;type&quot;).toString());</span><br><span class="line"> if (dataSourcePropertiesSetter.isPresent()) &#123;</span><br><span class="line">     dataSourcePropertiesSetter.get().propertiesSet(environment, prefix, dataSourceName, datasource);</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">masterSlaveRule = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;.masterslave&quot;, YamlMasterSlaveRuleConfiguration.class);</span><br><span class="line">MasterSlaveRuleConfiguration msConfig = new MasterSlaveRuleConfigurationYamlSwapper().swap(masterSlaveRule);</span><br><span class="line"></span><br><span class="line">Properties dsProps = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;.props&quot;, Properties.class);</span><br><span class="line">MasterSlaveDataSourceFactory.createDataSource(datasource, msConfig, dsProps)</span><br></pre></td></tr></table></figure></li>
-</ul>
-<h3 id="禁用ShardingSphere的Springboot的自动配置"><a href="#禁用ShardingSphere的Springboot的自动配置" class="headerlink" title="禁用ShardingSphere的Springboot的自动配置"></a>禁用ShardingSphere的Springboot的自动配置</h3><p>实现该扩展后以jar包的形式提供出去供多个项目使用，所以我们必须在jar里面禁用ShardingSphere的Springboot的自动配置；可以实现如下接口:</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">public class YdalAutoConfigurationImportFilter implements AutoConfigurationImportFilter &#123;</span><br><span class="line">    private static final Set&lt;String&gt; SHOULD_SKIP = new HashSet&lt;&gt;(</span><br><span class="line">            Arrays.asList(&quot;org.apache.shardingsphere.shardingjdbc.spring.boot.SpringBootConfiguration&quot;));</span><br><span class="line">    @Override</span><br><span class="line">    public boolean[] match(String[] autoConfigurationClasses, AutoConfigurationMetadata autoConfigurationMetadata) &#123;</span><br><span class="line">        boolean[] matches = new boolean[autoConfigurationClasses.length];</span><br><span class="line"></span><br><span class="line">        for(int i = 0; i&lt; autoConfigurationClasses.length; i++) &#123;</span><br><span class="line">            matches[i] = !SHOULD_SKIP.contains(autoConfigurationClasses[i]);</span><br><span class="line">        &#125;</span><br><span class="line">        return matches;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<ul>
-<li>将<code>YdalAutoConfigurationImportFilter</code>加入<code>META-INF/spring.factories</code></li>
-</ul>
-<h5 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h5><ul>
-<li>详细代码： <a href="https://github.com/yinghuzhu/ydal-spring-boot-starter">https://github.com/yinghuzhu/ydal-spring-boot-starter</a></li>
-</ul>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>分布式</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>技术给业务赋能</title>
-    <url>/2019/04/27/Tech-VS-Biz/</url>
-    <content><![CDATA[<p>技术人员在技术选型的时候如何做好技术与业务的平衡，如何推广技术方案，甚至与产品人员沟通改变某些功能的实现方式，这些问题值得每一个技术人员思考。我们不管采用什么技术方案，最终目的是为了帮助业务发展，使公司在商业上获取回报。如果技术人员能有一些产品和运营的思维，对整个业务的发展会起到更好的效果。<span id="more"></span></p>
-<h3 id="技术选型"><a href="#技术选型" class="headerlink" title="技术选型"></a>技术选型</h3><p>技术选型我们要考虑很多因素：产品所处的阶段，技术栈，当前的技术实力，技术债务，时间,等… 。特别是产品的不同阶段其目标也不同：</p>
-<ol>
-<li><p>初创阶段：这个阶段重点考虑两个方面：</p>
-<ul>
-<li>1.1 <strong>快</strong>：这个时候重点是<strong>快速上线</strong>，快速验证。同时，技术人员应该注意到有些需求产品人员没有提出来，但以后肯定有这个需求，只是当前优先级比较低。所以技术人员应该考虑到这些需求对现有方案可能存在的影响；如果是举手之劳的事情就顺便实现，至少在设计表结构时应该考虑到。可能有人会说该阶段到底哪些需求应该考虑，哪些不应该考虑；我个人的想法是支撑半年内业务的发展不需要重构为目标。所以在出方案前一定要跟产品，运营等业务方充分沟通拿到所有的数据，比如：半年后PV到多少，单量是多少等业务数据，以此为目标。</li>
-<li>1.2 <strong>可维护性</strong>：产品第一版上线后，会持续迭代和bug修复；从可维护性的角度应该考虑这几点：<ul>
-<li>当前团队有相应的技术储备</li>
-<li>业界有大量的工程师正在使用的技术</li>
-<li>如果是开源项目,其社区足够庞大，如果是商业项目需要有充分的技术支持</li>
-<li>一定是让团队内部最资深的工程师开始写第一行代码，因为所有的项目在重构前，代码一定会越写越烂 </li>
-</ul>
-</li>
-</ul>
-</li>
-<li><p>成长阶段 ：这个阶段产品的商业模式已经被验证过，产品正在为大量的用户提供服务，而且业务正在快速发展中，此时的技术方案以不影响现有业务为前提，或者说将影响降到最低，就是行业内所说的<strong>给飞行中的飞机换引擎</strong> 。 个人认为此阶段的技术方案应该重点考虑<strong>可落地</strong> ,一般这个阶段团队也会扩大，同时会引入一些外部人才。这个时候会出现一些新的思想，新的方案，此时要特别注意这些方案是不是立足于本团队的实际情况。特别一些大厂背景的工程师，可能会给出一些高大上的方案，但是各项成本可能非常高。即便是一些规模相当友商团队的工程师过来给出的方案也不一定能马上落地，因为没有一家企业的流程，制度，文化跟另一家企业是完全一样的，技术方案本质是用技术的手段解决业务的问题，流程的问题，质量的问题，效率的问题，成本的问题。</p>
-</li>
-</ol>
-<h3 id="技术方案推广"><a href="#技术方案推广" class="headerlink" title="技术方案推广"></a>技术方案推广</h3><p>有人说一个技术方案的效果只有在实施后才能知道，我个人认为一个技术方案如果推广成本太高一定不是一个好的方案。在出方案时候就应该考虑到如何去推广，一般情况下开发团队时间很紧迫，不可能为了一个技术改造耽误太多时间。我个人的做法是在出方案前跟相关团队沟通清楚当前面对的问题，以及各个团队的诉求。根据具体的问题给出适合的方案，接下来跟自己的领导沟通方案以及部分细节，确保能得到领导的支持「这点非常重要」；再准备方案，包括但不限于相应的文档，代码，工具，流程等；在正式推广之前，召集所有团队相关负责人「甚至所有技术人员」宣讲，主要包括几个方面：面对的问题，应对方案，如何实施，相关团队如何配合与执行，达到的效果，deadline 。特别是团队配合与执行部分给出详细的执行步骤，以及常见的QA。要站在执行团队的立场上考虑问题，让执行团队充分意识到，采用了新方案后可以提升效率，提升质量或者节省成本，等；可能经过多次沟通后仍有部分团队不能配合执行，此时只能将问题上升到更高一层管理者来协调 。技术方案的实施要充分权衡成本与业务的影响，比如一个案例：业务方要求实施方案不允许停机，然而跟业务方沟通告知不停机的成本太高，最终选择了凌晨业务低峰时期停机20分钟来完成，实际实施的过程中真正停机的时间只有5分钟；然而，该时间段对业务的影响也非常低，因此最终的方案都是权衡各方的利益后博弈的结果。方案实施后要监控各项指标，查看各项指标是否符合预期，如果没有达到预期目标，一定要找到根本原因是方案本身的问题，还是执行过程的问题，避免相同的问题再次出现。</p>
-<h3 id="与产品人员沟通"><a href="#与产品人员沟通" class="headerlink" title="与产品人员沟通"></a>与产品人员沟通</h3><p>我们经常看到一些关于产品人员和技术人员相爱相杀的段子，我认为现实中这样的例子并不多「也许我经历少」。技术人员拿到PRD后要仔细分析PRD背后的逻辑和诉求，有些看似简单需求背后可能需要复杂的技术支撑，不是每一个产品人员都有技术背景，此时需要技术人员跟产品人员充分沟通该需求的实现成本「理论上来说所有的需求都是可以实现的」，帮助产品人员梳理出重点和优先级，适当的时候可以减少需求或者改变产品逻辑。切忌一句“这是一个伪需求”或“这个需求实现不了” ；如果认为是伪需求请给出具体的数据，一切以数据为依据 ，即使实现不了也应该告知当前的困难，是资源问题，还是时间的问题等。如果多次沟通都没效果建议换个产品人员伺候，如果你没有选择的余地或者你认为公司都是这种产品人员，建议还是换工作吧。</p>
-<h3 id="一些思考"><a href="#一些思考" class="headerlink" title="一些思考"></a>一些思考</h3><p>技术的世界比较简单，确定的输入一定可以得到确定的输出，然而，我们的世界并不总是这样，有很多东西是没有绝对的对错之分。技术人员可以经常与非技术人员聊聊，听听他们看问题的角度，听听他们的诉求；也许这样可以让技术更好的帮助业务成长。</p>
-]]></content>
-  </entry>
-  <entry>
     <title>服务化-服务拆分</title>
     <url>/2018/09/24/Service-Split/</url>
     <content><![CDATA[<p>服务化的过程中必然会面对服务拆分的问题；拆分粒度太粗不能体现服务化的优势，拆分过细会导致各项成本过高；所以架构师在服务拆分时要权衡各方面的利弊根据当前情况做出最优解;以下内容是我们团队在使用dubbo的过程，根据实际情况考虑的服务拆分方式；<span id="more"></span></p>
@@ -630,6 +576,34 @@
 ]]></content>
       <tags>
         <tag>微服务</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</title>
+    <url>/2020/04/11/ShardingSphere-Springboot/</url>
+    <content><![CDATA[<p>Sharding-JDBC(ShardingSphere)作为分布式数据库中间件,在Java的JDBC层提供的额外服务。它使用客户端直连数据库，以jar包形式提供服务。引入<code>sharding-jdbc-spring-boot-starter</code>可以快速完成与springboot的集成; 但是默认情况下只能支持到一个数据库，如果支持多数据库，需要做部分扩展；本文记录支持多数据库所做的扩展。<span id="more"></span></p>
+<h3 id="引入依赖"><a href="#引入依赖" class="headerlink" title="引入依赖"></a>引入依赖</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">  &lt;groupId&gt;org.apache.shardingsphere&lt;/groupId&gt;</span><br><span class="line">  &lt;artifactId&gt;sharding-jdbc-spring-boot-starter&lt;/artifactId&gt;</span><br><span class="line">  &lt;version&gt;4.0.1&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+
+<h3 id="扩展部分"><a href="#扩展部分" class="headerlink" title="扩展部分"></a>扩展部分</h3><ul>
+<li><p> 实现<code>EnvironmentAware</code>接口 ，在方法<code>setEnvironment</code>解析properties配置可以获取所有配置信息</p>
+</li>
+<li><p>获取以<code>spring.ydal</code>为前缀的所有数据库配置</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Map&lt;String, Object&gt; databases = PropertyUtil.handle(environment, &quot;spring.ydal&quot; , Map.class);</span><br></pre></td></tr></table></figure></li>
+<li><p>构造每个数据库的数据库的MasterSlave数据源</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> Map&lt;String, Object&gt; dataSourceProps = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;datasource&quot;, Map.class);</span><br><span class="line"> Preconditions.checkState(!dataSourceProps.isEmpty(), &quot;Wrong datasource properties!&quot;);</span><br><span class="line"></span><br><span class="line"> DataSource datasource = DataSourceUtil.getDataSource(dataSourceProps.get(&quot;type&quot;).toString(), dataSourceProps);</span><br><span class="line"> Optional&lt;DataSourcePropertiesSetter&gt; dataSourcePropertiesSetter = DataSourcePropertiesSetterHolder.getDataSourcePropertiesSetterByType(dataSourceProps.get(&quot;type&quot;).toString());</span><br><span class="line"> if (dataSourcePropertiesSetter.isPresent()) &#123;</span><br><span class="line">     dataSourcePropertiesSetter.get().propertiesSet(environment, prefix, dataSourceName, datasource);</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">masterSlaveRule = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;.masterslave&quot;, YamlMasterSlaveRuleConfiguration.class);</span><br><span class="line">MasterSlaveRuleConfiguration msConfig = new MasterSlaveRuleConfigurationYamlSwapper().swap(masterSlaveRule);</span><br><span class="line"></span><br><span class="line">Properties dsProps = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;.props&quot;, Properties.class);</span><br><span class="line">MasterSlaveDataSourceFactory.createDataSource(datasource, msConfig, dsProps)</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="禁用ShardingSphere的Springboot的自动配置"><a href="#禁用ShardingSphere的Springboot的自动配置" class="headerlink" title="禁用ShardingSphere的Springboot的自动配置"></a>禁用ShardingSphere的Springboot的自动配置</h3><p>实现该扩展后以jar包的形式提供出去供多个项目使用，所以我们必须在jar里面禁用ShardingSphere的Springboot的自动配置；可以实现如下接口:</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">public class YdalAutoConfigurationImportFilter implements AutoConfigurationImportFilter &#123;</span><br><span class="line">    private static final Set&lt;String&gt; SHOULD_SKIP = new HashSet&lt;&gt;(</span><br><span class="line">            Arrays.asList(&quot;org.apache.shardingsphere.shardingjdbc.spring.boot.SpringBootConfiguration&quot;));</span><br><span class="line">    @Override</span><br><span class="line">    public boolean[] match(String[] autoConfigurationClasses, AutoConfigurationMetadata autoConfigurationMetadata) &#123;</span><br><span class="line">        boolean[] matches = new boolean[autoConfigurationClasses.length];</span><br><span class="line"></span><br><span class="line">        for(int i = 0; i&lt; autoConfigurationClasses.length; i++) &#123;</span><br><span class="line">            matches[i] = !SHOULD_SKIP.contains(autoConfigurationClasses[i]);</span><br><span class="line">        &#125;</span><br><span class="line">        return matches;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>将<code>YdalAutoConfigurationImportFilter</code>加入<code>META-INF/spring.factories</code></li>
+</ul>
+<h5 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h5><ul>
+<li>详细代码： <a href="https://github.com/yinghuzhu/ydal-spring-boot-starter">https://github.com/yinghuzhu/ydal-spring-boot-starter</a></li>
+</ul>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>分布式</tag>
       </tags>
   </entry>
   <entry>
@@ -712,6 +686,32 @@
         <tag>微服务</tag>
         <tag>分布式</tag>
       </tags>
+  </entry>
+  <entry>
+    <title>技术给业务赋能</title>
+    <url>/2019/04/27/Tech-VS-Biz/</url>
+    <content><![CDATA[<p>技术人员在技术选型的时候如何做好技术与业务的平衡，如何推广技术方案，甚至与产品人员沟通改变某些功能的实现方式，这些问题值得每一个技术人员思考。我们不管采用什么技术方案，最终目的是为了帮助业务发展，使公司在商业上获取回报。如果技术人员能有一些产品和运营的思维，对整个业务的发展会起到更好的效果。<span id="more"></span></p>
+<h3 id="技术选型"><a href="#技术选型" class="headerlink" title="技术选型"></a>技术选型</h3><p>技术选型我们要考虑很多因素：产品所处的阶段，技术栈，当前的技术实力，技术债务，时间,等… 。特别是产品的不同阶段其目标也不同：</p>
+<ol>
+<li><p>初创阶段：这个阶段重点考虑两个方面：</p>
+<ul>
+<li>1.1 <strong>快</strong>：这个时候重点是<strong>快速上线</strong>，快速验证。同时，技术人员应该注意到有些需求产品人员没有提出来，但以后肯定有这个需求，只是当前优先级比较低。所以技术人员应该考虑到这些需求对现有方案可能存在的影响；如果是举手之劳的事情就顺便实现，至少在设计表结构时应该考虑到。可能有人会说该阶段到底哪些需求应该考虑，哪些不应该考虑；我个人的想法是支撑半年内业务的发展不需要重构为目标。所以在出方案前一定要跟产品，运营等业务方充分沟通拿到所有的数据，比如：半年后PV到多少，单量是多少等业务数据，以此为目标。</li>
+<li>1.2 <strong>可维护性</strong>：产品第一版上线后，会持续迭代和bug修复；从可维护性的角度应该考虑这几点：<ul>
+<li>当前团队有相应的技术储备</li>
+<li>业界有大量的工程师正在使用的技术</li>
+<li>如果是开源项目,其社区足够庞大，如果是商业项目需要有充分的技术支持</li>
+<li>一定是让团队内部最资深的工程师开始写第一行代码，因为所有的项目在重构前，代码一定会越写越烂 </li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>成长阶段 ：这个阶段产品的商业模式已经被验证过，产品正在为大量的用户提供服务，而且业务正在快速发展中，此时的技术方案以不影响现有业务为前提，或者说将影响降到最低，就是行业内所说的<strong>给飞行中的飞机换引擎</strong> 。 个人认为此阶段的技术方案应该重点考虑<strong>可落地</strong> ,一般这个阶段团队也会扩大，同时会引入一些外部人才。这个时候会出现一些新的思想，新的方案，此时要特别注意这些方案是不是立足于本团队的实际情况。特别一些大厂背景的工程师，可能会给出一些高大上的方案，但是各项成本可能非常高。即便是一些规模相当友商团队的工程师过来给出的方案也不一定能马上落地，因为没有一家企业的流程，制度，文化跟另一家企业是完全一样的，技术方案本质是用技术的手段解决业务的问题，流程的问题，质量的问题，效率的问题，成本的问题。</p>
+</li>
+</ol>
+<h3 id="技术方案推广"><a href="#技术方案推广" class="headerlink" title="技术方案推广"></a>技术方案推广</h3><p>有人说一个技术方案的效果只有在实施后才能知道，我个人认为一个技术方案如果推广成本太高一定不是一个好的方案。在出方案时候就应该考虑到如何去推广，一般情况下开发团队时间很紧迫，不可能为了一个技术改造耽误太多时间。我个人的做法是在出方案前跟相关团队沟通清楚当前面对的问题，以及各个团队的诉求。根据具体的问题给出适合的方案，接下来跟自己的领导沟通方案以及部分细节，确保能得到领导的支持「这点非常重要」；再准备方案，包括但不限于相应的文档，代码，工具，流程等；在正式推广之前，召集所有团队相关负责人「甚至所有技术人员」宣讲，主要包括几个方面：面对的问题，应对方案，如何实施，相关团队如何配合与执行，达到的效果，deadline 。特别是团队配合与执行部分给出详细的执行步骤，以及常见的QA。要站在执行团队的立场上考虑问题，让执行团队充分意识到，采用了新方案后可以提升效率，提升质量或者节省成本，等；可能经过多次沟通后仍有部分团队不能配合执行，此时只能将问题上升到更高一层管理者来协调 。技术方案的实施要充分权衡成本与业务的影响，比如一个案例：业务方要求实施方案不允许停机，然而跟业务方沟通告知不停机的成本太高，最终选择了凌晨业务低峰时期停机20分钟来完成，实际实施的过程中真正停机的时间只有5分钟；然而，该时间段对业务的影响也非常低，因此最终的方案都是权衡各方的利益后博弈的结果。方案实施后要监控各项指标，查看各项指标是否符合预期，如果没有达到预期目标，一定要找到根本原因是方案本身的问题，还是执行过程的问题，避免相同的问题再次出现。</p>
+<h3 id="与产品人员沟通"><a href="#与产品人员沟通" class="headerlink" title="与产品人员沟通"></a>与产品人员沟通</h3><p>我们经常看到一些关于产品人员和技术人员相爱相杀的段子，我认为现实中这样的例子并不多「也许我经历少」。技术人员拿到PRD后要仔细分析PRD背后的逻辑和诉求，有些看似简单需求背后可能需要复杂的技术支撑，不是每一个产品人员都有技术背景，此时需要技术人员跟产品人员充分沟通该需求的实现成本「理论上来说所有的需求都是可以实现的」，帮助产品人员梳理出重点和优先级，适当的时候可以减少需求或者改变产品逻辑。切忌一句“这是一个伪需求”或“这个需求实现不了” ；如果认为是伪需求请给出具体的数据，一切以数据为依据 ，即使实现不了也应该告知当前的困难，是资源问题，还是时间的问题等。如果多次沟通都没效果建议换个产品人员伺候，如果你没有选择的余地或者你认为公司都是这种产品人员，建议还是换工作吧。</p>
+<h3 id="一些思考"><a href="#一些思考" class="headerlink" title="一些思考"></a>一些思考</h3><p>技术的世界比较简单，确定的输入一定可以得到确定的输出，然而，我们的世界并不总是这样，有很多东西是没有绝对的对错之分。技术人员可以经常与非技术人员聊聊，听听他们看问题的角度，听听他们的诉求；也许这样可以让技术更好的帮助业务成长。</p>
+]]></content>
   </entry>
   <entry>
     <title>Java与Go之间gRPC调用失败问题排查</title>
