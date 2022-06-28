@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-  <title>zyh的随手记</title>
+  <title>yhzhu的随手记</title>
   
   
   <link href="https://www.yzhu.name/atom.xml" rel="self"/>
@@ -10,7 +10,7 @@
   <id>https://www.yzhu.name/</id>
   
   <author>
-    <name>zyh</name>
+    <name>yhzhu</name>
     
   </author>
   
