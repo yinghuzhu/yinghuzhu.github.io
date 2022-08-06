@@ -26,6 +26,15 @@
       </tags>
   </entry>
   <entry>
+    <title>JVM初探</title>
+    <url>/2020/03/29/JVM-NEW/</url>
+    <content><![CDATA[<p>最近经常有人跟我一起讨论JVM的相关话题，所以将以前分享过的一篇JVM的基础知识在这里分享出来，欢迎大家指正.<span id="more"></span></p>
+<div class="pdfobject-container" data-target="/pdf/jvm.pdf" data-height="500px"></div>]]></content>
+      <tags>
+        <tag>JVM</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>一个三年前的Bug导致上线失败</title>
     <url>/2020/05/30/History-Bug-And-Code-Review/</url>
     <content><![CDATA[<p>上周某核心服务上线过程中内存瞬间飙升，导致上线失败。经查是一个三年前的bug引发的。<span id="more"></span></p>
@@ -49,12 +58,31 @@
       </tags>
   </entry>
   <entry>
-    <title>JVM初探</title>
-    <url>/2020/03/29/JVM-NEW/</url>
-    <content><![CDATA[<p>最近经常有人跟我一起讨论JVM的相关话题，所以将以前分享过的一篇JVM的基础知识在这里分享出来，欢迎大家指正.<span id="more"></span></p>
-<div class="pdfobject-container" data-target="/pdf/jvm.pdf" data-height="500px"></div>]]></content>
+    <title>Open Tracing(Jaeger) 遭遇多线程</title>
+    <url>/2019/12/27/Jaeger-Thread/</url>
+    <content><![CDATA[<p>我们知道在Java技术体系中，链路跟踪严重依赖ThreadLocal；因此在多线程的场景下会导致链路跟踪失效.<span id="more"></span></p>
+<h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>前几天一位开发同学反馈了一个问题，在链路跟踪UI上看到某个链路Rpc的span数量比实际调用少了很多；我听完第一反映是我们最近升级的SDK出问题了? 根据该同学反馈该接口是一个新接口，上线后一直没关注过链路；我们随即在链路跟踪UI上将多个系统的常用接口都检查了一遍发现一切正常，基本排除了SDK可能引起的问题。接着开始检查开发同学的代码,顺着该请求发现代码里面用到了<strong>线程池</strong> ,该同学解释该接口内部需要多次调用多个Rpc接口，为了提升效率所以采用了多线程。</p>
+<h3 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h3><p>分析opentracing的源码发现tracing相关的的信息保存在<code>io.opentracing.util.ThreadLocalScopeManager</code>的ThreadLocal变量里:</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ThreadLocalScopeManager</span> <span class="keyword">implements</span> <span class="title">ScopeManager</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> ThreadLocal&lt;ThreadLocalScope&gt; tlsScope = <span class="keyword">new</span> ThreadLocal&lt;ThreadLocalScope&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Scope <span class="title">activate</span><span class="params">(Span span, <span class="keyword">boolean</span> finishOnClose)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> ThreadLocalScope(<span class="keyword">this</span>, span, finishOnClose);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Scope <span class="title">active</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> tlsScope.get();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这就可以解释为什么多线程中的Rpc请求没有将相关Tracing信息传递下去;</p>
+<h3 id="解决方法"><a href="#解决方法" class="headerlink" title="解决方法"></a>解决方法</h3><ol>
+<li><p>多线程中ThreadLocal变量的传递:<br>关于多线程中ThreadLocal变量的传递我们可以用阿里巴巴的<a href="https://github.com/alibaba/transmittable-thread-local">transmittable-thread-local</a> ,所以整个思路就是自己实现一遍<code>ThreadLocalScopeManager</code>用<code>TransmittableThreadLocal</code>替换<code>ThreadLocal</code>，以及跟它关联的类<code>ThreadLocalScope</code>(它里面申明了<code>ThreadLocalScopeManager</code>变量)； </p>
+</li>
+<li><p>修改Opentrcing里面默认的<code>ThreadLocalScopeManager</code>为用户自定义<code>ThreadLocalScopeManager</code><br>检查Jaeger的Springboot自动配置文件<code>io.opentracing.contrib.java.spring.jaeger.starter.JaegerAutoConfiguration</code>源码, 在构造Bean <code>io.opentracing.Tracer</code>时有用户自定义方法: <code>tracerCustomizers.forEach(c -&gt; c.customize(builder))</code></p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">JaegerAutoConfiguration</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Autowired(required = false)</span></span><br><span class="line">  <span class="keyword">private</span> List&lt;TracerBuilderCustomizer&gt; tracerCustomizers = Collections.emptyList();</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Bean</span></span><br><span class="line">  <span class="keyword">public</span> io.opentracing.<span class="function">Tracer <span class="title">tracer</span><span class="params">(Sampler sampler,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      Reporter reporter,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      Metrics metrics,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      JaegerConfigurationProperties properties)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> JaegerTracer.Builder builder =</span><br><span class="line">        <span class="keyword">new</span> JaegerTracer.Builder(properties.getServiceName())</span><br><span class="line">            .withReporter(reporter)</span><br><span class="line">            .withSampler(sampler)</span><br><span class="line">            .withTags(properties.determineTags())</span><br><span class="line">            .withMetrics(metrics);</span><br><span class="line"></span><br><span class="line">    tracerCustomizers.forEach(c -&gt; c.customize(builder));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> builder.build();</span><br><span class="line">  &#125;</span><br><span class="line">  .....</span><br></pre></td></tr></table></figure>
+<p>于是，我们只需要自定义<code>TracerBuilderCustomizer</code>调用<code>builder.withScopeManager</code>方法即可</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TtlTracerBuilderCustomizer</span> <span class="keyword">implements</span> <span class="title">TracerBuilderCustomizer</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">customize</span><span class="params">(JaegerTracer.Builder builder)</span> </span>&#123;</span><br><span class="line">        builder.withScopeManager(<span class="keyword">new</span> TracingScopeManager());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在SpringBoot自动配置文件中构造Bean:</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> List&lt;TracerBuilderCustomizer&gt; <span class="title">tracerCustomizers</span><span class="params">()</span></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> Arrays.asList(<span class="keyword">new</span> TtlTracerBuilderCustomizer());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>至此，问题解决； 代码参考<a href="https://github.com/yinghuzhu/request-tracing">request-tracing</a></p>
+</li>
+</ol>
+<h3 id="关于多线程"><a href="#关于多线程" class="headerlink" title="关于多线程"></a>关于多线程</h3><p>我不建议在互联网高并发请求接口内部采用多线程；以Java技术体系为例，请求到达系统后一般会有容器(Tomcat之类)或者Rpc框架先接收，然而这些框架本来就是多线程在运行,如果系统本来已经到瓶颈了，即使增加线程也不会提升效率；如果系统需要增加线程，首先我们应该增加容器或者Rpc框架的线程数量；另外如果接口性能差，我们首先应该考虑是Sql的问题还是代码逻辑的问题；或者系统达到了瓶颈是否可以通过增加机器提升性能；如果接口逻辑本身太复杂，可能是我们的方案或者设计有问题，或许可以考虑按照离线请求的模式设计接口。</p>
+<h3 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h3><p>这个问题虽然没有对业务造成影响，但收集到链路肯定是有问题的；这也暴露出了我们开发过程中的一些问题，对非功能性验证做的不到位，这方面还需要加强。</p>
+]]></content>
       <tags>
-        <tag>JVM</tag>
+        <tag>微服务</tag>
+        <tag>链路跟踪</tag>
       </tags>
   </entry>
   <entry>
@@ -266,34 +294,6 @@
       </tags>
   </entry>
   <entry>
-    <title>Open Tracing(Jaeger) 遭遇多线程</title>
-    <url>/2019/12/27/Jaeger-Thread/</url>
-    <content><![CDATA[<p>我们知道在Java技术体系中，链路跟踪严重依赖ThreadLocal；因此在多线程的场景下会导致链路跟踪失效.<span id="more"></span></p>
-<h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>前几天一位开发同学反馈了一个问题，在链路跟踪UI上看到某个链路Rpc的span数量比实际调用少了很多；我听完第一反映是我们最近升级的SDK出问题了? 根据该同学反馈该接口是一个新接口，上线后一直没关注过链路；我们随即在链路跟踪UI上将多个系统的常用接口都检查了一遍发现一切正常，基本排除了SDK可能引起的问题。接着开始检查开发同学的代码,顺着该请求发现代码里面用到了<strong>线程池</strong> ,该同学解释该接口内部需要多次调用多个Rpc接口，为了提升效率所以采用了多线程。</p>
-<h3 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h3><p>分析opentracing的源码发现tracing相关的的信息保存在<code>io.opentracing.util.ThreadLocalScopeManager</code>的ThreadLocal变量里:</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ThreadLocalScopeManager</span> <span class="keyword">implements</span> <span class="title">ScopeManager</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> ThreadLocal&lt;ThreadLocalScope&gt; tlsScope = <span class="keyword">new</span> ThreadLocal&lt;ThreadLocalScope&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Scope <span class="title">activate</span><span class="params">(Span span, <span class="keyword">boolean</span> finishOnClose)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> ThreadLocalScope(<span class="keyword">this</span>, span, finishOnClose);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Scope <span class="title">active</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> tlsScope.get();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>这就可以解释为什么多线程中的Rpc请求没有将相关Tracing信息传递下去;</p>
-<h3 id="解决方法"><a href="#解决方法" class="headerlink" title="解决方法"></a>解决方法</h3><ol>
-<li><p>多线程中ThreadLocal变量的传递:<br>关于多线程中ThreadLocal变量的传递我们可以用阿里巴巴的<a href="https://github.com/alibaba/transmittable-thread-local">transmittable-thread-local</a> ,所以整个思路就是自己实现一遍<code>ThreadLocalScopeManager</code>用<code>TransmittableThreadLocal</code>替换<code>ThreadLocal</code>，以及跟它关联的类<code>ThreadLocalScope</code>(它里面申明了<code>ThreadLocalScopeManager</code>变量)； </p>
-</li>
-<li><p>修改Opentrcing里面默认的<code>ThreadLocalScopeManager</code>为用户自定义<code>ThreadLocalScopeManager</code><br>检查Jaeger的Springboot自动配置文件<code>io.opentracing.contrib.java.spring.jaeger.starter.JaegerAutoConfiguration</code>源码, 在构造Bean <code>io.opentracing.Tracer</code>时有用户自定义方法: <code>tracerCustomizers.forEach(c -&gt; c.customize(builder))</code></p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">JaegerAutoConfiguration</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Autowired(required = false)</span></span><br><span class="line">  <span class="keyword">private</span> List&lt;TracerBuilderCustomizer&gt; tracerCustomizers = Collections.emptyList();</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Bean</span></span><br><span class="line">  <span class="keyword">public</span> io.opentracing.<span class="function">Tracer <span class="title">tracer</span><span class="params">(Sampler sampler,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      Reporter reporter,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      Metrics metrics,</span></span></span><br><span class="line"><span class="params"><span class="function">                                      JaegerConfigurationProperties properties)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> JaegerTracer.Builder builder =</span><br><span class="line">        <span class="keyword">new</span> JaegerTracer.Builder(properties.getServiceName())</span><br><span class="line">            .withReporter(reporter)</span><br><span class="line">            .withSampler(sampler)</span><br><span class="line">            .withTags(properties.determineTags())</span><br><span class="line">            .withMetrics(metrics);</span><br><span class="line"></span><br><span class="line">    tracerCustomizers.forEach(c -&gt; c.customize(builder));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> builder.build();</span><br><span class="line">  &#125;</span><br><span class="line">  .....</span><br></pre></td></tr></table></figure>
-<p>于是，我们只需要自定义<code>TracerBuilderCustomizer</code>调用<code>builder.withScopeManager</code>方法即可</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TtlTracerBuilderCustomizer</span> <span class="keyword">implements</span> <span class="title">TracerBuilderCustomizer</span> </span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">customize</span><span class="params">(JaegerTracer.Builder builder)</span> </span>&#123;</span><br><span class="line">        builder.withScopeManager(<span class="keyword">new</span> TracingScopeManager());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>在SpringBoot自动配置文件中构造Bean:</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> List&lt;TracerBuilderCustomizer&gt; <span class="title">tracerCustomizers</span><span class="params">()</span></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> Arrays.asList(<span class="keyword">new</span> TtlTracerBuilderCustomizer());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>至此，问题解决； 代码参考<a href="https://github.com/yinghuzhu/request-tracing">request-tracing</a></p>
-</li>
-</ol>
-<h3 id="关于多线程"><a href="#关于多线程" class="headerlink" title="关于多线程"></a>关于多线程</h3><p>我不建议在互联网高并发请求接口内部采用多线程；以Java技术体系为例，请求到达系统后一般会有容器(Tomcat之类)或者Rpc框架先接收，然而这些框架本来就是多线程在运行,如果系统本来已经到瓶颈了，即使增加线程也不会提升效率；如果系统需要增加线程，首先我们应该增加容器或者Rpc框架的线程数量；另外如果接口性能差，我们首先应该考虑是Sql的问题还是代码逻辑的问题；或者系统达到了瓶颈是否可以通过增加机器提升性能；如果接口逻辑本身太复杂，可能是我们的方案或者设计有问题，或许可以考虑按照离线请求的模式设计接口。</p>
-<h3 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h3><p>这个问题虽然没有对业务造成影响，但收集到链路肯定是有问题的；这也暴露出了我们开发过程中的一些问题，对非功能性验证做的不到位，这方面还需要加强。</p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>链路跟踪</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>服务化多项目测试环境隔离</title>
     <url>/2019/02/13/Multi-Project-Test-Env/</url>
     <content><![CDATA[<p>单体应用依赖比较少，大部分情况我们只需要启动一个应用就可以开始测试工作。架构升级到服务化后，每个应用依赖比较多，任何一个依赖有问题都会影响测试结果；如果服务化环境中多项目并行测试，测试效率会更差 。 <span id="more"></span> 为此，我们给出服务化多项目并行测试方案。</p>
@@ -401,60 +401,23 @@
       </tags>
   </entry>
   <entry>
-    <title>服务化-服务拆分</title>
-    <url>/2018/09/24/Service-Split/</url>
-    <content><![CDATA[<p>服务化的过程中必然会面对服务拆分的问题；拆分粒度太粗不能体现服务化的优势，拆分过细会导致各项成本过高；所以架构师在服务拆分时要权衡各方面的利弊根据当前情况做出最优解;以下内容是我们团队在使用dubbo的过程，根据实际情况考虑的服务拆分方式；<span id="more"></span></p>
-<h3 id="拆分考虑的因素"><a href="#拆分考虑的因素" class="headerlink" title="拆分考虑的因素"></a>拆分考虑的因素</h3><ul>
-<li>业务领域</li>
-<li>上下层级调用关系</li>
-<li>技术因素</li>
-<li>成本</li>
-</ul>
-<p>我们在拆分过程中充分考虑以上4个因素；特别是在业务领域方面有较多的争议；业务领域下可以继续分子领域，所以在实际方案设计过程中部分团队服务拆分太细；经过多次沟通后我们将部分模块合并为一个provider，因为拆分过细对我们会有如下问题：</p>
-<ul>
-<li>目前我们数据库没有拆分(下阶段会根据个业务线拆库)，服务过细会增加数据库的连接数量</li>
-<li>增加了运维成本</li>
-<li>增加硬件成本</li>
-</ul>
-<h3 id="拆分原则"><a href="#拆分原则" class="headerlink" title="拆分原则"></a>拆分原则</h3><ul>
-<li>模块按照子业务领域和上下层级拆分</li>
-<li>服务调用只能上层服务调用下层服务</li>
-<li>禁止provider之间循环调用</li>
-<li>相同层级的模块可以作为同一个服务对外发布</li>
-<li>模块可以低成本的拆分为一个独立的provider</li>
-</ul>
-<h3 id="模型"><a href="#模型" class="headerlink" title="模型"></a>模型</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">                        ___Api</span><br><span class="line">                       |</span><br><span class="line">          ___Model_A--&gt;|</span><br><span class="line">          |            |___Impl</span><br><span class="line">          |            </span><br><span class="line">          |</span><br><span class="line">          |              ___Api</span><br><span class="line">          |             |</span><br><span class="line">Proider--&gt;|___Model_B--&gt;|</span><br><span class="line">          |             |</span><br><span class="line">          |             |___Impl</span><br><span class="line">          |              </span><br><span class="line">          |             </span><br><span class="line">          |____dubbo_provider.xml   </span><br></pre></td></tr></table></figure>
-
-<h4 id="模型特点"><a href="#模型特点" class="headerlink" title="模型特点"></a>模型特点</h4><ul>
-<li>Model_A和Model_B必须是同一层级的模块，比如: 同为数据访问层或者同为业务服务层</li>
-<li>对外仅提供各个model的Api</li>
-<li>同一个服务可以发布多个模块,节省成本</li>
-<li>服务调用只能是上层服务调用下层服务，从而避免服务循环调用</li>
-<li>各Model可以低成本的拆分为独立的provider</li>
-</ul>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>RestTemplate使用Apache HttpClinet连接池默认大小引发耗时瞬间升高</title>
     <url>/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/</url>
     <content><![CDATA[<p>在Spring项目中，RestTemplate简化了HTTP请求和响应的封装，并且执行了Restful原则。底层HTTP请求由<code>HttpURLConnection</code>,<code>Apache HttpComponents</code>和<code>OkHttp</code>三种实现。最近我们在使用Apache HttpClient作为RestTemplate底层实现时，由于使用不当导致耗时瞬间升高<span id="more"></span></p>
-<h3 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h3><p>这两天我们有一个服务A的接口当流量瞬间升高时，耗时会瞬间升高，如图所示；<br><img src="/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/monitor.jpg" alt="图一"><br>打开链路跟踪查看调用链关系，发现该时接口耗时几乎全部耗费在调用下游服务B，如图所示；正常情况下服务B接口TP95耗时在500毫秒以内<br><img src="/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/opentracing.jpg" alt="图二"><br>而且该服务接口连接超时设置2秒，读取超时设置2秒；所以预期内该接口在4秒内应该结束。</p>
+<h3 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h3><p>今天天收到报警说我们有一个服务A的接口TP95瞬间升高，打开监控检查发现流量瞬间升高时，耗时会瞬间升高，如图所示；<br><img src="/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/monitor.jpg" alt="图一"><br>打开链路跟踪查看调用链关系，发现该时接口耗时几乎全部耗费在调用下游服务B，如图所示；正常情况下服务B接口TP95耗时在500毫秒以内<br><img src="/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/opentracing.jpg" alt="图二"><br>而且该服务接口连接超时设置2秒，读取超时设置2秒；所以预期内该接口在4秒内应该结束。</p>
 <h3 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h3><h4 id="监控检查"><a href="#监控检查" class="headerlink" title="监控检查"></a>监控检查</h4><ol>
 <li>查看服务B的监控发现服务B的耗时一直很稳定，几乎没有波动</li>
 <li>查看服务C对服务B相同接口的调用在该时刻也很稳定</li>
-<li>查看服务A的GC监控，该时刻没有出现SWT </li>
+<li>查看服务A的GC监控，gc最长耗时60ms，也不会引起该问题 </li>
 <li>查看网络监控，一切正常</li>
 </ol>
-<p>通过监控数据基本确定问题不在服务B，另外Ops工程师反馈近期也没做过任何infrastrucre调整；现在估计问题仍然在服务A，只能去review服务A的代码</p>
-<h4 id="代码分析"><a href="#代码分析" class="headerlink" title="代码分析"></a>代码分析</h4><p>服务A代码中用RestTemplate调用服务B的接口, <code>RestTemplate</code>的Bean采用默认注入的Builder来生成，而且仅设置了连接超时和读取超时。</p>
+<p>通过监控数据基本确定问题不在服务B，另外Ops工程师反馈近期也没做过任何infrastrucre调整；基本确定问题仍然在服务A，接下来review服务A请求服务B的相关代码</p>
+<h4 id="代码分析"><a href="#代码分析" class="headerlink" title="代码分析"></a>代码分析</h4><p>服务A代码中用<code>RestTemplate</code>调用服务B的接口, <code>RestTemplate</code>的Bean采用默认注入的Builder来生成，而且设置了连接超时和读取超时。</p>
 <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">public RestTemplate restTemplate(RestTemplateBuilder builder) &#123;</span><br><span class="line">    return builder.setReadTimeout(Duration.ofMillis(readTimeoutConfig)).setConnectTimeout(Duration.ofMillis(connectTimeoutConfig)).build();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>以上代码形式<code>RestTemplate</code>底层实现采用了<code>Apache HttpComponents</code>作为HTTP客户端，<code>Apache HttpComponents</code>在初始化过程中会用默认参数初始化连接池，最终代码会执行到</p>
 <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">public PoolingHttpClientConnectionManager(</span><br><span class="line">    final HttpClientConnectionOperator httpClientConnectionOperator,</span><br><span class="line">    final HttpConnectionFactory&lt;HttpRoute, ManagedHttpClientConnection&gt; connFactory,</span><br><span class="line">    final long timeToLive, final TimeUnit tunit) &#123;</span><br><span class="line">    super();</span><br><span class="line">    this.configData = new ConfigData();</span><br><span class="line">    this.pool = new CPool(new InternalConnectionFactory(</span><br><span class="line">            this.configData, connFactory), 2, 20, timeToLive, tunit);</span><br><span class="line">    this.pool.setValidateAfterInactivity(2000);</span><br><span class="line">    this.connectionOperator = Args.notNull(httpClientConnectionOperator, &quot;HttpClientConnectionOperator&quot;);</span><br><span class="line">    this.isShutDown = new AtomicBoolean(false);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>在代码第7行构造<code>CPool</code>时传递的常量<code>2</code>表示连接池请求相同域名最大连接数，<code>20</code>表示连接池访问所有域名的最大连接数 。</p>
-<p>至此，问题已清楚，当请求量瞬间升高时服务A访问B的并发量也瞬间增大，此时超过2个并发的HTTP请求只能等待，由于没有设置从连接池获取连接的超时时间，等待会持续到有空闲的HTTP连接为止才会继续发出HTTP请求，这将导致耗时超过设置的HTTP超时时间。</p>
+<p>至此，问题已然清楚，当请求量瞬间升高时服务A访问B的并发量也瞬间增大，此时超过2个并发的HTTP请求只能等待，由于没有设置从连接池获取连接的超时时间，等待会持续到有空闲的HTTP连接为止才会继续发出HTTP请求，这将导致耗时超过设置的HTTP超时时间。</p>
 <h3 id="处理"><a href="#处理" class="headerlink" title="处理"></a>处理</h3><p>基于以上分析，我们使用自定义的HttpClient传递相关参数即可，代码如下：</p>
 <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">@Bean</span><br><span class="line">    public RestTemplate restTemplate() &#123;</span><br><span class="line">        PoolingHttpClientConnectionManager connectMgr = new PoolingHttpClientConnectionManager() ;</span><br><span class="line">        connectMgr.setDefaultMaxPerRoute(defaultMaxPerRoute);</span><br><span class="line">        connectMgr.setMaxTotal(maxTotal);</span><br><span class="line">        CloseableHttpClient httpClient = HttpClients.custom()</span><br><span class="line">                .setConnectionManager(connectMgr)</span><br><span class="line">                .build();</span><br><span class="line">        HttpComponentsClientHttpRequestFactory requestFactory =</span><br><span class="line">                new HttpComponentsClientHttpRequestFactory();</span><br><span class="line">        requestFactory.setHttpClient(httpClient);</span><br><span class="line">        requestFactory.setConnectTimeout(connectTimeoutConfig);</span><br><span class="line">        requestFactory.setReadTimeout(readTimeoutConfig);</span><br><span class="line">        requestFactory.setConnectionRequestTimeout(connectRequestTimeoutConfig);</span><br><span class="line">        RestTemplate restTemplate = new RestTemplate(requestFactory);</span><br><span class="line">        return restTemplate;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
 <p>自定义三个超时时间：<br><strong>connectTimeout</strong>:            建立连接的超时时间<br><strong>readTimeout</strong>:               读取数据的超时时间<br><strong>connectionRequestTimeout</strong>:  从连接池获取连接的超时时间</p>
@@ -606,6 +569,43 @@
       </tags>
   </entry>
   <entry>
+    <title>服务化-服务拆分</title>
+    <url>/2018/09/24/Service-Split/</url>
+    <content><![CDATA[<p>服务化的过程中必然会面对服务拆分的问题；拆分粒度太粗不能体现服务化的优势，拆分过细会导致各项成本过高；所以架构师在服务拆分时要权衡各方面的利弊根据当前情况做出最优解;以下内容是我们团队在使用dubbo的过程，根据实际情况考虑的服务拆分方式；<span id="more"></span></p>
+<h3 id="拆分考虑的因素"><a href="#拆分考虑的因素" class="headerlink" title="拆分考虑的因素"></a>拆分考虑的因素</h3><ul>
+<li>业务领域</li>
+<li>上下层级调用关系</li>
+<li>技术因素</li>
+<li>成本</li>
+</ul>
+<p>我们在拆分过程中充分考虑以上4个因素；特别是在业务领域方面有较多的争议；业务领域下可以继续分子领域，所以在实际方案设计过程中部分团队服务拆分太细；经过多次沟通后我们将部分模块合并为一个provider，因为拆分过细对我们会有如下问题：</p>
+<ul>
+<li>目前我们数据库没有拆分(下阶段会根据个业务线拆库)，服务过细会增加数据库的连接数量</li>
+<li>增加了运维成本</li>
+<li>增加硬件成本</li>
+</ul>
+<h3 id="拆分原则"><a href="#拆分原则" class="headerlink" title="拆分原则"></a>拆分原则</h3><ul>
+<li>模块按照子业务领域和上下层级拆分</li>
+<li>服务调用只能上层服务调用下层服务</li>
+<li>禁止provider之间循环调用</li>
+<li>相同层级的模块可以作为同一个服务对外发布</li>
+<li>模块可以低成本的拆分为一个独立的provider</li>
+</ul>
+<h3 id="模型"><a href="#模型" class="headerlink" title="模型"></a>模型</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">                        ___Api</span><br><span class="line">                       |</span><br><span class="line">          ___Model_A--&gt;|</span><br><span class="line">          |            |___Impl</span><br><span class="line">          |            </span><br><span class="line">          |</span><br><span class="line">          |              ___Api</span><br><span class="line">          |             |</span><br><span class="line">Proider--&gt;|___Model_B--&gt;|</span><br><span class="line">          |             |</span><br><span class="line">          |             |___Impl</span><br><span class="line">          |              </span><br><span class="line">          |             </span><br><span class="line">          |____dubbo_provider.xml   </span><br></pre></td></tr></table></figure>
+
+<h4 id="模型特点"><a href="#模型特点" class="headerlink" title="模型特点"></a>模型特点</h4><ul>
+<li>Model_A和Model_B必须是同一层级的模块，比如: 同为数据访问层或者同为业务服务层</li>
+<li>对外仅提供各个model的Api</li>
+<li>同一个服务可以发布多个模块,节省成本</li>
+<li>服务调用只能是上层服务调用下层服务，从而避免服务循环调用</li>
+<li>各Model可以低成本的拆分为独立的provider</li>
+</ul>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</title>
     <url>/2020/04/11/ShardingSphere-Springboot/</url>
     <content><![CDATA[<p>Sharding-JDBC(ShardingSphere)作为分布式数据库中间件,在Java的JDBC层提供的额外服务。它使用客户端直连数据库，以jar包形式提供服务。引入<code>sharding-jdbc-spring-boot-starter</code>可以快速完成与springboot的集成; 但是默认情况下只能支持到一个数据库，如果支持多数据库，需要做部分扩展；本文记录支持多数据库所做的扩展。<span id="more"></span></p>
@@ -632,27 +632,6 @@
         <tag>微服务</tag>
         <tag>分布式</tag>
       </tags>
-  </entry>
-  <entry>
-    <title>如何提一个问题</title>
-    <url>/2018/12/23/how-to-question/</url>
-    <content><![CDATA[<p>在我们日常生活以及工作中经常会遇到提问题, 我们有没有想过如何提一个好问题？也许有人会说，「提问谁不回？会讲话的小孩子就会问为什么，这有什么值得说的？」没错，从这个角度上说机会每个人都会提问。但是，我们有没有想过，我们问问题的目的是什么？是得到对问题的解答。大家有没有遇到过这样的情况，自己问题发给对方后始终得不到回复，或者对方敷衍了事，更有甚者被对方怼回去。如果遇到这些情况，我们应该好好反思一下，我们是不是提了一个好问题；在说好问题之前结合个人的经历谈谈什么样的问题不是一个好问题。<span id="more"></span></p>
-<ol>
-<li>提问者在im上发一个截图，截图里面是一个异常栈，没有任何上下文，然后就没有然后了；解答者在那里等对方进一步的信息，结果什么也等到；过了很久(估计等很久没回复)，亲自过来说「帮我看看我的问题」；这个时候才开始沟通，问题是怎么出现的，什么环境，上下文，等… </li>
-<li>有些问题在技术文档，产品文档上都已经说的很清楚；但提问者不看文档，直接把问题抛过来；也许是提问者自己没有按照文档要求操作，或者真的是一个问题但文档FAQ部分已经解释的很清楚 ；</li>
-<li>提问者直接将问题抛出来，不做任何思考和尝试，只在那里等答案；不知道提问者有没有想过，解答者也要花费大量的时间去调研；</li>
-<li>提问者提问道时候，发的关键信息是一张截图，截图中可能有id之类的标示，此时解答者可能需要根据id搜索，只能手工输入，这样既浪费时间也容易出错；</li>
-</ol>
-<p>对于以上的案例，个人觉得提问者需要加强独立思考的能力，不然会给对方留下「伸手党」的感觉；个人觉得可以按照如下的方式考虑提问:</p>
-<ol>
-<li>对于技术问题或者产品问题，一般作者会提供相应的文档；首先我们应该阅读相关文档，特别注意FAQ部分；</li>
-<li>善于使用搜索引擎，具备基本的搜商(SQ) ,推荐用google(对技术工作者，这个不需要解释), 百度请忽略所有「广告」字样的文章，微信，知乎等工具;</li>
-<li>在以上两步都没有找到答案情况下，可以参考第二步搜索过程中出现的文章以及官方提供的文档尝试；比如是否可以升级软件版本，是否可以调整某些参数；相信在尝试过程中会加深自己对问题的理解以及提升自己解决问题的能力</li>
-<li>经过以上步骤能解决95%的问题了；如果还没有解决，这时候再提问，相信这个时候提出的问题质量是非常高的；比如: 该问题是如何出现的，什么环境，硬件型号是什么，软件版本是什么，我的操作步骤是什么，我做了哪些调研，尝试了哪些方式，得到结果是什么,等.. </li>
-</ol>
-<p>那么提一个好问题有那么重要吗？我认为提一个好问题比解答一个问题更能体现一个人的真实水平，因为这证明提问者有独立思考的能力；比如在职场中一个常见的场景是这样的，面试最后部分面试官会问面试者有什么问题吗？这个时候如果提一个高质量的问题，相信会加深面试官的印象,在同等条件的候选者中相信胜出的概率会更高;</p>
-<p>最后关于什么是好问题，这里引用某大佬的一句话 「什么是好问题，你对某个领域有一定研究，你已经翻阅和查询了足够的资料，然后你基于你的理解，对这些资料中，某几个无法理解的细节提出来，希望专业人士给与解惑，而这个细节问题确实具有足够代表性，是理解一些关键问题的钥匙，这就是好问题。」</p>
-]]></content>
   </entry>
   <entry>
     <title>技术给业务赋能</title>
@@ -759,6 +738,43 @@
       <tags>
         <tag>微服务</tag>
         <tag>分布式</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Java与Go之间gRPC调用失败问题排查</title>
+    <url>/2019/06/02/gRPC-Go-Java/</url>
+    <content><![CDATA[<p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
+<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
+<ol>
+<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
+<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
+<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
+<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
+<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
+</ol>
+<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
+<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
+<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
+<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
+</ol>
+<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
+<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
+<ol>
+<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
+<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
+<li>最终还是要升级到新版本</li>
+</ol>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
+<ol>
+<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
+<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
+</ol>
+<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
+<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a href="https://grpc.io/">https://grpc.io/</a><br><a href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>RPC</tag>
       </tags>
   </entry>
   <entry>
@@ -1083,41 +1099,25 @@
 ]]></content>
   </entry>
   <entry>
-    <title>Java与Go之间gRPC调用失败问题排查</title>
-    <url>/2019/06/02/gRPC-Go-Java/</url>
-    <content><![CDATA[<p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
-<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
+    <title>如何提一个问题</title>
+    <url>/2018/12/23/how-to-question/</url>
+    <content><![CDATA[<p>在我们日常生活以及工作中经常会遇到提问题, 我们有没有想过如何提一个好问题？也许有人会说，「提问谁不回？会讲话的小孩子就会问为什么，这有什么值得说的？」没错，从这个角度上说机会每个人都会提问。但是，我们有没有想过，我们问问题的目的是什么？是得到对问题的解答。大家有没有遇到过这样的情况，自己问题发给对方后始终得不到回复，或者对方敷衍了事，更有甚者被对方怼回去。如果遇到这些情况，我们应该好好反思一下，我们是不是提了一个好问题；在说好问题之前结合个人的经历谈谈什么样的问题不是一个好问题。<span id="more"></span></p>
 <ol>
-<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
-<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
-<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
-<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
-<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
+<li>提问者在im上发一个截图，截图里面是一个异常栈，没有任何上下文，然后就没有然后了；解答者在那里等对方进一步的信息，结果什么也等到；过了很久(估计等很久没回复)，亲自过来说「帮我看看我的问题」；这个时候才开始沟通，问题是怎么出现的，什么环境，上下文，等… </li>
+<li>有些问题在技术文档，产品文档上都已经说的很清楚；但提问者不看文档，直接把问题抛过来；也许是提问者自己没有按照文档要求操作，或者真的是一个问题但文档FAQ部分已经解释的很清楚 ；</li>
+<li>提问者直接将问题抛出来，不做任何思考和尝试，只在那里等答案；不知道提问者有没有想过，解答者也要花费大量的时间去调研；</li>
+<li>提问者提问道时候，发的关键信息是一张截图，截图中可能有id之类的标示，此时解答者可能需要根据id搜索，只能手工输入，这样既浪费时间也容易出错；</li>
 </ol>
-<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
-<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
-<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
-<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
-</ol>
-<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
-<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
+<p>对于以上的案例，个人觉得提问者需要加强独立思考的能力，不然会给对方留下「伸手党」的感觉；个人觉得可以按照如下的方式考虑提问:</p>
 <ol>
-<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
-<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
-<li>最终还是要升级到新版本</li>
+<li>对于技术问题或者产品问题，一般作者会提供相应的文档；首先我们应该阅读相关文档，特别注意FAQ部分；</li>
+<li>善于使用搜索引擎，具备基本的搜商(SQ) ,推荐用google(对技术工作者，这个不需要解释), 百度请忽略所有「广告」字样的文章，微信，知乎等工具;</li>
+<li>在以上两步都没有找到答案情况下，可以参考第二步搜索过程中出现的文章以及官方提供的文档尝试；比如是否可以升级软件版本，是否可以调整某些参数；相信在尝试过程中会加深自己对问题的理解以及提升自己解决问题的能力</li>
+<li>经过以上步骤能解决95%的问题了；如果还没有解决，这时候再提问，相信这个时候提出的问题质量是非常高的；比如: 该问题是如何出现的，什么环境，硬件型号是什么，软件版本是什么，我的操作步骤是什么，我做了哪些调研，尝试了哪些方式，得到结果是什么,等.. </li>
 </ol>
-<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
-<ol>
-<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
-<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
-</ol>
-<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
-<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a href="https://grpc.io/">https://grpc.io/</a><br><a href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
+<p>那么提一个好问题有那么重要吗？我认为提一个好问题比解答一个问题更能体现一个人的真实水平，因为这证明提问者有独立思考的能力；比如在职场中一个常见的场景是这样的，面试最后部分面试官会问面试者有什么问题吗？这个时候如果提一个高质量的问题，相信会加深面试官的印象,在同等条件的候选者中相信胜出的概率会更高;</p>
+<p>最后关于什么是好问题，这里引用某大佬的一句话 「什么是好问题，你对某个领域有一定研究，你已经翻阅和查询了足够的资料，然后你基于你的理解，对这些资料中，某几个无法理解的细节提出来，希望专业人士给与解惑，而这个细节问题确实具有足够代表性，是理解一些关键问题的钥匙，这就是好问题。」</p>
 ]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>RPC</tag>
-      </tags>
   </entry>
   <entry>
     <title>基于protobuf的定义在跨语言消息传递中的应用</title>
