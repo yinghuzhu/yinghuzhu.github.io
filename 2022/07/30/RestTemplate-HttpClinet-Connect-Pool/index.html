@@ -32,7 +32,7 @@
 <meta property="og:image" content="https://www.yzhu.name/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/monitor.jpg">
 <meta property="og:image" content="https://www.yzhu.name/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/opentracing.jpg">
 <meta property="article:published_time" content="2022-07-30T05:54:02.000Z">
-<meta property="article:modified_time" content="2022-08-06T10:04:52.252Z">
+<meta property="article:modified_time" content="2022-08-07T14:00:00.883Z">
 <meta property="article:author" content="yhzhu">
 <meta property="article:tag" content="线上问题">
 <meta name="twitter:card" content="summary">
@@ -213,7 +213,7 @@
 <p>以上代码形式<code>RestTemplate</code>底层实现采用了<code>Apache HttpComponents</code>作为HTTP客户端，<code>Apache HttpComponents</code>在初始化过程中会用默认参数初始化连接池，最终代码会执行到</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">public PoolingHttpClientConnectionManager(</span><br><span class="line">    final HttpClientConnectionOperator httpClientConnectionOperator,</span><br><span class="line">    final HttpConnectionFactory&lt;HttpRoute, ManagedHttpClientConnection&gt; connFactory,</span><br><span class="line">    final long timeToLive, final TimeUnit tunit) &#123;</span><br><span class="line">    super();</span><br><span class="line">    this.configData = new ConfigData();</span><br><span class="line">    this.pool = new CPool(new InternalConnectionFactory(</span><br><span class="line">            this.configData, connFactory), 2, 20, timeToLive, tunit);</span><br><span class="line">    this.pool.setValidateAfterInactivity(2000);</span><br><span class="line">    this.connectionOperator = Args.notNull(httpClientConnectionOperator, &quot;HttpClientConnectionOperator&quot;);</span><br><span class="line">    this.isShutDown = new AtomicBoolean(false);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>在代码第7行构造<code>CPool</code>时传递的常量<code>2</code>表示连接池请求相同域名最大连接数，<code>20</code>表示连接池访问所有域名的最大连接数 。</p>
-<p>至此，问题已然清楚，当请求量瞬间升高时服务A访问B的并发量也瞬间增大，此时超过2个并发的HTTP请求只能等待，由于没有设置从连接池获取连接的超时时间，等待会持续到有空闲的HTTP连接为止才会继续发出HTTP请求，这将导致耗时超过设置的HTTP超时时间。</p>
+<p>至此，问题已然清楚，当zeus-order请求量瞬间升高时zeus-order访问zeus的并发量也瞬间增大，如果超过2个并发的HTTP请求只能等待，由于没有设置从连接池获取连接的超时时间，会无限等待，直到连接池内有空闲的HTTP连接然后获取连接继续发出HTTP请求，这样整个请求耗时将可能超过设置的HTTP超时时间</p>
 <h3 id="处理"><a href="#处理" class="headerlink" title="处理"></a>处理</h3><p>基于以上分析，我们使用自定义的HttpClient传递相关参数即可，代码如下：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">@Bean</span><br><span class="line">    public RestTemplate restTemplate() &#123;</span><br><span class="line">        PoolingHttpClientConnectionManager connectMgr = new PoolingHttpClientConnectionManager() ;</span><br><span class="line">        connectMgr.setDefaultMaxPerRoute(defaultMaxPerRoute);</span><br><span class="line">        connectMgr.setMaxTotal(maxTotal);</span><br><span class="line">        CloseableHttpClient httpClient = HttpClients.custom()</span><br><span class="line">                .setConnectionManager(connectMgr)</span><br><span class="line">                .build();</span><br><span class="line">        HttpComponentsClientHttpRequestFactory requestFactory =</span><br><span class="line">                new HttpComponentsClientHttpRequestFactory();</span><br><span class="line">        requestFactory.setHttpClient(httpClient);</span><br><span class="line">        requestFactory.setConnectTimeout(connectTimeoutConfig);</span><br><span class="line">        requestFactory.setReadTimeout(readTimeoutConfig);</span><br><span class="line">        requestFactory.setConnectionRequestTimeout(connectRequestTimeoutConfig);</span><br><span class="line">        RestTemplate restTemplate = new RestTemplate(requestFactory);</span><br><span class="line">        return restTemplate;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
 <p>自定义三个超时时间：<br><strong>connectTimeout</strong>:            建立连接的超时时间<br><strong>readTimeout</strong>:               读取数据的超时时间<br><strong>connectionRequestTimeout</strong>:  从连接池获取连接的超时时间</p>
@@ -346,7 +346,7 @@
 <div class="copyright">
   
   &copy; 
-  <span itemprop="copyrightYear">2022</span>
+  <span itemprop="copyrightYear">2023</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>

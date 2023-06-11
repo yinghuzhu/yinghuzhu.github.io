@@ -22,17 +22,19 @@
     var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="互联网 分布式 微服务 高并发">
+  <meta name="description" content="运费计算器           function calculateShippingCost() {       const length &#x3D; parseFloat(document.getElementById(&quot;length&quot;).value) &#x2F; 100; &#x2F;&#x2F; 将厘米转换为米       const width &#x3D; parseFloat(document.getElementByI">
 <meta property="og:type" content="website">
 <meta property="og:title" content="yhzhu的随手记">
-<meta property="og:url" content="https://www.yzhu.name/tags/%E9%93%BE%E8%B7%AF%E8%B7%9F%E8%B8%AA/index.html">
+<meta property="og:url" content="https://www.yzhu.name/tools/shipping-cost.html">
 <meta property="og:site_name" content="yhzhu的随手记">
-<meta property="og:description" content="互联网 分布式 微服务 高并发">
+<meta property="og:description" content="运费计算器           function calculateShippingCost() {       const length &#x3D; parseFloat(document.getElementById(&quot;length&quot;).value) &#x2F; 100; &#x2F;&#x2F; 将厘米转换为米       const width &#x3D; parseFloat(document.getElementByI">
 <meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-06-11T07:45:09.602Z">
+<meta property="article:modified_time" content="2023-06-11T07:45:09.602Z">
 <meta property="article:author" content="yhzhu">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="https://www.yzhu.name/tags/%E9%93%BE%E8%B7%AF%E8%B7%9F%E8%B8%AA/">
+<link rel="canonical" href="https://www.yzhu.name/tools/shipping-cost">
 
 
 <script id="page-configurations">
@@ -45,7 +47,8 @@
   };
 </script>
 
-  <title>标签: 链路跟踪 | yhzhu的随手记</title>
+  <title> | yhzhu的随手记
+</title>
   
 
 
@@ -148,54 +151,138 @@
       <div class="main-inner">
         <div class="content-wrap">
           
+  
+  
 
-          <div class="content tag">
+          <div class="content page posts-expand">
             
 
+    
+    
+    
+    <div class="post-block" lang="zh-CN">
+      <header class="post-header">
+
+<h1 class="post-title" itemprop="name headline">
+</h1>
+
+<div class="post-meta">
   
-  
-  
-  <div class="post-block">
-    <div class="posts-collapse">
-      <div class="collection-title">
-        <h2 class="collection-header">链路跟踪
-          <small>标签</small>
-        </h2>
-      </div>
+
+</div>
+
+</header>
 
       
-    <div class="collection-year">
-      <span class="collection-header">2019</span>
+      
+      
+      <div class="post-body">
+          <!DOCTYPE html>
+<html>
+<head>
+  <title>运费计算器</title>
+  <meta charset="UTF-8">
+  <script>
+    function calculateShippingCost() {
+      const length = parseFloat(document.getElementById("length").value) / 100; // 将厘米转换为米
+      const width = parseFloat(document.getElementById("width").value) / 100; // 将厘米转换为米
+      const height = parseFloat(document.getElementById("height").value) / 100; // 将厘米转换为米
+      let weight = parseFloat(document.getElementById("weight").value);
+      const shippingRateByWeight = parseFloat(document.getElementById("shippingRate").value);
+      const exchangeRate = parseFloat(document.getElementById("exchangeRate").value) || 7.0; // 默认汇率为7.0
+      const volumeToWeightConversion = parseFloat(document.getElementById("volumeToWeightConversion").value) || 200; // 体积重量换算，默认为200
+
+      const volume = length * width * height;
+      let shippingCost;
+
+      if (volume / weight > 1 / volumeToWeightConversion) {
+        weight = volume * volumeToWeightConversion;
+      }
+
+      shippingCost = weight * shippingRateByWeight;
+
+      const shippingCostInUSD = shippingCost / exchangeRate;
+
+      document.getElementById("shippingVolume").textContent = volume.toFixed(2) + " m³";
+      document.getElementById("shippingWeight").textContent = weight.toFixed(2) + " kg";
+      document.getElementById("shippingCostCNY").textContent = shippingCost.toFixed(2) + " 元";
+      document.getElementById("shippingCostUSD").textContent = shippingCostInUSD.toFixed(2) + " USD";
+    }
+  </script>
+</head>
+<body>
+  <h1>运费计算器</h1>
+  <div>
+    <div class="input-group">
+      <label for="length">长度（厘米）：</label>
+      <input type="number" id="length" step="0.01" required>
     </div>
 
-  <article itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
+    <div class="input-group">
+      <label for="width">宽度（厘米）：</label>
+      <input type="number" id="width" step="0.01" required>
+    </div>
 
-      <div class="post-meta">
-        <time itemprop="dateCreated"
-              datetime="2019-12-27T18:33:50+08:00"
-              content="2019-12-27">
-          12-27
-        </time>
-      </div>
+    <div class="input-group">
+      <label for="height">高度（厘米）：</label>
+      <input type="number" id="height" step="0.01" required>
+    </div>
 
-      <div class="post-title">
-          <a class="post-title-link" href="/2019/12/27/Jaeger-Thread/" itemprop="url">
-            <span itemprop="name">Open Tracing(Jaeger) 遭遇多线程</span>
-          </a>
-      </div>
+    <div class="input-group">
+      <label for="weight">重量（公斤）：</label>
+      <input type="number" id="weight" step="0.01" required>
+    </div>
 
-    </header>
-  </article>
+    <div class="input-group">
+      <label for="shippingRate">每公斤运费：</label>
+      <input type="number" id="shippingRate" step="0.01" required>
+    </div>
 
+    <div class="input-group">
+      <label for="exchangeRate">美元兑人民币汇率：</label>
+      <input type="number" id="exchangeRate" step="0.01" value="7.0">
+    </div>
+
+    <div class="input-group">
+      <label for="volumeToWeightConversion">体积重量换算：</label>
+      <input type="number" id="volumeToWeightConversion" step="0.01" value="200">
+    </div>
+
+    <button onclick="calculateShippingCost()">计算运费</button>
+  </div>
+
+  <div>
+    <h2>运费结果：</h2>
+    <div class="input-group">
+      <label>体积为:</label>
+      <span id="shippingVolume"></span>
+    </div>
+    <div class="input-group">
+      <label>体积换算后的重量为:</label>
+      <span id="shippingWeight"></span>
+    </div>
+    <div class="input-group">
+      <label>运费为:</label>
+      <span id="shippingCostCNY"></span>
+    </div>
+    <div class="input-group">
+      <label>运费为:</label>
+      <span id="shippingCostUSD"></span>
     </div>
   </div>
-  
-  
-  
+</body>
+</html>
 
-  
+      </div>
+      
+      
+      
+    </div>
+    
 
+    
+    
+    
 
 
           </div>
@@ -246,6 +333,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link"><span class="nav-number">1.</span> <span class="nav-text">运费计算器</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link"><span class="nav-number">1.1.</span> <span class="nav-text">运费结果：</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
