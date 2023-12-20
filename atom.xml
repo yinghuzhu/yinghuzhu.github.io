@@ -36,19 +36,23 @@
   </entry>
   
   <entry>
-    <title>基础组件升级策略与实践</title>
-    <link href="https://www.yzhu.name/2023/08/26/Infra-Component-Upgrade/"/>
-    <id>https://www.yzhu.name/2023/08/26/Infra-Component-Upgrade/</id>
-    <published>2023-08-26T09:35:29.000Z</published>
-    <updated>2023-09-09T08:01:52.475Z</updated>
+    <title>灰度发布过程中缓存数据一致性问题</title>
+    <link href="https://www.yzhu.name/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/"/>
+    <id>https://www.yzhu.name/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/</id>
+    <published>2023-05-13T12:54:07.000Z</published>
+    <updated>2023-12-20T13:52:05.297Z</updated>
     
-    <content type="html"><![CDATA[<p>基础组件是我们系统构成的关键要素，包括中间件SDK、基础架构组件等。它们为系统提供了核心功能和基本服务，为业务逻辑的实现提供支持; 近几年多做了一些基础组件的升级，有些经历了较长的升级周期，也有的一次上线直接成功，还有个别组件升级失败了，目前仍然在寻找改进方法； <span id="more"></span></p><h2 id="为什么需要基础组件"><a href="#为什么需要基础组件" class="headerlink" title="为什么需要基础组件"></a>为什么需要基础组件</h2><p>为什么我们的系统要引入基础组件，使用基础组件由什么优势,以下根据个人体会列出了几点：</p><ol><li>提高开发效率：基础组件为提供了可重用、可定制和可扩展的组件和库。通过使用这些组件，开发团队能够快速搭建系统，并在不必从头开始编写代码的情况下实现常见功能。这大大提高了开发效率，缩短了产品上线时间</li><li>降低开发成本：通过使用成熟的基础组件，我们能够减少自主开发和维护的工作量。这意味着可以节省开发资源，并将精力集中在增值业务和创新上。</li><li>统一标准和规范：基础组件有助于确保在整个系统中使用一致的标准和规范。这种一致性使得不同团队的开发人员能够更好地协同工作，并减少因为不一致性而导致的问题。例如，使用统一的redis客户端组件限制一些危险命令的使用。</li><li>提升系统可靠性和稳定性：基础组件经过专业的设计和测试，通常具有高度可靠性和稳定性。它们被广泛使用和验证，可以减少系统中的错误和故障。而且，这些组件通常具有自动化的监控和错误处理机制，能够及时发现和处理潜在的问题，提高系统的稳定性。</li><li>解偶业务系统与中间件，平台之间的代码：提高系统的稳定性，方便维护，开发人员聚焦到业务功能开发；</li><li>提高管理效率，通过技术手段将操作流程规范化</li><li>安全性：确保系统采用安全大版本</li></ol><h2 id="为什么进行基础组件升级"><a href="#为什么进行基础组件升级" class="headerlink" title="为什么进行基础组件升级"></a>为什么进行基础组件升级</h2><ol><li>修复组件Bug,提高系统稳定性: 随着时间的推移,基础组件中会暴露出各种Bug,这些Bug可能会导致系统崩溃或业务异常。升级组件可以修复已知的Bug,提高系统稳定性。</li><li>获取最新功能特性,满足业务需要：基础组件推出新版本时,通常会提供新的功能和特性。业务需求瞬息万变,升级组件可以获得最新功能来满足业务需求。</li><li>改善性能,提升效率：新版本的基础组件通常在性能和效率上有改进,如增加缓存、优化算法等。升级后可以减少响应时长,提升系统吞吐量。</li><li>优化资源利用,降低成本：基础组件的新版本可能在资源调度和分配上进行了优化,可以提高资源利用率,降低系统运营成本。</li><li>提高开发效率：新版本组件通常会优化API设计,提高开发效率。同时修复Bug也可以减少开发调试时间。</li><li>解除对旧版的依赖：旧版本组件停止维护后,存在安全风险和兼容性问题。升级可以避免对旧版组件的依赖。</li><li>减少技术债务：使用了较旧版本的基础组件，可能会有技术债务积累，包括安全漏洞、性能瓶颈等；升级基础组件是控制技术债务的重要措施之一，积压的技术债务会制约公司发展</li><li>处理兼容性问题: 随着系统的发展和业务的扩展，可能需要与其他系统进行集成和交互，升级基础组件可以提供更好的兼容性和互操作性；</li></ol><h2 id="升级前的准备工作"><a href="#升级前的准备工作" class="headerlink" title="升级前的准备工作"></a>升级前的准备工作</h2><p>在进行基础组件升级之前，进行充分的准备工作是至关重要的，这可以帮助确保升级过程的顺利进行并最小化潜在风险。以下是升级前需要做的一些准备工作：</p><ol><li>明确目标： 定义升级的具体目标，明确您希望通过升级实现的业务和技术目标。了解升级所需的功能、性能、安全性等需求。</li><li>收集现有信息： 收集关于当前系统和基础组件的详细信息，包括版本、依赖关系、功能和性能特征等。这将有助于为升级过程做出更准确的决策。</li><li>评估风险和影响： 识别潜在的风险和影响范围，包括与升级相关的功能中断、兼容性问题、性能下降等。评估这些风险的严重程度，以便制定应对策略。</li><li>数据策略： 在进行升级之前，确保对系统进行完整的备份。如果升级中出现问题，可以回滚到之前的状态。对于数据库等有状态的组件，可以创建快照； </li><li>制定升级计划： 制定详细的升级计划，包括升级的步骤、时间表、责任人等。确定升级过程中需要涉及的各方，并为他们提供清晰的指导。对于较大范围升级工作，可以拆分为多个里程碑，尽可能保证每个步骤影响范围降到最低；</li><li>制定回滚计划： 确定如何还原系统到升级前的状态，以便在紧急情况下进行干预。原则上对升级操作的每个步骤都有对应的回滚步骤，如果不能回滚的场景下必须给出快速解决的方法。</li><li>测试环境预演： 在测试环境中进行升级的测试预演，以模拟真实生产环境。测试环境应该尽可能地与生产环境相似，以便更准确地预测升级可能的影响。</li><li>性能和压力测试： 在压测环境中进行压力测试，以评估新版本基础组件在不同负载条件下的表现。这有助于预测在生产环境中可能出现的问题。</li><li>制定上线计划通知所有相关方</li><li>用户培训： 如果新版本引入了新的特性或变化，为团队成员提供培训，确保他们熟悉和适应新版本。</li></ol><h2 id="升级实践"><a href="#升级实践" class="headerlink" title="升级实践"></a>升级实践</h2><ol><li>版本选择： 仔细评估新版本的功能、性能和安全特性。选择与业务需求最匹配的版本，同时考虑其稳定性和用户反馈,重点关注开源社区对issue list。</li><li>兼容性检查： 检查新版本与现有系统的兼容性。确保新版本不会破坏现有的功能和集成。</li><li>测试环境验证： 在测试环境中进行升级测试，尽量模拟真实生产环境，确保测试到各种可能影响到的场景。</li><li>自动化测试： 针对关键业务场景和功能，创建自动化测试用例。这有助于快速验证新版本的稳定性和正确性。</li><li>性能测试： 在压测环境中进行压力测试，以评估新版本在不同负载条件下的表现。识别潜在的性能问题。</li><li>数据迁移计划： 如果升级涉及数据存储系统，制定数据迁移计划。确保数据的完整性和一致性。</li><li>备份和回滚： 在进行任何升级操作之前，确保对系统进行全面备份。制定回滚计划，以便在升级过程中遇到问题时能够迅速还原。</li><li>灰度发布： 如果条件许可尽可能采用渐进式发布策略，将新版本逐步引入生产环境，以减少风险。</li><li>监控和报警： 升级后留意监控和报警，以便实时监控系统的性能和稳定性，及时发现并快速解决潜在问题。</li></ol><h2 id="升级后的监测与迭代"><a href="#升级后的监测与迭代" class="headerlink" title="升级后的监测与迭代"></a>升级后的监测与迭代</h2><ol><li>性能监测： 持续监测系统的性能，包括响应时间、吞吐量、延迟等。比较升级前后的性能数据，确保新版本不会导致性能下降。</li><li>稳定性监测： 监测系统的稳定性，识别是否存在崩溃、死锁、内存泄漏等问题。及时处理并解决这些问题，以确保系统不会因此而崩溃或变得不稳定。</li><li>资源利用率监测： 监测服务器、内存、CPU、网络等资源的利用率。确保新版本不会导致资源耗尽。</li><li>错误日志报警： 关注错误日志报警，确保升级后不会出现更多错误，防止问题升级为严重故障。</li><li>快速响应和修复： 如果发现了严重问题，确保能够快速响应并进行修复。灵活地进行紧急发布，以解决可能影响业务的问题。</li><li>收集用户的反馈: 了解用户在使用新版本时遇到的问题，帮助用户解决问题或在在后续版本修复。</li></ol><h2 id="设计基础组件的注意事项"><a href="#设计基础组件的注意事项" class="headerlink" title="设计基础组件的注意事项"></a>设计基础组件的注意事项</h2><p>在设计基础组件时，有一些注意事项可以考虑，以确保其可靠性、可扩展性和易用性。以下是一些常见的注意事项：</p><ol><li>定义清晰的接口：确保组件的功能和接口定义清晰明确。这将帮助其他开发人员理解如何正确使用组件，并减少潜在的集成问题。</li><li>高可用性和容错性：基础组件通常是系统中不可或缺的一部分，因此必须具备高可用性和容错性。考虑使用冗余、自动故障转移和负载均衡等机制来提高系统的可用性。</li><li>可扩展性：设计组件时要考虑到系统未来的扩展需求。确保组件可以水平扩展，以应对增加的负载和数据量。</li><li>安全性：基础组件通常处理敏感数据和关键业务逻辑，因此安全性是至关重要的。实施适当的安全措施，如身份验证、访问控制和数据加密等，以保护组件免受潜在的威胁。</li><li>性能优化：确保组件在处理大量请求和数据时能够提供良好的性能表现。使用高效的算法和数据结构，并进行性能测试和优化，以确保组件能够满足系统的性能需求。</li><li>文档和日志记录：提供清晰、详细的文档和日志记录，以便开发人员和运维团队能够理解组件的工作原理和故障排查方法。</li><li>监控和警报：实施监控和警报机制，以及时检测和响应组件的问题。监控关键指标，并设置警报以便在出现异常情况时及时通知相关人员。</li><li>版本控制和发布管理：使用版本控制系统来管理组件的代码和配置，确保可追溯性和可靠的发布管理。考虑使用自动化工具和流程来简化部署和升级过程。</li><li>可测试性：设计组件时要考虑到测试的可行性。提供适当的接口和工具，以便开发人员能够方便地编写和运行单元测试、集成测试和端到端测试。</li><li>与其他组件的集成：如果组件需要与其他组件进行集成，要确保接口和数据格式的兼容性，并进行充分的集成测试，以验证组件的正确性和稳定性。</li><li>遵循规范：组件实现需要遵循行业设计规范和标准,以提升互操作性</li></ol>]]></content>
-    
-    
-    <summary type="html">&lt;p&gt;基础组件是我们系统构成的关键要素，包括中间件SDK、基础架构组件等。它们为系统提供了核心功能和基本服务，为业务逻辑的实现提供支持; 近几年多做了一些基础组件的升级，有些经历了较长的升级周期，也有的一次上线直接成功，还有个别组件升级失败了，目前仍然在寻找改进方法；&lt;/p&gt;</summary>
+    <content type="html"><![CDATA[<p>灰度发布是一种常见的上线策略。如果灰度发布时间较长，且在灰度期间各分组共用缓存，那么该过程中可能会面临缓存数据一致性的挑战。本文将讨论在灰度发布过程中导致缓存数据不一致的问题和解决方案。 <span id="more"></span></p><h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>通常，我们采用了灰度发布策略来确保新功能的平稳上线。我们将用户流量分为两个组（为了描述简单，假设灰度只有两个分组）：A组和B组。在灰度发布的第一阶段，我们选择将20%的流量分配给B组，将剩余的80%分配给A组。这样可以确保新功能在一部分用户中进行测试和验证，同时保持对大多数用户的稳定性。然而，在灰度发布过程中由于代码版本的不一致，导致A组和B组的缓存数据出现了不一致的情况。</p><h3 id="问题分析"><a href="#问题分析" class="headerlink" title="问题分析"></a>问题分析</h3><p>在灰度发布期间可能出现以下两个场景导致数据不一致问题：</p><ol><li><p><strong>缓存增加元素：</strong> 在B组的代码版本（v2）中，我们增加了一个缓存对象的元素，但是A组的代码版本（v1）并没有包含这个元素。这导致A组写入缓存的数据，在B组读取时无法正确反序列化，导致数据解析失败。</p></li><li><p><strong>计算逻辑变化：</strong> 缓存对象的元素（e1）是逻辑计算得出的结果，在B组的代码版本（v2）中我们修改了该元素计算逻辑，但是A组的代码版本（v1）仍是旧的计算逻辑；这导致A组写入的缓存B组读出不符合预期，而B组写入的缓存A组读出不符合预期。</p></li></ol><h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h3><p>在面对这种缓存数据一致性问题时，我们采取了以下解决方案：</p><ol><li><p><strong>a/b组缓存隔离</strong>：A/B组分别访问不同的缓存，不同的分组可以连接不同的缓存或者不同的分组以不同的key前缀区分。然而实际情况是以上问题只会发生在极个别的缓存元素上。这种方案虽然能解决以上问题，但缓存数量会随着分组的增加而成倍增加，造成资源的严重浪费，同时缓存命中率也会下降。</p></li><li><p><strong>反序列化兼容增加的元素</strong>：基本所有的序列化/反序列化组件都支持该功能。比如JDK自带的功能确保<code>serialVersionUID</code>保持不变即可，或者使用protobuf、json等序列化类库都可以实现。该方法虽然能解决A组写入B读取反序列化失败的问题，但B组反序列化成功仍然缺少新增加的元素。</p></li><li><p><strong>使用新key</strong>：在B组代码中使用新的key，这样A/B组缓存可以彻底隔离。但对于某些底层数据结构，可能被上层很多缓存引用，而且是通过多级引用，开发人员容易遗漏某些key。</p></li><li><p><strong>版本控制</strong>：大致思路是每个缓存在key上携带本次变更的版本号。如果本次发布缓存元素没有变化，则版本号不变。具体实现过程如下：</p><ul><li>在Spring容器启动过程中获取所有标记<code>@Cacheable</code>注解的方法。</li><li>对方法返回值对象内元素按照元素类型和一定的算法计算对象code值。如果对象元素发生变化，则对象code值一定变化。如果是元素是自定义对象需要递归计算。</li><li>读写缓存时在缓存key增加code后缀。</li></ul></li></ol><h3 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h3><p>最后我们采用了<strong>版本控制</strong>的方案。在实施前，我们进行了充分的测试和验证，确保缓存的版本控制逻辑正确无误，并在灰度发布期间保持了缓存数据的一致性。</p>]]></content>
     
     
+    <summary type="html">&lt;p&gt;灰度发布是一种常见的上线策略。如果灰度发布时间较长，且在灰度期间各分组共用缓存，那么该过程中可能会面临缓存数据一致性的挑战。本文将讨论在灰度发布过程中导致缓存数据不一致的问题和解决方案。&lt;/p&gt;</summary>
     
+    
+    
+    
+    <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
+    
+    <category term="一致性" scheme="https://www.yzhu.name/tags/%E4%B8%80%E8%87%B4%E6%80%A7/"/>
     
   </entry>
   
@@ -72,11 +76,28 @@
   </entry>
   
   <entry>
+    <title>基础组件升级策略与实践</title>
+    <link href="https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/"/>
+    <id>https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/</id>
+    <published>2022-03-26T12:35:29.000Z</published>
+    <updated>2023-12-20T00:57:35.798Z</updated>
+    
+    <content type="html"><![CDATA[<p>基础组件是我们系统构成的关键要素，包括中间件SDK、基础架构组件等。它们为系统提供了核心功能和基本服务，为业务逻辑的实现提供支持; 近几年多做了一些基础组件的升级，有些经历了较长的升级周期，也有的一次上线直接成功，还有个别组件升级失败了，目前仍然在寻找改进方法； <span id="more"></span></p><h2 id="为什么需要基础组件"><a href="#为什么需要基础组件" class="headerlink" title="为什么需要基础组件"></a>为什么需要基础组件</h2><p>为什么我们的系统要引入基础组件，使用基础组件由什么优势,以下根据个人体会列出了几点：</p><ol><li>提高开发效率：基础组件为提供了可重用、可定制和可扩展的组件和库。通过使用这些组件，开发团队能够快速搭建系统，并在不必从头开始编写代码的情况下实现常见功能。这大大提高了开发效率，缩短了产品上线时间</li><li>降低开发成本：通过使用成熟的基础组件，我们能够减少自主开发和维护的工作量。这意味着可以节省开发资源，并将精力集中在增值业务和创新上。</li><li>统一标准和规范：基础组件有助于确保在整个系统中使用一致的标准和规范。这种一致性使得不同团队的开发人员能够更好地协同工作，并减少因为不一致性而导致的问题。例如，使用统一的redis客户端组件限制一些危险命令的使用。</li><li>提升系统可靠性和稳定性：基础组件经过专业的设计和测试，通常具有高度可靠性和稳定性。它们被广泛使用和验证，可以减少系统中的错误和故障。而且，这些组件通常具有自动化的监控和错误处理机制，能够及时发现和处理潜在的问题，提高系统的稳定性。</li><li>解偶业务系统与中间件，平台之间的代码：提高系统的稳定性，方便维护，开发人员聚焦到业务功能开发；</li><li>提高管理效率，通过技术手段将操作流程规范化</li><li>安全性：确保系统采用安全大版本</li></ol><h2 id="为什么进行基础组件升级"><a href="#为什么进行基础组件升级" class="headerlink" title="为什么进行基础组件升级"></a>为什么进行基础组件升级</h2><ol><li>修复组件Bug,提高系统稳定性: 随着时间的推移,基础组件中会暴露出各种Bug,这些Bug可能会导致系统崩溃或业务异常。升级组件可以修复已知的Bug,提高系统稳定性。</li><li>获取最新功能特性,满足业务需要：基础组件推出新版本时,通常会提供新的功能和特性。业务需求瞬息万变,升级组件可以获得最新功能来满足业务需求。</li><li>改善性能,提升效率：新版本的基础组件通常在性能和效率上有改进,如增加缓存、优化算法等。升级后可以减少响应时长,提升系统吞吐量。</li><li>优化资源利用,降低成本：基础组件的新版本可能在资源调度和分配上进行了优化,可以提高资源利用率,降低系统运营成本。</li><li>提高开发效率：新版本组件通常会优化API设计,提高开发效率。同时修复Bug也可以减少开发调试时间。</li><li>解除对旧版的依赖：旧版本组件停止维护后,存在安全风险和兼容性问题。升级可以避免对旧版组件的依赖。</li><li>减少技术债务：使用了较旧版本的基础组件，可能会有技术债务积累，包括安全漏洞、性能瓶颈等；升级基础组件是控制技术债务的重要措施之一，积压的技术债务会制约公司发展</li><li>处理兼容性问题: 随着系统的发展和业务的扩展，可能需要与其他系统进行集成和交互，升级基础组件可以提供更好的兼容性和互操作性；</li></ol><h2 id="升级前的准备工作"><a href="#升级前的准备工作" class="headerlink" title="升级前的准备工作"></a>升级前的准备工作</h2><p>在进行基础组件升级之前，进行充分的准备工作是至关重要的，这可以帮助确保升级过程的顺利进行并最小化潜在风险。以下是升级前需要做的一些准备工作：</p><ol><li>明确目标： 定义升级的具体目标，明确您希望通过升级实现的业务和技术目标。了解升级所需的功能、性能、安全性等需求。</li><li>收集现有信息： 收集关于当前系统和基础组件的详细信息，包括版本、依赖关系、功能和性能特征等。这将有助于为升级过程做出更准确的决策。</li><li>评估风险和影响： 识别潜在的风险和影响范围，包括与升级相关的功能中断、兼容性问题、性能下降等。评估这些风险的严重程度，以便制定应对策略。</li><li>数据策略： 在进行升级之前，确保对系统进行完整的备份。如果升级中出现问题，可以回滚到之前的状态。对于数据库等有状态的组件，可以创建快照； </li><li>制定升级计划： 制定详细的升级计划，包括升级的步骤、时间表、责任人等。确定升级过程中需要涉及的各方，并为他们提供清晰的指导。对于较大范围升级工作，可以拆分为多个里程碑，尽可能保证每个步骤影响范围降到最低；</li><li>制定回滚计划： 确定如何还原系统到升级前的状态，以便在紧急情况下进行干预。原则上对升级操作的每个步骤都有对应的回滚步骤，如果不能回滚的场景下必须给出快速解决的方法。</li><li>测试环境预演： 在测试环境中进行升级的测试预演，以模拟真实生产环境。测试环境应该尽可能地与生产环境相似，以便更准确地预测升级可能的影响。</li><li>性能和压力测试： 在压测环境中进行压力测试，以评估新版本基础组件在不同负载条件下的表现。这有助于预测在生产环境中可能出现的问题。</li><li>制定上线计划通知所有相关方</li><li>用户培训： 如果新版本引入了新的特性或变化，为团队成员提供培训，确保他们熟悉和适应新版本。</li></ol><h2 id="升级实践"><a href="#升级实践" class="headerlink" title="升级实践"></a>升级实践</h2><ol><li>版本选择： 仔细评估新版本的功能、性能和安全特性。选择与业务需求最匹配的版本，同时考虑其稳定性和用户反馈,重点关注开源社区对issue list。</li><li>兼容性检查： 检查新版本与现有系统的兼容性。确保新版本不会破坏现有的功能和集成。</li><li>测试环境验证： 在测试环境中进行升级测试，尽量模拟真实生产环境，确保测试到各种可能影响到的场景。</li><li>自动化测试： 针对关键业务场景和功能，创建自动化测试用例。这有助于快速验证新版本的稳定性和正确性。</li><li>性能测试： 在压测环境中进行压力测试，以评估新版本在不同负载条件下的表现。识别潜在的性能问题。</li><li>数据迁移计划： 如果升级涉及数据存储系统，制定数据迁移计划。确保数据的完整性和一致性。</li><li>备份和回滚： 在进行任何升级操作之前，确保对系统进行全面备份。制定回滚计划，以便在升级过程中遇到问题时能够迅速还原。</li><li>灰度发布： 如果条件许可尽可能采用渐进式发布策略，将新版本逐步引入生产环境，以减少风险。</li><li>监控和报警： 升级后留意监控和报警，以便实时监控系统的性能和稳定性，及时发现并快速解决潜在问题。</li></ol><h2 id="升级后的监测与迭代"><a href="#升级后的监测与迭代" class="headerlink" title="升级后的监测与迭代"></a>升级后的监测与迭代</h2><ol><li>性能监测： 持续监测系统的性能，包括响应时间、吞吐量、延迟等。比较升级前后的性能数据，确保新版本不会导致性能下降。</li><li>稳定性监测： 监测系统的稳定性，识别是否存在崩溃、死锁、内存泄漏等问题。及时处理并解决这些问题，以确保系统不会因此而崩溃或变得不稳定。</li><li>资源利用率监测： 监测服务器、内存、CPU、网络等资源的利用率。确保新版本不会导致资源耗尽。</li><li>错误日志报警： 关注错误日志报警，确保升级后不会出现更多错误，防止问题升级为严重故障。</li><li>快速响应和修复： 如果发现了严重问题，确保能够快速响应并进行修复。灵活地进行紧急发布，以解决可能影响业务的问题。</li><li>收集用户的反馈: 了解用户在使用新版本时遇到的问题，帮助用户解决问题或在在后续版本修复。</li></ol><h2 id="设计基础组件的注意事项"><a href="#设计基础组件的注意事项" class="headerlink" title="设计基础组件的注意事项"></a>设计基础组件的注意事项</h2><p>在设计基础组件时，有一些注意事项可以考虑，以确保其可靠性、可扩展性和易用性。以下是一些常见的注意事项：</p><ol><li>定义清晰的接口：确保组件的功能和接口定义清晰明确。这将帮助其他开发人员理解如何正确使用组件，并减少潜在的集成问题。</li><li>高可用性和容错性：基础组件通常是系统中不可或缺的一部分，因此必须具备高可用性和容错性。考虑使用冗余、自动故障转移和负载均衡等机制来提高系统的可用性。</li><li>可扩展性：设计组件时要考虑到系统未来的扩展需求。确保组件可以水平扩展，以应对增加的负载和数据量。</li><li>安全性：基础组件通常处理敏感数据和关键业务逻辑，因此安全性是至关重要的。实施适当的安全措施，如身份验证、访问控制和数据加密等，以保护组件免受潜在的威胁。</li><li>性能优化：确保组件在处理大量请求和数据时能够提供良好的性能表现。使用高效的算法和数据结构，并进行性能测试和优化，以确保组件能够满足系统的性能需求。</li><li>文档和日志记录：提供清晰、详细的文档和日志记录，以便开发人员和运维团队能够理解组件的工作原理和故障排查方法。</li><li>监控和警报：实施监控和警报机制，以及时检测和响应组件的问题。监控关键指标，并设置警报以便在出现异常情况时及时通知相关人员。</li><li>版本控制和发布管理：使用版本控制系统来管理组件的代码和配置，确保可追溯性和可靠的发布管理。考虑使用自动化工具和流程来简化部署和升级过程。</li><li>可测试性：设计组件时要考虑到测试的可行性。提供适当的接口和工具，以便开发人员能够方便地编写和运行单元测试、集成测试和端到端测试。</li><li>与其他组件的集成：如果组件需要与其他组件进行集成，要确保接口和数据格式的兼容性，并进行充分的集成测试，以验证组件的正确性和稳定性。</li><li>遵循规范：组件实现需要遵循行业设计规范和标准,以提升互操作性</li></ol>]]></content>
+    
+    
+    <summary type="html">&lt;p&gt;基础组件是我们系统构成的关键要素，包括中间件SDK、基础架构组件等。它们为系统提供了核心功能和基本服务，为业务逻辑的实现提供支持; 近几年多做了一些基础组件的升级，有些经历了较长的升级周期，也有的一次上线直接成功，还有个别组件升级失败了，目前仍然在寻找改进方法；&lt;/p&gt;</summary>
+    
+    
+    
+    
+  </entry>
+  
+  <entry>
     <title>基于protobuf的定义在跨语言消息传递中的应用</title>
     <link href="https://www.yzhu.name/2021/09/21/message-dsl-base-protobuff/"/>
     <id>https://www.yzhu.name/2021/09/21/message-dsl-base-protobuff/</id>
     <published>2021-09-21T09:46:14.000Z</published>
-    <updated>2022-02-22T07:21:54.082Z</updated>
+    <updated>2023-12-20T01:04:50.851Z</updated>
     
     <content type="html"><![CDATA[<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>在需要消息队列的场景中，生产端和消费端会事先就消息体格式达成共识确保生产端发送的消息在消费端能正常识别；如果生产端和消费都是Java项目，我们通常会定义消息体的Jar，让生产端和消费端都引用Jar确保消息的一致性；但在跨语言消息传递中<span id="more"></span>通常通过文档约定消息格式各自定义自己的消息体。在我们实际使用过程中发现不同语言之间传递信息还是会出现一些问题；比如：Java用fastjson输出复杂数据在Go项目解析失败，而且各语言在配置mq参数时候有各自的约定,人工操作容易引起误操作，所以我们希望能有一套跨语言的工具能分别生出各自语言的代码和配置。</p><h3 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h3><p>现有系统跨语言之间RPC的调用我们采用了gRPC,很自然的想到可以借鉴gRPC Protobuf定义消息体。具体方法就是扩展<code>google.protobuf.MethodOptions</code>定义</p><h5 id="方法"><a href="#方法" class="headerlink" title="方法"></a>方法</h5><p>下面以RabbitMQ为例，在Protobuf文件中定义MQ相关参数</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">extend google.protobuf.MethodOptions &#123;</span><br><span class="line">    </span><br><span class="line">    // exchange类型: topic direct fanout ,默认: direct</span><br><span class="line">    string routeType = 7010101;</span><br><span class="line"></span><br><span class="line">// producer 发送到exchange上有效的routekey; 仅topic模式有效</span><br><span class="line">    repeated string routeKey = 7010102;</span><br><span class="line"></span><br><span class="line">    //consumer监听的队列名称，direct模式 该参数无效</span><br><span class="line">    repeated string listener = 7010103;</span><br><span class="line"></span><br><span class="line">   // 延迟队列的延迟时间</span><br><span class="line">   int32 delay = 6010106;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p><strong>说明</strong>: 如果exchange为topic模式，监听队列绑定的routekey必须根据此处定义的routKey定义设置;比如文件定义的routeKey是a.b.c则consumer端绑定到队列的routkey只能是 a.b.c, a.b.<em>, a.</em>, * 其中之一</p><h5 id="生产Java代码"><a href="#生产Java代码" class="headerlink" title="生产Java代码"></a>生产Java代码</h5><p>通常在Maven工程中我们使用<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成gRPC的Java代码。现在我们可以扩展<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成MQ的代码。核心扩展点如下:</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"> @Mojo(</span><br><span class="line">        name = &quot;compile-mq&quot;,</span><br><span class="line">        defaultPhase = LifecyclePhase.GENERATE_SOURCES,</span><br><span class="line">        requiresDependencyResolution = ResolutionScope.COMPILE,</span><br><span class="line">        threadSafe = true</span><br><span class="line">)</span><br><span class="line">public class ProtocCompileMQMojo extends AbstractProtocCompileMojo&#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void execute() throws MojoExecutionException, MojoFailureException &#123;</span><br><span class="line">        super.execute();  </span><br><span class="line">        // 利用 DescriptorProtos.FileDescriptorSet 读取proto文件的定义根据规范生出Java文件</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>最后配合MQ的SDK可以大大提高开发效率而且减低配置的复杂性。</p>]]></content>
     
@@ -85,6 +106,10 @@
     
     
     
+    
+    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
+    
+    <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
     
   </entry>
   
@@ -304,25 +329,6 @@
     
     
     <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>服务器自动配置shadowsocks</title>
-    <link href="https://www.yzhu.name/2019/01/20/shadowsocks-auto-config/"/>
-    <id>https://www.yzhu.name/2019/01/20/shadowsocks-auto-config/</id>
-    <published>2019-01-20T06:30:42.000Z</published>
-    <updated>2022-01-19T07:06:58.614Z</updated>
-    
-    <content type="html"><![CDATA[<p>最近几个朋友买了vps后让我帮忙配置shadowsocks ;于是我写了一个小工具在CentOS上完成shadowsocks的自动配置 .<span id="more"></span></p><ol><li><p>购买VPS, 这个根据自己的需要选购合适的VPS厂商购买即可, 操作系统选择CentOS 。</p></li><li><p>以root身份登陆系统 。</p></li><li><p>执行如下命令:</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl https://www.yzhu.name/tools/install_shadowsocks.sh -s --output install_shadowsocks.sh  &amp;&amp; chmod +x install_shadowsocks.sh</span><br></pre></td></tr></table></figure><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./install_shadowsocks.sh</span><br></pre></td></tr></table></figure></li></ol><ul><li><p>看到如下提示，可以输入端口号或者直接回车采用默认端口号:8388</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">input server port [8388]</span><br></pre></td></tr></table></figure></li><li><p> 看到如下提示，输入密码,默认密码是:123456 ；<strong>强烈建议此处输入密码</strong>。</p></li></ul>   <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">input server password [123456]</span><br></pre></td></tr></table></figure><p>   至此如果没有出错，服务端自动配置已完成 。</p><ol start="4"><li><p>客户端配置</p><p>从<a href="https://shadowsocks.org/en/download/clients.html">官网</a> 下载适合自己操作系统的客户端安装，按照下图所示配置:</p><p><img src="/2019/01/20/shadowsocks-auto-config/client_cfg.png" alt="客户端配置"></p></li><li><p>访问<a href="https://www.google.com/">google</a></p><p><img src="/2019/01/20/shadowsocks-auto-config/google.png" alt="google"></p></li></ol><p>至此整个配置结束。</p>]]></content>
-    
-    
-    <summary type="html">&lt;p&gt;最近几个朋友买了vps后让我帮忙配置shadowsocks ;于是我写了一个小工具在CentOS上完成shadowsocks的自动配置 .&lt;/p&gt;</summary>
-    
-    
-    
-    
-    <category term="工具" scheme="https://www.yzhu.name/tags/%E5%B7%A5%E5%85%B7/"/>
     
   </entry>
   

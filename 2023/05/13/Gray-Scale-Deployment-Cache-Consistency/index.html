@@ -22,17 +22,21 @@
     var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="互联网 分布式 微服务 高并发">
-<meta property="og:type" content="website">
-<meta property="og:title" content="yhzhu的随手记">
-<meta property="og:url" content="https://www.yzhu.name/archives/2019/index.html">
+  <meta name="description" content="灰度发布是一种常见的上线策略。如果灰度发布时间较长，且在灰度期间各分组共用缓存，那么该过程中可能会面临缓存数据一致性的挑战。本文将讨论在灰度发布过程中导致缓存数据不一致的问题和解决方案。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="灰度发布过程中缓存数据一致性问题">
+<meta property="og:url" content="https://www.yzhu.name/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/index.html">
 <meta property="og:site_name" content="yhzhu的随手记">
-<meta property="og:description" content="互联网 分布式 微服务 高并发">
+<meta property="og:description" content="灰度发布是一种常见的上线策略。如果灰度发布时间较长，且在灰度期间各分组共用缓存，那么该过程中可能会面临缓存数据一致性的挑战。本文将讨论在灰度发布过程中导致缓存数据不一致的问题和解决方案。">
 <meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-05-13T12:54:07.000Z">
+<meta property="article:modified_time" content="2023-12-20T13:52:05.297Z">
 <meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="分布式">
+<meta property="article:tag" content="一致性">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="https://www.yzhu.name/archives/2019/">
+<link rel="canonical" href="https://www.yzhu.name/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/">
 
 
 <script id="page-configurations">
@@ -40,12 +44,12 @@
   CONFIG.page = {
     sidebar: "",
     isHome : false,
-    isPost : false,
+    isPost : true,
     lang   : 'zh-CN'
   };
 </script>
 
-  <title>归档 | yhzhu的随手记</title>
+  <title>灰度发布过程中缓存数据一致性问题 | yhzhu的随手记</title>
   
 
 
@@ -149,170 +153,108 @@
         <div class="content-wrap">
           
 
-          <div class="content archive">
+          <div class="content post posts-expand">
             
 
+    
   
   
-  
-  <div class="post-block">
-    <div class="posts-collapse">
-      <div class="collection-title">
-        <span class="collection-header">嗯..! 目前共计 24 篇日志。 继续努力。</span>
-      </div>
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          灰度发布过程中缓存数据一致性问题
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-05-13 20:54:07" itemprop="dateCreated datePublished" datetime="2023-05-13T20:54:07+08:00">2023-05-13</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
 
       
-    <div class="collection-year">
-      <span class="collection-header">2019</span>
-    </div>
-
-  <article itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
-
-      <div class="post-meta">
-        <time itemprop="dateCreated"
-              datetime="2019-12-27T18:33:50+08:00"
-              content="2019-12-27">
-          12-27
-        </time>
-      </div>
-
-      <div class="post-title">
-          <a class="post-title-link" href="/2019/12/27/Jaeger-Thread/" itemprop="url">
-            <span itemprop="name">Open Tracing(Jaeger) 遭遇多线程</span>
-          </a>
-      </div>
-
-    </header>
-  </article>
-
-  <article itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
-
-      <div class="post-meta">
-        <time itemprop="dateCreated"
-              datetime="2019-06-02T09:29:15+08:00"
-              content="2019-06-02">
-          06-02
-        </time>
-      </div>
-
-      <div class="post-title">
-          <a class="post-title-link" href="/2019/06/02/gRPC-Go-Java/" itemprop="url">
-            <span itemprop="name">Java与Go之间gRPC调用失败问题排查</span>
-          </a>
-      </div>
-
-    </header>
-  </article>
-
-  <article itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
-
-      <div class="post-meta">
-        <time itemprop="dateCreated"
-              datetime="2019-04-27T15:40:16+08:00"
-              content="2019-04-27">
-          04-27
-        </time>
-      </div>
-
-      <div class="post-title">
-          <a class="post-title-link" href="/2019/04/27/Tech-VS-Biz/" itemprop="url">
-            <span itemprop="name">技术给业务赋能</span>
-          </a>
-      </div>
-
-    </header>
-  </article>
-
-  <article itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
-
-      <div class="post-meta">
-        <time itemprop="dateCreated"
-              datetime="2019-03-30T13:56:45+08:00"
-              content="2019-03-30">
-          03-30
-        </time>
-      </div>
-
-      <div class="post-title">
-          <a class="post-title-link" href="/2019/03/30/Schedule-Job/" itemprop="url">
-            <span itemprop="name">分布式调度系统选型</span>
-          </a>
-      </div>
-
-    </header>
-  </article>
-
-  <article itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
-
-      <div class="post-meta">
-        <time itemprop="dateCreated"
-              datetime="2019-03-01T22:03:43+08:00"
-              content="2019-03-01">
-          03-01
-        </time>
-      </div>
-
-      <div class="post-title">
-          <a class="post-title-link" href="/2019/03/01/product-bug/" itemprop="url">
-            <span itemprop="name">海恩法则与生产Bug</span>
-          </a>
-      </div>
-
-    </header>
-  </article>
-
-  <article itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
-
-      <div class="post-meta">
-        <time itemprop="dateCreated"
-              datetime="2019-02-13T21:33:10+08:00"
-              content="2019-02-13">
-          02-13
-        </time>
-      </div>
-
-      <div class="post-title">
-          <a class="post-title-link" href="/2019/02/13/Multi-Project-Test-Env/" itemprop="url">
-            <span itemprop="name">服务化多项目测试环境隔离</span>
-          </a>
-      </div>
-
-    </header>
-  </article>
-
-  <article itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
-
-      <div class="post-meta">
-        <time itemprop="dateCreated"
-              datetime="2019-01-03T21:25:29+08:00"
-              content="2019-01-03">
-          01-03
-        </time>
-      </div>
-
-      <div class="post-title">
-          <a class="post-title-link" href="/2019/01/03/servcie-deploy-summary/" itemprop="url">
-            <span itemprop="name">服务化架构升级实践</span>
-          </a>
-      </div>
-
-    </header>
-  </article>
-
+        <p>灰度发布是一种常见的上线策略。如果灰度发布时间较长，且在灰度期间各分组共用缓存，那么该过程中可能会面临缓存数据一致性的挑战。本文将讨论在灰度发布过程中导致缓存数据不一致的问题和解决方案。 <span id="more"></span></p>
+<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>通常，我们采用了灰度发布策略来确保新功能的平稳上线。我们将用户流量分为两个组（为了描述简单，假设灰度只有两个分组）：A组和B组。在灰度发布的第一阶段，我们选择将20%的流量分配给B组，将剩余的80%分配给A组。这样可以确保新功能在一部分用户中进行测试和验证，同时保持对大多数用户的稳定性。然而，在灰度发布过程中由于代码版本的不一致，导致A组和B组的缓存数据出现了不一致的情况。</p>
+<h3 id="问题分析"><a href="#问题分析" class="headerlink" title="问题分析"></a>问题分析</h3><p>在灰度发布期间可能出现以下两个场景导致数据不一致问题：</p>
+<ol>
+<li><p><strong>缓存增加元素：</strong> 在B组的代码版本（v2）中，我们增加了一个缓存对象的元素，但是A组的代码版本（v1）并没有包含这个元素。这导致A组写入缓存的数据，在B组读取时无法正确反序列化，导致数据解析失败。</p>
+</li>
+<li><p><strong>计算逻辑变化：</strong> 缓存对象的元素（e1）是逻辑计算得出的结果，在B组的代码版本（v2）中我们修改了该元素计算逻辑，但是A组的代码版本（v1）仍是旧的计算逻辑；这导致A组写入的缓存B组读出不符合预期，而B组写入的缓存A组读出不符合预期。</p>
+</li>
+</ol>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h3><p>在面对这种缓存数据一致性问题时，我们采取了以下解决方案：</p>
+<ol>
+<li><p><strong>a/b组缓存隔离</strong>：A/B组分别访问不同的缓存，不同的分组可以连接不同的缓存或者不同的分组以不同的key前缀区分。然而实际情况是以上问题只会发生在极个别的缓存元素上。这种方案虽然能解决以上问题，但缓存数量会随着分组的增加而成倍增加，造成资源的严重浪费，同时缓存命中率也会下降。</p>
+</li>
+<li><p><strong>反序列化兼容增加的元素</strong>：基本所有的序列化/反序列化组件都支持该功能。比如JDK自带的功能确保<code>serialVersionUID</code>保持不变即可，或者使用protobuf、json等序列化类库都可以实现。该方法虽然能解决A组写入B读取反序列化失败的问题，但B组反序列化成功仍然缺少新增加的元素。</p>
+</li>
+<li><p><strong>使用新key</strong>：在B组代码中使用新的key，这样A/B组缓存可以彻底隔离。但对于某些底层数据结构，可能被上层很多缓存引用，而且是通过多级引用，开发人员容易遗漏某些key。</p>
+</li>
+<li><p><strong>版本控制</strong>：大致思路是每个缓存在key上携带本次变更的版本号。如果本次发布缓存元素没有变化，则版本号不变。具体实现过程如下：</p>
+<ul>
+<li>在Spring容器启动过程中获取所有标记<code>@Cacheable</code>注解的方法。</li>
+<li>对方法返回值对象内元素按照元素类型和一定的算法计算对象code值。如果对象元素发生变化，则对象code值一定变化。如果是元素是自定义对象需要递归计算。</li>
+<li>读写缓存时在缓存key增加code后缀。</li>
+</ul>
+</li>
+</ol>
+<h3 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h3><p>最后我们采用了<strong>版本控制</strong>的方案。在实施前，我们进行了充分的测试和验证，确保缓存的版本控制逻辑正确无误，并在灰度发布期间保持了缓存数据的一致性。</p>
 
     </div>
-  </div>
-  
-  
-  
 
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag"># 分布式</a>
+              <a href="/tags/%E4%B8%80%E8%87%B4%E6%80%A7/" rel="tag"># 一致性</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/" rel="prev" title="RestTemplate使用Apache HttpClinet连接池默认大小引发耗时瞬间升高">
+      <i class="fa fa-chevron-left"></i> RestTemplate使用Apache HttpClinet连接池默认大小引发耗时瞬间升高
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/" rel="next" title="Sharding-JDBC(ShardingSphere)SQL监控实践">
+      Sharding-JDBC(ShardingSphere)SQL监控实践 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
   
 
 
@@ -365,6 +307,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%83%8C%E6%99%AF"><span class="nav-number">1.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90"><span class="nav-number">2.</span> <span class="nav-text">问题分析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-number">3.</span> <span class="nav-text">解决方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%93%E8%AE%BA"><span class="nav-number">4.</span> <span class="nav-text">结论</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
