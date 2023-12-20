@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
+    <lastmod>2023-12-20</lastmod>
+  </url>
+  <url>
     <loc>https://www.yzhu.name/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/</loc>
     <lastmod>2023-12-20</lastmod>
   </url>
@@ -15,10 +19,6 @@
   <url>
     <loc>https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/</loc>
     <lastmod>2023-12-20</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
-    <lastmod>2023-11-27</lastmod>
   </url>
   <url>
     <loc>https://www.yzhu.name/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/</loc>
