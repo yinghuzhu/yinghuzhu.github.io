@@ -61,29 +61,6 @@
       </tags>
   </entry>
   <entry>
-    <title>一个三年前的Bug导致上线失败</title>
-    <url>/2020/05/30/History-Bug-And-Code-Review/</url>
-    <content><![CDATA[<p>上周某核心服务上线过程中内存瞬间飙升，导致上线失败。经查是一个三年前的bug引发的。<span id="more"></span></p>
-<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
-<li>17:10：开始发布B组 </li>
-<li>17:20：开始出现内存，接口超时报警；开发和SA开始介入</li>
-<li>17:25：认为是新版本有问题立刻回滚</li>
-<li>回滚后持续半小时问题没有出现</li>
-</ol>
-<h3 id="初步分析"><a href="#初步分析" class="headerlink" title="初步分析"></a>初步分析</h3><p>根据开发反馈，本次上线功能逻辑非常简单，只有20多行代码，而且测试过程中没发现任何问题；于是，大家开始review那段代码，review后得出一致多结论，该代码没问题。逻辑非常简单，只有一个地方调用了一个方法；这个方法已经存在了好你年了，而且被多个场景在调用；另外，这个方法逻辑复杂，团队内没有人了解。大家一致认为这个方法不会有问题，毕竟经历了「时间的考验」。</p>
-<h3 id="重现"><a href="#重现" class="headerlink" title="重现"></a>重现</h3><p>在测试环境又做了一轮压力测试，一切正常。根据目前点情况看来这个bug跟数据有关；就是说，可能是某条数据触发了这个bug的临界条件.所以，我们决定在生产环境发布一台机器做测试; 这次发布后5分钟后出现了内存飙升现象,马上切掉该机器的流量而且dump Jvm内存 。</p>
-<h3 id="问题处理"><a href="#问题处理" class="headerlink" title="问题处理"></a>问题处理</h3><p>拿到dump文件后立刻启动MAT分析；发现占用内存最多一个对象有3000多万个，分析该对象的调用盏都指向了同一行代码；「这段代码正是经历过时间考验的代码」。review这行代码相关部分马上发现有死循环的问题，只是满足这个条件的数据不容易出现。而这次的数据正好满足了这个条件。找到了原因，解决方法就很容易了；修改完代码review后没问题，测试，上线后一切正常；至此，该问题解决。这里可能有人会说死循环一般会首先导致CPU报警，怎么没看到我们提到CPU到问题；因为这台机器是16核CPU，所以一个核跑满并没有触发报警规则 。</p>
-<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
-<li>必须严格执行code review，从流程上去控制</li>
-<li>需要监控各项指标到同比变化 </li>
-</ol>
-<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>我们总是强调code review到重要性，但执行的时候总有这样那样的原因导致落实不彻底；我不了解当时的情况，但这次的问题我相信只要做过code review是一定可以发现的。另外，我始终相信代码质量最终要依赖开发人员来保证，测试只能保证功能性问题。特别是一些非功能性的边界条件，只能依赖开发保证。</p>
-]]></content>
-      <tags>
-        <tag>线上问题</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>基础组件升级策略与实践</title>
     <url>/2022/03/26/Infra-Component-Upgrade/</url>
     <content><![CDATA[<p>基础组件是我们系统构成的关键要素，包括中间件SDK、基础架构组件等。它们为系统提供了核心功能和基本服务，为业务逻辑的实现提供支持; 近几年多做了一些基础组件的升级，有些经历了较长的升级周期，也有的一次上线直接成功，还有个别组件升级失败了，目前仍然在寻找改进方法； <span id="more"></span></p>
@@ -154,6 +131,29 @@
 <li>遵循规范：组件实现需要遵循行业设计规范和标准,以提升互操作性</li>
 </ol>
 ]]></content>
+  </entry>
+  <entry>
+    <title>一个三年前的Bug导致上线失败</title>
+    <url>/2020/05/30/History-Bug-And-Code-Review/</url>
+    <content><![CDATA[<p>上周某核心服务上线过程中内存瞬间飙升，导致上线失败。经查是一个三年前的bug引发的。<span id="more"></span></p>
+<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
+<li>17:10：开始发布B组 </li>
+<li>17:20：开始出现内存，接口超时报警；开发和SA开始介入</li>
+<li>17:25：认为是新版本有问题立刻回滚</li>
+<li>回滚后持续半小时问题没有出现</li>
+</ol>
+<h3 id="初步分析"><a href="#初步分析" class="headerlink" title="初步分析"></a>初步分析</h3><p>根据开发反馈，本次上线功能逻辑非常简单，只有20多行代码，而且测试过程中没发现任何问题；于是，大家开始review那段代码，review后得出一致多结论，该代码没问题。逻辑非常简单，只有一个地方调用了一个方法；这个方法已经存在了好你年了，而且被多个场景在调用；另外，这个方法逻辑复杂，团队内没有人了解。大家一致认为这个方法不会有问题，毕竟经历了「时间的考验」。</p>
+<h3 id="重现"><a href="#重现" class="headerlink" title="重现"></a>重现</h3><p>在测试环境又做了一轮压力测试，一切正常。根据目前点情况看来这个bug跟数据有关；就是说，可能是某条数据触发了这个bug的临界条件.所以，我们决定在生产环境发布一台机器做测试; 这次发布后5分钟后出现了内存飙升现象,马上切掉该机器的流量而且dump Jvm内存 。</p>
+<h3 id="问题处理"><a href="#问题处理" class="headerlink" title="问题处理"></a>问题处理</h3><p>拿到dump文件后立刻启动MAT分析；发现占用内存最多一个对象有3000多万个，分析该对象的调用盏都指向了同一行代码；「这段代码正是经历过时间考验的代码」。review这行代码相关部分马上发现有死循环的问题，只是满足这个条件的数据不容易出现。而这次的数据正好满足了这个条件。找到了原因，解决方法就很容易了；修改完代码review后没问题，测试，上线后一切正常；至此，该问题解决。这里可能有人会说死循环一般会首先导致CPU报警，怎么没看到我们提到CPU到问题；因为这台机器是16核CPU，所以一个核跑满并没有触发报警规则 。</p>
+<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
+<li>必须严格执行code review，从流程上去控制</li>
+<li>需要监控各项指标到同比变化 </li>
+</ol>
+<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>我们总是强调code review到重要性，但执行的时候总有这样那样的原因导致落实不彻底；我不了解当时的情况，但这次的问题我相信只要做过code review是一定可以发现的。另外，我始终相信代码质量最终要依赖开发人员来保证，测试只能保证功能性问题。特别是一些非功能性的边界条件，只能依赖开发保证。</p>
+]]></content>
+      <tags>
+        <tag>线上问题</tag>
+      </tags>
   </entry>
   <entry>
     <title>JVM初探</title>
@@ -790,6 +790,146 @@
 ]]></content>
   </entry>
   <entry>
+    <title>Java与Go之间gRPC调用失败问题排查</title>
+    <url>/2019/06/02/gRPC-Go-Java/</url>
+    <content><![CDATA[<p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
+<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
+<ol>
+<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
+<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
+<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
+<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
+<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
+</ol>
+<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
+<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
+<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
+<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
+</ol>
+<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
+<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
+<ol>
+<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
+<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
+<li>最终还是要升级到新版本</li>
+</ol>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
+<ol>
+<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
+<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
+</ol>
+<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
+<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a href="https://grpc.io/">https://grpc.io/</a><br><a href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>RPC</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>分布式事务实现</title>
+    <url>/2018/05/22/distributed-transaction/</url>
+    <content><![CDATA[<p>在分布式系统中，同时满足“CAP定律”中的“一致性”、“可用性”和“分区容错性”三者是不可能的。在互联网领域的绝大多数的场景，都需要牺牲强一致性来换取系统的高可用性，系统往往只需要保证“最终一致性”，只要这个最终时间是在用户可以接受的范围内即可。<span id="more"></span></p>
+<h3 id="XA"><a href="#XA" class="headerlink" title="XA"></a>XA</h3><p>XA规范主要定义了事务管理器(Transaction Manager)和资源管理器(Resource Manager)之间的接口. XA引入事务管理器是因为在分布式系统中，从理论上讲两台机器上无法达到一致的状态，需要引入一个外部点进行协调。事务管理器控制着全局事务，管理事务生命周期，并协调资源, 资源管理器负责控制和管理实际资源 。XA是一个两阶段提交协议，该协议分为以下两个阶段：</p>
+<ol>
+<li> 事务协调器要求每个涉及到事务的数据库预提交，并反映是否可以提交 。</li>
+<li>事务协调器要求每个数据库提交数据 。</li>
+</ol>
+<p>如果有任何一个数据库否决此次提交，那么所有数据库都会被要求回滚它们在此事务中的那部分信息 。</p>
+<h3 id="JTA"><a href="#JTA" class="headerlink" title="JTA"></a>JTA</h3><p>JTA作为JAVA平台上的事务规范，同时定义了对XA事务的支持；在JTA中，事务管理器抽象为javax.transaction.TransactionManager接口，通过底层事务服务（即JTS）实现,JTA仅仅定义了接口，具体的实现则是由供应商(如J2EE厂商)负责提供，目前JTA的实现主要由J2EE容器所提供的JTA实现(如JBOSS)和独立的JTA实现(如JOTM，Atomikos)。</p>
+<blockquote>
+<p>JTA本质上是两阶段提交，实现复杂，牺牲了可用性，对性能影响较大, 适合对数据强一致(<strong>其实也不能100%保证强一致</strong>)要求很高的关键领域; 大部分互联网业务都不会采用两阶段提交的方式 。</p>
+</blockquote>
+<h3 id="链式事务管理"><a href="#链式事务管理" class="headerlink" title="链式事务管理"></a>链式事务管理</h3><p>这种方式也Spring提供的，可以将两个或多个数据库资源的事务串联到一起，公用一个TransactionManager来实现对多个资源的事务。配置方式如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">  &lt;bean id=&quot;transactionManager&quot; class=&quot;org.springframework.data.transaction.ChainedTransactionManager&quot;&gt;</span><br><span class="line">  &lt;property name=&quot;transactionManagers&quot;&gt;</span><br><span class="line">    &lt;list&gt;</span><br><span class="line">      &lt;bean</span><br><span class="line">        class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;</span><br><span class="line">        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource1&quot; /&gt;</span><br><span class="line">      &lt;/bean&gt;</span><br><span class="line">      &lt;bean</span><br><span class="line">        class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;</span><br><span class="line">        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource2&quot; /&gt;</span><br><span class="line">      &lt;/bean&gt;</span><br><span class="line">    &lt;/list&gt;</span><br><span class="line">  &lt;/property&gt;</span><br><span class="line">&lt;/bean&gt;</span><br><span class="line"> &lt;/code&gt;</span><br></pre></td></tr></table></figure>
+<p>针对多个数据库实现事务。使用这种方式时，在Spring事务提交的时候，它会依次调用里面的多个dataSource的commit()方法，如果业务方法出错，就会按照相反的顺序调用rollback()方法。这种方法可能会出现先前的提交成功，之后的提交失败，所以还是会有事务失败的可能。</p>
+<blockquote>
+<p>实现简单，但可能会出现先前的提交成功，之后的提交失败，所以还是会有事务失败的可能</p>
+</blockquote>
+<h3 id="最大努力一次提交-Best-Efforts-1PC"><a href="#最大努力一次提交-Best-Efforts-1PC" class="headerlink" title="最大努力一次提交(Best Efforts 1PC)"></a>最大努力一次提交(Best Efforts 1PC)</h3><p>在一个系统中使用数据库和带事务功能的消息中间件，业务流程如下</p>
+<ol>
+<li>开始消息事务</li>
+<li>发送消息</li>
+<li>开始数据库事务</li>
+<li>更新数据库</li>
+<li>提交数据库事务</li>
+<li>提交消息事务</li>
+</ol>
+<p>有两个事务，分别是DB的和JMS的事务，事务的开启和提交都是相互独立的。依次提交这两个事务，只要第二个事务顺利提交，整个方法就能够保证数据的一致性。实际上，在绝大多数情况下，只要数据库和MQ能够正常访问，这也确实能够保证。所以，这种方式就叫’最大努力’一次提交。</p>
+<p>使用这种方式，事物提交的顺序是非常重要的。假设在提交messaging transaction的时候发生错误，这时数据库的事务已经提交，无法回滚，但是消息的事务被回滚，那么这一条消息会被重新放回队列中，该业务方法会被再次触发，再次在一个新的事务中处理。但是，这时数据的处理已经完成，只是最后JMS的事物提交出错，那么就需要通过防止重复提交的方式，来避免数据库的再次处理。</p>
+<h3 id="事务补偿型-TCC型事务–Try-Confirm-Cancel"><a href="#事务补偿型-TCC型事务–Try-Confirm-Cancel" class="headerlink" title="事务补偿型(TCC型事务–Try/Confirm/Cancel)"></a>事务补偿型(TCC型事务–Try/Confirm/Cancel)</h3><p>其核心思想是：针对每个操作，都要注册一个与其对应的确认和补偿（撤销）操作。它分为三个阶段：</p>
+<ul>
+<li>Try 阶段主要是对业务系统做检测及资源预留</li>
+<li>Confirm 阶段主要是对业务系统做确认提交，Try阶段执行成功并开始执行 Confirm阶段时，默认 Confirm阶段是不会出错的, 即：只要Try成功，Confirm一定成功</li>
+<li>Cancel 阶段主要是在业务执行错误，需要回滚的状态下执行的业务取消，预留资源释放</li>
+</ul>
+<p>在一个长事务，一个由两台服务器一起参与的事务，服务器A发起事务，服务器B参与事务，B所处理时间可能比较长。如果按照ACID的原则，要保持事务的隔离性、一致性，服务器A中发起的事务中使用到的事务资源将会被锁定，不允许其他应用访问到事务过程中的中间结果，直到整个事务被提交或者回滚。这就造成事务A中的资源被长时间锁定，系统的可用性将不可接受。服务器A的事务如果执行顺利，那么事务A就先行提交，如果事务B也执行顺利，则事务B也提交，整个事务就算完成。但是如果事务B执行失败，事务B本身回滚，这时事务A已经被提交，所以需要执行一个<strong>补偿</strong>操作，将已经提交的事务A执行的操作作反操作，恢复到未执行前事务A的状态。这样的事务模型，是牺牲了一定的隔离性和一致性的，但是提高了事务的可用性。</p>
+<blockquote>
+<p>与两阶段提交相比实现及流程相对简单，但应用层要写很多补偿代码(而且补偿也不能保证一定成功)</p>
+</blockquote>
+<h3 id="本地流水表实现最终一致性"><a href="#本地流水表实现最终一致性" class="headerlink" title="本地流水表实现最终一致性"></a>本地流水表实现最终一致性</h3><p>以电商下单场景为例，主要涉及到两个操作，<strong>扣减库存</strong>和<strong>生成订单</strong>,因为两个操作在不同的数据库，无法保证强一致性,可以通过本地流水表来实现最终一致性 ， 具体流程如下:</p>
+<ul>
+<li>生成交易操作唯一标示token</li>
+<li>事务一(库存系统): <ul>
+<li>冻结库存</li>
+<li>根据下单流水号生成商品的库存冻结记录,冻结记录主要包括<strong>skuId</strong>,<strong>token</strong>,<strong>冻结数量</strong>,<strong>状态</strong> .状态有3种状态: <strong>已冻结</strong>，<strong>下单成功扣减</strong>，<strong>下单失败释放</strong>,初始状态为已冻结</li>
+</ul>
+</li>
+<li>如果事务一失败，直接返回；如果成功进入事务二 </li>
+<li>事务二(订单系统, 本地事务)：根据token生成订单,订单的状态主要包括：<strong>未支付</strong>,<strong>已支付</strong>,<strong>超时未支付</strong>,订单的初始状态为<strong>未支付</strong></li>
+<li>事务二如果成功，则进行后续的流程,</li>
+<li>事务二如果失败，调用库存系统的回滚接口，返回下单失败;</li>
+<li>定时任务: 因为存在<strong>事务一成功</strong>而<strong>事务二</strong>失败的情况，这样会冻结商品的部分库存，所以可以捞取出创建超过一定时间状态为<strong>已冻结</strong>的所有冻结记录，根据每个冻结记录的token去订单表查询，若不存在对应的订单，则将冻结记录的状态更新为<strong>下单失败释放</strong>，并回滚商品库存数量</li>
+</ul>
+<h3 id="异步确保型"><a href="#异步确保型" class="headerlink" title="异步确保型"></a>异步确保型</h3><p>将一些有同步的事务操作变为异步操作，避免对数据库事务的争用；继续以以电商下单场景为例，支付成功后增加用户积分；</p>
+<ul>
+<li>事务一(订单系统)，订单状态修改为支付成功，发送支付成功消息</li>
+<li>事务二(用户系统)，用户系统接到支付成功消息后，增加用户积分</li>
+</ul>
+<h3 id="MQ事务消息"><a href="#MQ事务消息" class="headerlink" title="MQ事务消息"></a>MQ事务消息</h3><p>一些第支持事务消息MQ，比如RocketMQ，他们支持事务消息的方式也是类似于采用的二阶段提交，其思路大致为：</p>
+<ul>
+<li>第一阶段Prepared消息，会拿到消息的地址。</li>
+<li>第二阶段执行本地事务，第三阶段通过第一阶段拿到的地址去访问消息，并修改状态。</li>
+</ul>
+<p>在业务方法内要想消息队列提交两次请求，一次发送消息和一次确认消息。如果确认消息发送失败了RocketMQ会定期扫描消息集群中的事务消息，这时候发现了Prepared消息，它会向消息发送者确认，是回滚还是继续发送确认消息。这样就保证了消息发送保证与本地事务同时成功或同时失败 </p>
+<h3 id="分布式事务实现的原则"><a href="#分布式事务实现的原则" class="headerlink" title="分布式事务实现的原则"></a>分布式事务实现的原则</h3><ul>
+<li>大事务拆成小事务，每个小事务都是单机上的事务</li>
+<li>补偿 + 重试， 业务上设计补偿机制，而且保证补偿失败后有重试机制</li>
+<li>幂等, 保证每次事务操作是幂等的，保证幂等的方式可以采用：<ul>
+<li>状态值，每次写操作的时候检查状态值</li>
+<li>唯一标示，每次写操作都带入业务唯一标示</li>
+</ul>
+</li>
+</ul>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>分布式</tag>
+        <tag>一致性</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>如何提一个问题</title>
+    <url>/2018/12/23/how-to-question/</url>
+    <content><![CDATA[<p>在我们日常生活以及工作中经常会遇到提问题, 我们有没有想过如何提一个好问题？也许有人会说，「提问谁不回？会讲话的小孩子就会问为什么，这有什么值得说的？」没错，从这个角度上说机会每个人都会提问。但是，我们有没有想过，我们问问题的目的是什么？是得到对问题的解答。大家有没有遇到过这样的情况，自己问题发给对方后始终得不到回复，或者对方敷衍了事，更有甚者被对方怼回去。如果遇到这些情况，我们应该好好反思一下，我们是不是提了一个好问题；在说好问题之前结合个人的经历谈谈什么样的问题不是一个好问题。<span id="more"></span></p>
+<ol>
+<li>提问者在im上发一个截图，截图里面是一个异常栈，没有任何上下文，然后就没有然后了；解答者在那里等对方进一步的信息，结果什么也等到；过了很久(估计等很久没回复)，亲自过来说「帮我看看我的问题」；这个时候才开始沟通，问题是怎么出现的，什么环境，上下文，等… </li>
+<li>有些问题在技术文档，产品文档上都已经说的很清楚；但提问者不看文档，直接把问题抛过来；也许是提问者自己没有按照文档要求操作，或者真的是一个问题但文档FAQ部分已经解释的很清楚 ；</li>
+<li>提问者直接将问题抛出来，不做任何思考和尝试，只在那里等答案；不知道提问者有没有想过，解答者也要花费大量的时间去调研；</li>
+<li>提问者提问道时候，发的关键信息是一张截图，截图中可能有id之类的标示，此时解答者可能需要根据id搜索，只能手工输入，这样既浪费时间也容易出错；</li>
+</ol>
+<p>对于以上的案例，个人觉得提问者需要加强独立思考的能力，不然会给对方留下「伸手党」的感觉；个人觉得可以按照如下的方式考虑提问:</p>
+<ol>
+<li>对于技术问题或者产品问题，一般作者会提供相应的文档；首先我们应该阅读相关文档，特别注意FAQ部分；</li>
+<li>善于使用搜索引擎，具备基本的搜商(SQ) ,推荐用google(对技术工作者，这个不需要解释), 百度请忽略所有「广告」字样的文章，微信，知乎等工具;</li>
+<li>在以上两步都没有找到答案情况下，可以参考第二步搜索过程中出现的文章以及官方提供的文档尝试；比如是否可以升级软件版本，是否可以调整某些参数；相信在尝试过程中会加深自己对问题的理解以及提升自己解决问题的能力</li>
+<li>经过以上步骤能解决95%的问题了；如果还没有解决，这时候再提问，相信这个时候提出的问题质量是非常高的；比如: 该问题是如何出现的，什么环境，硬件型号是什么，软件版本是什么，我的操作步骤是什么，我做了哪些调研，尝试了哪些方式，得到结果是什么,等.. </li>
+</ol>
+<p>那么提一个好问题有那么重要吗？我认为提一个好问题比解答一个问题更能体现一个人的真实水平，因为这证明提问者有独立思考的能力；比如在职场中一个常见的场景是这样的，面试最后部分面试官会问面试者有什么问题吗？这个时候如果提一个高质量的问题，相信会加深面试官的印象,在同等条件的候选者中相信胜出的概率会更高;</p>
+<p>最后关于什么是好问题，这里引用某大佬的一句话 「什么是好问题，你对某个领域有一定研究，你已经翻阅和查询了足够的资料，然后你基于你的理解，对这些资料中，某几个无法理解的细节提出来，希望专业人士给与解惑，而这个细节问题确实具有足够代表性，是理解一些关键问题的钥匙，这就是好问题。」</p>
+]]></content>
+  </entry>
+  <entry>
     <title>转载：寂静之城 -- 马伯庸</title>
     <url>/2020/09/05/The-Silence-City/</url>
     <content><![CDATA[<p>转载马伯庸一篇短篇小说 「寂静之城」 ；记得好多年前看的时候认为是科幻小说，现在想想还是自己太年轻<span id="more"></span></p>
@@ -1108,146 +1248,6 @@
 <p>　　阿瓦登万万没有想到会在这个时间这个地点碰到她，这让他已经沉寂已久的心<br>灵泛起了几点火花，可惜他迟钝的神经已经无法表达出“激动”这一个简单的情感<br>了。两个人互相对视了一阵，他终于木然走到她身边，张了张嘴唇，想对她说些什<br>么。但是他掏出今天新发布的健康词汇列表，发现上面是一片空白——终于连最后<br>一个词组也被有关部门屏蔽了。<br>　于是阿瓦登只好保持着沉默，默默地与面无表情的她擦肩而过，继续向前走去<br>。他的身影逐渐融入同样安静的灰色人群之中，整个城市都显得寂静极了。</p>
 </blockquote>
 <p>全文完。</p>
-]]></content>
-  </entry>
-  <entry>
-    <title>分布式事务实现</title>
-    <url>/2018/05/22/distributed-transaction/</url>
-    <content><![CDATA[<p>在分布式系统中，同时满足“CAP定律”中的“一致性”、“可用性”和“分区容错性”三者是不可能的。在互联网领域的绝大多数的场景，都需要牺牲强一致性来换取系统的高可用性，系统往往只需要保证“最终一致性”，只要这个最终时间是在用户可以接受的范围内即可。<span id="more"></span></p>
-<h3 id="XA"><a href="#XA" class="headerlink" title="XA"></a>XA</h3><p>XA规范主要定义了事务管理器(Transaction Manager)和资源管理器(Resource Manager)之间的接口. XA引入事务管理器是因为在分布式系统中，从理论上讲两台机器上无法达到一致的状态，需要引入一个外部点进行协调。事务管理器控制着全局事务，管理事务生命周期，并协调资源, 资源管理器负责控制和管理实际资源 。XA是一个两阶段提交协议，该协议分为以下两个阶段：</p>
-<ol>
-<li> 事务协调器要求每个涉及到事务的数据库预提交，并反映是否可以提交 。</li>
-<li>事务协调器要求每个数据库提交数据 。</li>
-</ol>
-<p>如果有任何一个数据库否决此次提交，那么所有数据库都会被要求回滚它们在此事务中的那部分信息 。</p>
-<h3 id="JTA"><a href="#JTA" class="headerlink" title="JTA"></a>JTA</h3><p>JTA作为JAVA平台上的事务规范，同时定义了对XA事务的支持；在JTA中，事务管理器抽象为javax.transaction.TransactionManager接口，通过底层事务服务（即JTS）实现,JTA仅仅定义了接口，具体的实现则是由供应商(如J2EE厂商)负责提供，目前JTA的实现主要由J2EE容器所提供的JTA实现(如JBOSS)和独立的JTA实现(如JOTM，Atomikos)。</p>
-<blockquote>
-<p>JTA本质上是两阶段提交，实现复杂，牺牲了可用性，对性能影响较大, 适合对数据强一致(<strong>其实也不能100%保证强一致</strong>)要求很高的关键领域; 大部分互联网业务都不会采用两阶段提交的方式 。</p>
-</blockquote>
-<h3 id="链式事务管理"><a href="#链式事务管理" class="headerlink" title="链式事务管理"></a>链式事务管理</h3><p>这种方式也Spring提供的，可以将两个或多个数据库资源的事务串联到一起，公用一个TransactionManager来实现对多个资源的事务。配置方式如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">  &lt;bean id=&quot;transactionManager&quot; class=&quot;org.springframework.data.transaction.ChainedTransactionManager&quot;&gt;</span><br><span class="line">  &lt;property name=&quot;transactionManagers&quot;&gt;</span><br><span class="line">    &lt;list&gt;</span><br><span class="line">      &lt;bean</span><br><span class="line">        class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;</span><br><span class="line">        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource1&quot; /&gt;</span><br><span class="line">      &lt;/bean&gt;</span><br><span class="line">      &lt;bean</span><br><span class="line">        class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;</span><br><span class="line">        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource2&quot; /&gt;</span><br><span class="line">      &lt;/bean&gt;</span><br><span class="line">    &lt;/list&gt;</span><br><span class="line">  &lt;/property&gt;</span><br><span class="line">&lt;/bean&gt;</span><br><span class="line"> &lt;/code&gt;</span><br></pre></td></tr></table></figure>
-<p>针对多个数据库实现事务。使用这种方式时，在Spring事务提交的时候，它会依次调用里面的多个dataSource的commit()方法，如果业务方法出错，就会按照相反的顺序调用rollback()方法。这种方法可能会出现先前的提交成功，之后的提交失败，所以还是会有事务失败的可能。</p>
-<blockquote>
-<p>实现简单，但可能会出现先前的提交成功，之后的提交失败，所以还是会有事务失败的可能</p>
-</blockquote>
-<h3 id="最大努力一次提交-Best-Efforts-1PC"><a href="#最大努力一次提交-Best-Efforts-1PC" class="headerlink" title="最大努力一次提交(Best Efforts 1PC)"></a>最大努力一次提交(Best Efforts 1PC)</h3><p>在一个系统中使用数据库和带事务功能的消息中间件，业务流程如下</p>
-<ol>
-<li>开始消息事务</li>
-<li>发送消息</li>
-<li>开始数据库事务</li>
-<li>更新数据库</li>
-<li>提交数据库事务</li>
-<li>提交消息事务</li>
-</ol>
-<p>有两个事务，分别是DB的和JMS的事务，事务的开启和提交都是相互独立的。依次提交这两个事务，只要第二个事务顺利提交，整个方法就能够保证数据的一致性。实际上，在绝大多数情况下，只要数据库和MQ能够正常访问，这也确实能够保证。所以，这种方式就叫’最大努力’一次提交。</p>
-<p>使用这种方式，事物提交的顺序是非常重要的。假设在提交messaging transaction的时候发生错误，这时数据库的事务已经提交，无法回滚，但是消息的事务被回滚，那么这一条消息会被重新放回队列中，该业务方法会被再次触发，再次在一个新的事务中处理。但是，这时数据的处理已经完成，只是最后JMS的事物提交出错，那么就需要通过防止重复提交的方式，来避免数据库的再次处理。</p>
-<h3 id="事务补偿型-TCC型事务–Try-Confirm-Cancel"><a href="#事务补偿型-TCC型事务–Try-Confirm-Cancel" class="headerlink" title="事务补偿型(TCC型事务–Try/Confirm/Cancel)"></a>事务补偿型(TCC型事务–Try/Confirm/Cancel)</h3><p>其核心思想是：针对每个操作，都要注册一个与其对应的确认和补偿（撤销）操作。它分为三个阶段：</p>
-<ul>
-<li>Try 阶段主要是对业务系统做检测及资源预留</li>
-<li>Confirm 阶段主要是对业务系统做确认提交，Try阶段执行成功并开始执行 Confirm阶段时，默认 Confirm阶段是不会出错的, 即：只要Try成功，Confirm一定成功</li>
-<li>Cancel 阶段主要是在业务执行错误，需要回滚的状态下执行的业务取消，预留资源释放</li>
-</ul>
-<p>在一个长事务，一个由两台服务器一起参与的事务，服务器A发起事务，服务器B参与事务，B所处理时间可能比较长。如果按照ACID的原则，要保持事务的隔离性、一致性，服务器A中发起的事务中使用到的事务资源将会被锁定，不允许其他应用访问到事务过程中的中间结果，直到整个事务被提交或者回滚。这就造成事务A中的资源被长时间锁定，系统的可用性将不可接受。服务器A的事务如果执行顺利，那么事务A就先行提交，如果事务B也执行顺利，则事务B也提交，整个事务就算完成。但是如果事务B执行失败，事务B本身回滚，这时事务A已经被提交，所以需要执行一个<strong>补偿</strong>操作，将已经提交的事务A执行的操作作反操作，恢复到未执行前事务A的状态。这样的事务模型，是牺牲了一定的隔离性和一致性的，但是提高了事务的可用性。</p>
-<blockquote>
-<p>与两阶段提交相比实现及流程相对简单，但应用层要写很多补偿代码(而且补偿也不能保证一定成功)</p>
-</blockquote>
-<h3 id="本地流水表实现最终一致性"><a href="#本地流水表实现最终一致性" class="headerlink" title="本地流水表实现最终一致性"></a>本地流水表实现最终一致性</h3><p>以电商下单场景为例，主要涉及到两个操作，<strong>扣减库存</strong>和<strong>生成订单</strong>,因为两个操作在不同的数据库，无法保证强一致性,可以通过本地流水表来实现最终一致性 ， 具体流程如下:</p>
-<ul>
-<li>生成交易操作唯一标示token</li>
-<li>事务一(库存系统): <ul>
-<li>冻结库存</li>
-<li>根据下单流水号生成商品的库存冻结记录,冻结记录主要包括<strong>skuId</strong>,<strong>token</strong>,<strong>冻结数量</strong>,<strong>状态</strong> .状态有3种状态: <strong>已冻结</strong>，<strong>下单成功扣减</strong>，<strong>下单失败释放</strong>,初始状态为已冻结</li>
-</ul>
-</li>
-<li>如果事务一失败，直接返回；如果成功进入事务二 </li>
-<li>事务二(订单系统, 本地事务)：根据token生成订单,订单的状态主要包括：<strong>未支付</strong>,<strong>已支付</strong>,<strong>超时未支付</strong>,订单的初始状态为<strong>未支付</strong></li>
-<li>事务二如果成功，则进行后续的流程,</li>
-<li>事务二如果失败，调用库存系统的回滚接口，返回下单失败;</li>
-<li>定时任务: 因为存在<strong>事务一成功</strong>而<strong>事务二</strong>失败的情况，这样会冻结商品的部分库存，所以可以捞取出创建超过一定时间状态为<strong>已冻结</strong>的所有冻结记录，根据每个冻结记录的token去订单表查询，若不存在对应的订单，则将冻结记录的状态更新为<strong>下单失败释放</strong>，并回滚商品库存数量</li>
-</ul>
-<h3 id="异步确保型"><a href="#异步确保型" class="headerlink" title="异步确保型"></a>异步确保型</h3><p>将一些有同步的事务操作变为异步操作，避免对数据库事务的争用；继续以以电商下单场景为例，支付成功后增加用户积分；</p>
-<ul>
-<li>事务一(订单系统)，订单状态修改为支付成功，发送支付成功消息</li>
-<li>事务二(用户系统)，用户系统接到支付成功消息后，增加用户积分</li>
-</ul>
-<h3 id="MQ事务消息"><a href="#MQ事务消息" class="headerlink" title="MQ事务消息"></a>MQ事务消息</h3><p>一些第支持事务消息MQ，比如RocketMQ，他们支持事务消息的方式也是类似于采用的二阶段提交，其思路大致为：</p>
-<ul>
-<li>第一阶段Prepared消息，会拿到消息的地址。</li>
-<li>第二阶段执行本地事务，第三阶段通过第一阶段拿到的地址去访问消息，并修改状态。</li>
-</ul>
-<p>在业务方法内要想消息队列提交两次请求，一次发送消息和一次确认消息。如果确认消息发送失败了RocketMQ会定期扫描消息集群中的事务消息，这时候发现了Prepared消息，它会向消息发送者确认，是回滚还是继续发送确认消息。这样就保证了消息发送保证与本地事务同时成功或同时失败 </p>
-<h3 id="分布式事务实现的原则"><a href="#分布式事务实现的原则" class="headerlink" title="分布式事务实现的原则"></a>分布式事务实现的原则</h3><ul>
-<li>大事务拆成小事务，每个小事务都是单机上的事务</li>
-<li>补偿 + 重试， 业务上设计补偿机制，而且保证补偿失败后有重试机制</li>
-<li>幂等, 保证每次事务操作是幂等的，保证幂等的方式可以采用：<ul>
-<li>状态值，每次写操作的时候检查状态值</li>
-<li>唯一标示，每次写操作都带入业务唯一标示</li>
-</ul>
-</li>
-</ul>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>分布式</tag>
-        <tag>一致性</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Java与Go之间gRPC调用失败问题排查</title>
-    <url>/2019/06/02/gRPC-Go-Java/</url>
-    <content><![CDATA[<p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
-<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
-<ol>
-<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
-<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
-<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
-<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
-<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
-</ol>
-<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
-<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
-<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
-<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
-</ol>
-<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
-<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
-<ol>
-<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
-<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
-<li>最终还是要升级到新版本</li>
-</ol>
-<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
-<ol>
-<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
-<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
-</ol>
-<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
-<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a href="https://grpc.io/">https://grpc.io/</a><br><a href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>RPC</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>如何提一个问题</title>
-    <url>/2018/12/23/how-to-question/</url>
-    <content><![CDATA[<p>在我们日常生活以及工作中经常会遇到提问题, 我们有没有想过如何提一个好问题？也许有人会说，「提问谁不回？会讲话的小孩子就会问为什么，这有什么值得说的？」没错，从这个角度上说机会每个人都会提问。但是，我们有没有想过，我们问问题的目的是什么？是得到对问题的解答。大家有没有遇到过这样的情况，自己问题发给对方后始终得不到回复，或者对方敷衍了事，更有甚者被对方怼回去。如果遇到这些情况，我们应该好好反思一下，我们是不是提了一个好问题；在说好问题之前结合个人的经历谈谈什么样的问题不是一个好问题。<span id="more"></span></p>
-<ol>
-<li>提问者在im上发一个截图，截图里面是一个异常栈，没有任何上下文，然后就没有然后了；解答者在那里等对方进一步的信息，结果什么也等到；过了很久(估计等很久没回复)，亲自过来说「帮我看看我的问题」；这个时候才开始沟通，问题是怎么出现的，什么环境，上下文，等… </li>
-<li>有些问题在技术文档，产品文档上都已经说的很清楚；但提问者不看文档，直接把问题抛过来；也许是提问者自己没有按照文档要求操作，或者真的是一个问题但文档FAQ部分已经解释的很清楚 ；</li>
-<li>提问者直接将问题抛出来，不做任何思考和尝试，只在那里等答案；不知道提问者有没有想过，解答者也要花费大量的时间去调研；</li>
-<li>提问者提问道时候，发的关键信息是一张截图，截图中可能有id之类的标示，此时解答者可能需要根据id搜索，只能手工输入，这样既浪费时间也容易出错；</li>
-</ol>
-<p>对于以上的案例，个人觉得提问者需要加强独立思考的能力，不然会给对方留下「伸手党」的感觉；个人觉得可以按照如下的方式考虑提问:</p>
-<ol>
-<li>对于技术问题或者产品问题，一般作者会提供相应的文档；首先我们应该阅读相关文档，特别注意FAQ部分；</li>
-<li>善于使用搜索引擎，具备基本的搜商(SQ) ,推荐用google(对技术工作者，这个不需要解释), 百度请忽略所有「广告」字样的文章，微信，知乎等工具;</li>
-<li>在以上两步都没有找到答案情况下，可以参考第二步搜索过程中出现的文章以及官方提供的文档尝试；比如是否可以升级软件版本，是否可以调整某些参数；相信在尝试过程中会加深自己对问题的理解以及提升自己解决问题的能力</li>
-<li>经过以上步骤能解决95%的问题了；如果还没有解决，这时候再提问，相信这个时候提出的问题质量是非常高的；比如: 该问题是如何出现的，什么环境，硬件型号是什么，软件版本是什么，我的操作步骤是什么，我做了哪些调研，尝试了哪些方式，得到结果是什么,等.. </li>
-</ol>
-<p>那么提一个好问题有那么重要吗？我认为提一个好问题比解答一个问题更能体现一个人的真实水平，因为这证明提问者有独立思考的能力；比如在职场中一个常见的场景是这样的，面试最后部分面试官会问面试者有什么问题吗？这个时候如果提一个高质量的问题，相信会加深面试官的印象,在同等条件的候选者中相信胜出的概率会更高;</p>
-<p>最后关于什么是好问题，这里引用某大佬的一句话 「什么是好问题，你对某个领域有一定研究，你已经翻阅和查询了足够的资料，然后你基于你的理解，对这些资料中，某几个无法理解的细节提出来，希望专业人士给与解惑，而这个细节问题确实具有足够代表性，是理解一些关键问题的钥匙，这就是好问题。」</p>
 ]]></content>
   </entry>
   <entry>
