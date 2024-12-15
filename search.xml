@@ -26,6 +26,22 @@
       </tags>
   </entry>
   <entry>
+    <title>在线工具集合网站</title>
+    <url>/2024/11/15/First-Efficiency-Lab/</url>
+    <content><![CDATA[<p>在过往的项目中,常常需要处理一些格式转换、日期计算、编码解码等琐碎的操作,总是要么在IDE里用代码实现一下,要么在网上搜索相应的在线小工具。渐渐觉得这样做效率很低,索性就做了一个集合了一些常用工具的小网站 <a href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a> <span id="more"></span></p>
+<p>该网站目前提供了以下6个工具:</p>
+<h3 id="日期计算器"><a href="#日期计算器" class="headerlink" title="日期计算器"></a><a href="https://www.firstefficiencylab.com/date_calc.html">日期计算器</a></h3><p>计算日期天数差、增减天数以及查找特定日期,常用于处理与日期相关的业务需求。</p>
+<h3 id="单位转换器"><a href="#单位转换器" class="headerlink" title="单位转换器"></a><a href="https://www.firstefficiencylab.com/unit_conv.html">单位转换器</a></h3><p>帮助进行英制和公制单位之间的自由转换,如常用的长度、重量、体积、温度等维度。</p>
+<h3 id="JSON格式化"><a href="#JSON格式化" class="headerlink" title="JSON格式化"></a><a href="https://www.firstefficiencylab.com/json_format.html">JSON格式化</a></h3><p>将JSON数据格式化成有层级缩进的样式,或将格式化后的JSON转成单行,方便发现JSON语法错误。</p>
+<h3 id="编-解码工具"><a href="#编-解码工具" class="headerlink" title="编/解码工具"></a><a href="https://www.firstefficiencylab.com/encode.html">编/解码工具</a></h3><p>使用常见的Base64、MD5、SHA等多种编码解码算法对文本进行转换,适用于加解密、哈希处理等需求。</p>
+<h3 id="Unix时间戳转换"><a href="#Unix时间戳转换" class="headerlink" title="Unix时间戳转换"></a><a href="https://www.firstefficiencylab.com/timestamp.html">Unix时间戳转换</a></h3><p>将Unix时间戳转成可读的时间格式,或通过年月日等输入获取对应的时间戳。</p>
+<h3 id="YAML-JSON转换"><a href="#YAML-JSON转换" class="headerlink" title="YAML/JSON转换"></a><a href="https://www.firstefficiencylab.com/yaml_json.html">YAML/JSON转换</a></h3><p>在YAML和JSON两种格式之间双向转换,并同时支持格式化和语法验证。</p>
+<p>这些工具的灵感大多来源于我们日常开发和运维工作中的一些高频基本需求。核心目的是集中常用的小工具,提高这部分操作的效率。</p>
+<p>虽然网站目前相当简陋,但我会持续完善和优化。该工具网站会一直保持更新,提供更好的体验,欢迎大家使用并给出宝贵意见!</p>
+<p>工具地址: <a href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a></p>
+]]></content>
+  </entry>
+  <entry>
     <title>灰度发布过程中缓存数据一致性问题</title>
     <url>/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/</url>
     <content><![CDATA[<p>灰度发布是一种常见的上线策略。如果灰度发布时间较长，且在灰度期间各分组共用缓存，那么该过程中可能会面临缓存数据一致性的挑战。本文将讨论在灰度发布过程中导致缓存数据不一致的问题和解决方案。 <span id="more"></span></p>
@@ -81,15 +97,6 @@
 ]]></content>
       <tags>
         <tag>线上问题</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>JVM初探</title>
-    <url>/2020/03/29/JVM-NEW/</url>
-    <content><![CDATA[<p>最近经常有人跟我一起讨论JVM的相关话题，所以将以前分享过的一篇JVM的基础知识在这里分享出来，欢迎大家指正.<span id="more"></span></p>
-<div class="pdfobject-container" data-target="/pdf/jvm.pdf" data-height="500px"></div>]]></content>
-      <tags>
-        <tag>JVM</tag>
       </tags>
   </entry>
   <entry>
@@ -163,6 +170,15 @@
 <li>遵循规范：组件实现需要遵循行业设计规范和标准,以提升互操作性</li>
 </ol>
 ]]></content>
+  </entry>
+  <entry>
+    <title>JVM初探</title>
+    <url>/2020/03/29/JVM-NEW/</url>
+    <content><![CDATA[<p>最近经常有人跟我一起讨论JVM的相关话题，所以将以前分享过的一篇JVM的基础知识在这里分享出来，欢迎大家指正.<span id="more"></span></p>
+<div class="pdfobject-container" data-target="/pdf/jvm.pdf" data-height="500px"></div>]]></content>
+      <tags>
+        <tag>JVM</tag>
+      </tags>
   </entry>
   <entry>
     <title>Open Tracing(Jaeger) 遭遇多线程</title>
