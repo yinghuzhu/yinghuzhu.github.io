@@ -209,7 +209,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>在过往的项目中,常常需要处理一些格式转换、日期计算、编码解码等琐碎的操作,总是要么在IDE里用代码实现一下,要么在网上搜索相应的在线小工具。渐渐觉得这样做效率很低,索性做了一个集合一些常用工具的网站 <a target="_blank" rel="noopener" href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a></p>
+          <p>在日常开发项目中，我们经常需要处理格式转换、日期计算、编码解码等琐碎的操作。这些任务通常要么需要在IDE中编写代码实现，要么需要在网上搜索相应的在线工具。经过一段时间后，我发现这种方式效率较低，于是我开发了一个集成常用工具的网站：<a target="_blank" rel="noopener" href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a></p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/2024/11/15/First-Efficiency-Lab/#more" rel="contents">
@@ -408,6 +408,73 @@
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN,en,default">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/10/22/Session-Memcached-To-Redis/" class="post-title-link" itemprop="url">Session Memcached集群迁移至Redis集群</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-10-22 22:51:20" itemprop="dateCreated datePublished" datetime="2022-10-22T22:51:20+08:00">2022-10-22</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h3 id="项目背景"><a href="#项目背景" class="headerlink" title="项目背景"></a>项目背景</h3><p>随着业务的快速发展，我们原有的 <code>session</code> 存储方案  <code>Memcached</code>  逐渐显露出一些瓶颈，主要体现在以下几个方面。：</p>
+<ul>
+<li>  <strong>扩展性受限</strong>：<code>Memcached</code> 集群不支持分片，要分片需要在客户端实现分片逻辑，<strong>扩容和缩容操作繁琐</strong>，运维成本较高，难以满足业务快速增长的需求</li></ul>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2022/10/22/Session-Memcached-To-Redis/#more" rel="contents">
                 阅读全文 &raquo;
               </a>
             </div>
@@ -752,71 +819,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN,en,default">
-    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="yhzhu">
-      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="yhzhu的随手记">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2020/05/30/History-Bug-And-Code-Review/" class="post-title-link" itemprop="url">一个三年前的Bug导致上线失败</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2020-05-30 11:16:26" itemprop="dateCreated datePublished" datetime="2020-05-30T11:16:26+08:00">2020-05-30</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>上周某核心服务上线过程中内存瞬间飙升，导致上线失败。经查是一个三年前的bug引发的。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2020/05/30/History-Bug-And-Code-Review/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -886,7 +888,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">26</span>
+          <span class="site-state-item-count">27</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
