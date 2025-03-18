@@ -74,6 +74,27 @@
   </entry>
   
   <entry>
+    <title>Data Memcached集群迁移至Redis集群</title>
+    <link href="https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/"/>
+    <id>https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/</id>
+    <published>2023-09-09T03:38:05.000Z</published>
+    <updated>2025-03-18T12:11:49.517Z</updated>
+    
+    <content type="html"><![CDATA[<p>随着业务规模的增长，我们的缓存系统面临扩展性和运维效率的挑战。近期我们团队将缓存系统从Memcached迁移到Redis集群。<span id="more"></span></p><h2 id="项目背景与迁移动机"><a href="#项目背景与迁移动机" class="headerlink" title="项目背景与迁移动机"></a>项目背景与迁移动机</h2><p>我们的缓存系统最初基于Memcached，性能表现稳定，但随着业务发展，Memcached的局限性逐渐暴露：</p><ul><li><strong>扩展性受限</strong>：Memcached集群不支持自动分片，扩容和缩容需客户端手动实现，操作繁琐且运维成本高，难以应对流量快速增长。</li><li><strong>监控能力薄弱</strong>：Memcached提供的指标有限（仅命中率、内存使用等），故障排查和告警不便，影响问题定位效率。</li><li><strong>数据类型单一</strong>：仅支持键值对，复杂业务需求需额外开发支持，效率低下。</li></ul><p>这些问题促使我们寻找替代方案，最终选择了Redis集群。迁移的目标不是提升性能，而是解决扩展性和监控问题，为未来发展预留空间。</p><h2 id="技术选型：为什么选择Redis集群"><a href="#技术选型：为什么选择Redis集群" class="headerlink" title="技术选型：为什么选择Redis集群"></a>技术选型：为什么选择Redis集群</h2><p>我们直接选择了Redis集群，原因如下：</p><ul><li><strong>成熟度</strong>：Redis的社区拥有丰富文档和活跃支持，而且我们团队在其他项目中的使用已非常成熟。</li><li><strong>功能优势</strong>：支持自动分片、丰富数据结构（如Hash、List）和内置监控，弥补Memcached的不足。</li><li><strong>团队熟悉</strong>：团队对Redis的开发和运维经验丰富，降低了学习成本。</li></ul><h2 id="迁移过程"><a href="#迁移过程" class="headerlink" title="迁移过程"></a>迁移过程</h2><p>迁移分为几个阶段，确保无侵入且风险可控：</p><ol><li><strong>代码改造</strong>：<ul><li>通过底层SDK适配Redis集群，封装缓存操作接口（<code>get</code>、<code>set</code>），业务代码无需改动。</li><li>配置动态切换缓存后端（Memcached或Redis）。</li></ul></li><li><strong>测试验证</strong>：<ul><li>模拟业务场景验证功能正确性。</li><li>测试Redis集群的扩容/缩容，确保无影响。</li></ul></li><li><strong>灰度发布</strong>：<ul><li>从5%流量开始，逐步增至20%，观察一周后全量切换。</li><li>按用户维度区分流量，避免数据一致性问题。</li></ul></li><li><strong>数据过渡</strong>：<ul><li>新请求写入Redis，旧数据在Memcached过期，无需显式迁移。这种策略能有效降低迁移复杂性。但对于某些关键缓存数据，可能需要更谨慎的迁移方案。</li></ul></li><li><strong>监控支持</strong>：<ul><li>使用Prometheus和Grafana，从测试到全量全程监控Redis和业务指标。关键监控指标包括Redis的CPU使用率、内存使用率、连接数、命中率、Key的数量，以及业务相关的错误率、请求量等。</li></ul></li></ol><h2 id="挑战与解决方案"><a href="#挑战与解决方案" class="headerlink" title="挑战与解决方案"></a>挑战与解决方案</h2><p>迁移中暴露了三个主要挑战，我们逐一解决：</p><ol><li><strong>大Key问题</strong>：<ul><li><strong>挑战</strong>：Memcached节点内存大，大Key不明显；Redis集群分片内存小，大Key导致负载不均。</li><li><strong>解决方案</strong>：将大Key拆分为多个小Key（如<code>user:123</code>拆为<code>user:123:profile</code>），均匀分布。</li><li><strong>效果</strong>：内存使用率从100%降至50%。</li></ul></li><li><strong>热Key问题</strong>：<ul><li><strong>挑战</strong>：Redis分片配置低，热Key高频访问导致QPS激增。</li><li><strong>解决方案</strong>：引入本地缓存（TTL 1分钟），允许短暂不一致，优先从本地读取。</li><li><strong>效果</strong>：Redis负载减少80%。</li></ul></li><li><strong>JVM崩溃</strong>：<ul><li><strong>挑战</strong>：在流量高峰时JVM崩溃，因为系统内部使用Redisson依赖的netty与gRPC依赖的netty版本冲突。</li><li><strong>解决方案</strong>：升级Redisson到最新版。</li><li><strong>效果</strong>：崩溃问题消失。</li></ul></li></ol><h2 id="迁移成果"><a href="#迁移成果" class="headerlink" title="迁移成果"></a>迁移成果</h2><ul><li><strong>性能与稳定性</strong>：<ul><li>迁移后性能和稳定性与Memcached持平，未见提升，因目标非性能优化。</li><li>压测显示两者在20万QPS下表现相当。</li></ul></li><li><strong>用户体验</strong>：<ul><li>页面加载时间和服务稳定性无变化，用户无感知反馈。</li></ul></li><li><strong>实际价值</strong>：<ul><li><strong>扩展性</strong>：Redis集群支持动态扩容，解决了Memcached的瓶颈。</li><li><strong>监控性</strong>：丰富指标提升了运维效率。</li></ul></li></ul><h2 id="经验教训"><a href="#经验教训" class="headerlink" title="经验教训"></a>经验教训</h2><ol><li><strong>无侵入SDK</strong>：降低风险，业务代码稳定。</li><li><strong>灰度发布</strong>：分阶段切换，问题可控。</li><li><strong>关闭持久化</strong>：提升性能，适配需求。为了追求更高的读写性能，我们选择关闭了Redis的持久化功能。在生产环境中，需要根据具体的业务场景权衡是否开启持久化以及选择合适的持久化策略。</li><li><strong>全面监控</strong>：实时反馈，快速响应。</li><li><strong>聚焦扩展性</strong>：明确目标，预留潜力。</li></ol><h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>这次迁移让我们从Memcached的局限中解脱，Redis集群为未来增长奠定了基础。虽然性能未提升，但扩展性和监控能力的改善达到了预期。关于成本方面，迁移到Redis集群可能会带来一定的服务器成本增加，但运维效率的提升有望在长期降低总体成本。</p>]]></content>
+    
+    
+    <summary type="html">&lt;p&gt;随着业务规模的增长，我们的缓存系统面临扩展性和运维效率的挑战。近期我们团队将缓存系统从Memcached迁移到Redis集群。&lt;/p&gt;</summary>
+    
+    
+    
+    
+    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
+    
+    <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
+    
+  </entry>
+  
+  <entry>
     <title>灰度发布过程中缓存数据一致性问题</title>
     <link href="https://www.yzhu.name/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/"/>
     <id>https://www.yzhu.name/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/</id>
@@ -385,25 +406,6 @@
     
     
     <summary type="html">&lt;p&gt;单体应用依赖比较少，大部分情况我们只需要启动一个应用就可以开始测试工作。架构升级到服务化后，每个应用依赖比较多，任何一个依赖有问题都会影响测试结果；如果服务化环境中多项目并行测试，测试效率会更差 。&lt;/p&gt;</summary>
-    
-    
-    
-    
-    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>服务化架构升级实践</title>
-    <link href="https://www.yzhu.name/2019/01/03/servcie-deploy-summary/"/>
-    <id>https://www.yzhu.name/2019/01/03/servcie-deploy-summary/</id>
-    <published>2019-01-03T13:25:29.000Z</published>
-    <updated>2022-01-19T07:06:58.614Z</updated>
-    
-    <content type="html"><![CDATA[<p>目前我们大部分业务都接入了服务化，在过去将近一年的时间里，我们踩了很多坑，也出现了几次生产事故，同时，从某种意义上讲，我们也做了某些「微创新」，使得架构更适合我们团队的实际情况。从目前的结果来看，基本达成了预定目标； <span id="more"></span></p><h3 id="技术选型"><a href="#技术选型" class="headerlink" title="技术选型"></a>技术选型</h3><p>在前期技术选型的时候，我们调研了<a href="http://dubbo.apache.org/">Dubbo</a>和<a href="https://spring.io/projects/spring-cloud">Spring Cloud</a>，主要从以下这些方面考虑各自的优缺点；最终选择以<a href="http://dubbo.apache.org/">Dubbo</a>为基础技术框架：</p><ol><li>社区支持</li><li>生态建设</li><li>服务治理</li><li>服务监控</li><li>与现有系统的集成</li><li>代码迁移成本</li><li>团队的流程</li><li>运维成本</li><li>团队的经验</li><li>学习成本</li></ol><h3 id="服务化SDK"><a href="#服务化SDK" class="headerlink" title="服务化SDK"></a>服务化SDK</h3><p>考虑到当时<a href="http://dubbo.apache.org/">Dubbo</a>刚开始进入Apache孵化器，也方便我们以后升级；我们提供了封装<a href="http://dubbo.apache.org/">Dubbo</a>的服务化SDK给开发团队使用。我们扩展了如下功能: </p><ol><li>启动完成标示，单个JVM中确保所有服务启动完成而且在注册中心注册</li><li>集成<a href="https://github.com/ctripcorp/apollo">Apollo</a> ，开发团队不用关心基础组件配置信息 </li><li>集成监控，保证服务化后项目必须接入监控</li><li>集成限流降级系统，确保所有的provider必须接入流降级功能</li><li>定向指定服务节点，测试环境中多项目测试的情况下，可以对运行中的服务动态指定provider工作节点 。(我们也注意到官方在2.7版本的tag feature提供了类似的功能)</li></ol><h3 id="监控系统"><a href="#监控系统" class="headerlink" title="监控系统"></a>监控系统</h3><p>系统架构服务化后，服务间调用关系错综复杂，出现问题很难定位。所以监控系统极为重要；而且我们一致认为投入生产前必须有全链路监控。为了快速上线，我们在Dubbo官方提供的监控系统<a href="https://dubbo.incubator.apache.org/">dubbo-monitor</a>和<a href="https://zipkin.io/">zipkin</a>基础上做了部分改造：</p><ol><li>dubbo-monitor官方的方案是将监控数据持久化到磁盘。我们考虑到数据保存到磁盘不方便查询，而且多个节点之间共享磁盘不是一个好的方案。所以，我们将数据持久化到MySql。</li><li>配置信息接入<a href="https://github.com/ctripcorp/apollo">Apollo</a> 。</li><li>接入我们现有的报警系统；将监控数据实时上报到我们的报警系统 。</li><li><a href="https://zipkin.io/">zipkin</a>的链路跟踪信息接入我们的日志系统 </li><li>打通全链路监控,从web系统到最后端基础服务调用关系 </li></ol><h3 id="限流降级"><a href="#限流降级" class="headerlink" title="限流降级"></a>限流降级</h3><p>我们采用阿里开源的<a href="https://github.com/alibaba/Sentinel">Sentinel</a>作为限流降级组件。<a href="https://github.com/alibaba/Sentinel">Sentinel</a>官方提供了与<a href="http://dubbo.apache.org/">Dubbo</a>集成的适配器，可以最快的速度投入生产使用。但是，由于<a href="https://github.com/alibaba/Sentinel">Sentinel</a>官方默认的限流降级规则是存储在节点内存中的，节点重启后规则会丢失。所以，团队根据官方提供<a href="https://github.com/ctripcorp/apollo">Apollo</a>的Datasource做了少许改造，使得规则可以持久化到<a href="https://github.com/ctripcorp/apollo">Apollo</a> 。</p><h3 id="服务拆分"><a href="#服务拆分" class="headerlink" title="服务拆分"></a>服务拆分</h3><p>服务拆分是服务化改造的重点。 通常大家都会根据领域来拆分，而领域的划分可大可小没有一个绝对的标准。拆分太细，服务众多，运维成本较高；拆分太粗发挥不了服务化的优势，因此在服务拆分的时候要根据团队当前的实际情况而定。我们团队在具体执行的过程中采用了领域+上/下层服务的方式拆分。我们各个开发团队的划分就是按照领域划分的，而每个团队都会有底层服务(会提供接口给其它团队)和上层服务(为个自业务服务)；所以，原则上每个团队两个服务，一个底层服务，另一个是上层服务；针对部分关键服务(比如，详情页，订单，支付等..) 有独立的服务 。真正做到独立开发，独立测试，独立发布，独立运维。</p><h3 id="流程规范"><a href="#流程规范" class="headerlink" title="流程规范"></a>流程规范</h3><h4 id="DevOps"><a href="#DevOps" class="headerlink" title="DevOps"></a>DevOps</h4><p>服务化后开发人员的智能发生了变化 :</p><ol><li>开发团队的处警方式有被动告知转变为主动处理，系统的运行状态不仅仅依赖SA，更多依靠开发团队主动关注，SA更多关注系统级别的指标，开发人员必须关注系统，业务等各种指标；以最快的速度对系统的异常作出响应。</li><li>测试任务更多依赖开发人员完成，专职测试人员更多关注自动化和质量。</li><li>上线发布不再由SA直接参与，SA负责提供发布/回滚工具，在质量达标后由开发团队独立完成 。</li></ol><h4 id="上线流程"><a href="#上线流程" class="headerlink" title="上线流程"></a>上线流程</h4><ol><li>效率；之前上线涉及多个团队，依赖Jar包过多，上线过程经常遇到代码冲突，包依赖冲突等问题；排查问题涉及多个团队，耗时长，效率低。服务化后每次上线只涉及自己团队成员，不再有代码冲突和包冲突的问题，效率得到了很大的提升 。</li><li>CI/CD流程的建立；我们在服务化推进的过程中同时建立了初步的CI/CD流程 。</li><li>自动化测试；服务化后上线频率更高，为了保证质量我们开始建立了自动化测试系统。</li></ol><h4 id="编码规范增加如下内容"><a href="#编码规范增加如下内容" class="headerlink" title="编码规范增加如下内容:"></a>编码规范增加如下内容:</h4><ul><li>事务处理</li><li>SQL中多表join</li><li>引用的传递 </li><li>限流异常的处理</li><li>超时异常处理</li><li>单元测试规范 </li></ul><h5 id><a href="#" class="headerlink" title></a></h5><h4 id="发布系统"><a href="#发布系统" class="headerlink" title="发布系统"></a>发布系统</h4><ol><li>流量切换方式；服务化之前我们大部分应用都是web应用；系统发布过程中流量的切换是通过Nginx完成的。服务化后流量切换需要依赖服务发现(我们用<a href="http://zookeeper.apache.org/">Zookeeper</a>作为<a href="http://dubbo.apache.org/">Dubbo</a>服务发现的组件)组件完成；因此我们增加了流量切换组件 。</li><li>回滚方式：服务化后系统上线频率变高；同时意味着回滚的频率也会变高。考虑到回滚应用的时候如果需要回滚配置必须手工完成，这样效率并不高。因此，我们根据利用<a href="https://github.com/ctripcorp/apollo">Apollo</a>的OpenAPI真正做到了一键回滚。</li></ol><h3 id="后续"><a href="#后续" class="headerlink" title="后续"></a>后续</h3><p>接下来，我们会聚焦如下方面：</p><ul><li>分库分表</li><li>前/中台战略</li><li>容器化</li><li>自动化测试的加强</li><li>监控系统的加强，缩短问题排查的时间</li></ul><h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>给出一个「可落地的方案」能真正体现一个架构师实力；架构师遇到的很多问题都不是技术问题，只是用技术手段解决业务问题，流程问题，质量问题。架构师给出的每一个方案，必须立足于团队的实际情况，实际情况包括但不限于：成本，时间，团队能力，等。而且时刻关注执行结果；如果没有到达预期效果或者在执行过程中偏离方向，尽快根据团队实际情况调整方案。总之，所有的方案都是冲着三个目标 <strong>效率</strong>，<strong>质量</strong>，<strong>成本</strong> 。</p>]]></content>
-    
-    
-    <summary type="html">&lt;p&gt;目前我们大部分业务都接入了服务化，在过去将近一年的时间里，我们踩了很多坑，也出现了几次生产事故，同时，从某种意义上讲，我们也做了某些「微创新」，使得架构更适合我们团队的实际情况。从目前的结果来看，基本达成了预定目标；&lt;/p&gt;</summary>
     
     
     

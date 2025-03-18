@@ -22,21 +22,21 @@
     var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.">
+  <meta name="description" content="随着业务规模的增长，我们的缓存系统面临扩展性和运维效率的挑战。近期我们团队将缓存系统从Memcached迁移到Redis集群。">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Java与Go之间gRPC调用失败问题排查">
-<meta property="og:url" content="https://www.yzhu.name/2019/06/02/gRPC-Go-Java/index.html">
+<meta property="og:title" content="Data Memcached集群迁移至Redis集群">
+<meta property="og:url" content="https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/index.html">
 <meta property="og:site_name" content="yhzhu的随手记">
-<meta property="og:description" content="最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.">
+<meta property="og:description" content="随着业务规模的增长，我们的缓存系统面临扩展性和运维效率的挑战。近期我们团队将缓存系统从Memcached迁移到Redis集群。">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2019-06-02T01:29:15.000Z">
-<meta property="article:modified_time" content="2022-01-21T09:48:11.668Z">
+<meta property="article:published_time" content="2023-09-09T03:38:05.000Z">
+<meta property="article:modified_time" content="2025-03-18T12:11:49.517Z">
 <meta property="article:author" content="yhzhu">
 <meta property="article:tag" content="微服务">
-<meta property="article:tag" content="RPC">
+<meta property="article:tag" content="分布式">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="https://www.yzhu.name/2019/06/02/gRPC-Go-Java/">
+<link rel="canonical" href="https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/">
 
 
 <script id="page-configurations">
@@ -49,7 +49,7 @@
   };
 </script>
 
-  <title>Java与Go之间gRPC调用失败问题排查 | yhzhu的随手记</title>
+  <title>Data Memcached集群迁移至Redis集群 | yhzhu的随手记</title>
   <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
 <script>
@@ -176,7 +176,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2019/06/02/gRPC-Go-Java/">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -189,7 +189,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          Java与Go之间gRPC调用失败问题排查
+          Data Memcached集群迁移至Redis集群
         </h1>
 
         <div class="post-meta">
@@ -199,7 +199,7 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2019-06-02 09:29:15" itemprop="dateCreated datePublished" datetime="2019-06-02T09:29:15+08:00">2019-06-02</time>
+              <time title="创建时间：2023-09-09 11:38:05" itemprop="dateCreated datePublished" datetime="2023-09-09T11:38:05+08:00">2023-09-09</time>
             </span>
 
           
@@ -213,34 +213,91 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
-<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
+        <p>随着业务规模的增长，我们的缓存系统面临扩展性和运维效率的挑战。近期我们团队将缓存系统从Memcached迁移到Redis集群。<span id="more"></span></p>
+<h2 id="项目背景与迁移动机"><a href="#项目背景与迁移动机" class="headerlink" title="项目背景与迁移动机"></a>项目背景与迁移动机</h2><p>我们的缓存系统最初基于Memcached，性能表现稳定，但随着业务发展，Memcached的局限性逐渐暴露：</p>
+<ul>
+<li><strong>扩展性受限</strong>：Memcached集群不支持自动分片，扩容和缩容需客户端手动实现，操作繁琐且运维成本高，难以应对流量快速增长。</li>
+<li><strong>监控能力薄弱</strong>：Memcached提供的指标有限（仅命中率、内存使用等），故障排查和告警不便，影响问题定位效率。</li>
+<li><strong>数据类型单一</strong>：仅支持键值对，复杂业务需求需额外开发支持，效率低下。</li>
+</ul>
+<p>这些问题促使我们寻找替代方案，最终选择了Redis集群。迁移的目标不是提升性能，而是解决扩展性和监控问题，为未来发展预留空间。</p>
+<h2 id="技术选型：为什么选择Redis集群"><a href="#技术选型：为什么选择Redis集群" class="headerlink" title="技术选型：为什么选择Redis集群"></a>技术选型：为什么选择Redis集群</h2><p>我们直接选择了Redis集群，原因如下：</p>
+<ul>
+<li><strong>成熟度</strong>：Redis的社区拥有丰富文档和活跃支持，而且我们团队在其他项目中的使用已非常成熟。</li>
+<li><strong>功能优势</strong>：支持自动分片、丰富数据结构（如Hash、List）和内置监控，弥补Memcached的不足。</li>
+<li><strong>团队熟悉</strong>：团队对Redis的开发和运维经验丰富，降低了学习成本。</li>
+</ul>
+<h2 id="迁移过程"><a href="#迁移过程" class="headerlink" title="迁移过程"></a>迁移过程</h2><p>迁移分为几个阶段，确保无侵入且风险可控：</p>
 <ol>
-<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
-<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
-<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
-<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
-<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
+<li><strong>代码改造</strong>：<ul>
+<li>通过底层SDK适配Redis集群，封装缓存操作接口（<code>get</code>、<code>set</code>），业务代码无需改动。</li>
+<li>配置动态切换缓存后端（Memcached或Redis）。</li>
+</ul>
+</li>
+<li><strong>测试验证</strong>：<ul>
+<li>模拟业务场景验证功能正确性。</li>
+<li>测试Redis集群的扩容/缩容，确保无影响。</li>
+</ul>
+</li>
+<li><strong>灰度发布</strong>：<ul>
+<li>从5%流量开始，逐步增至20%，观察一周后全量切换。</li>
+<li>按用户维度区分流量，避免数据一致性问题。</li>
+</ul>
+</li>
+<li><strong>数据过渡</strong>：<ul>
+<li>新请求写入Redis，旧数据在Memcached过期，无需显式迁移。这种策略能有效降低迁移复杂性。但对于某些关键缓存数据，可能需要更谨慎的迁移方案。</li>
+</ul>
+</li>
+<li><strong>监控支持</strong>：<ul>
+<li>使用Prometheus和Grafana，从测试到全量全程监控Redis和业务指标。关键监控指标包括Redis的CPU使用率、内存使用率、连接数、命中率、Key的数量，以及业务相关的错误率、请求量等。</li>
+</ul>
+</li>
 </ol>
-<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
-<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
-<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
-<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
-</ol>
-<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
-<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
+<h2 id="挑战与解决方案"><a href="#挑战与解决方案" class="headerlink" title="挑战与解决方案"></a>挑战与解决方案</h2><p>迁移中暴露了三个主要挑战，我们逐一解决：</p>
 <ol>
-<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
-<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
-<li>最终还是要升级到新版本</li>
+<li><strong>大Key问题</strong>：<ul>
+<li><strong>挑战</strong>：Memcached节点内存大，大Key不明显；Redis集群分片内存小，大Key导致负载不均。</li>
+<li><strong>解决方案</strong>：将大Key拆分为多个小Key（如<code>user:123</code>拆为<code>user:123:profile</code>），均匀分布。</li>
+<li><strong>效果</strong>：内存使用率从100%降至50%。</li>
+</ul>
+</li>
+<li><strong>热Key问题</strong>：<ul>
+<li><strong>挑战</strong>：Redis分片配置低，热Key高频访问导致QPS激增。</li>
+<li><strong>解决方案</strong>：引入本地缓存（TTL 1分钟），允许短暂不一致，优先从本地读取。</li>
+<li><strong>效果</strong>：Redis负载减少80%。</li>
+</ul>
+</li>
+<li><strong>JVM崩溃</strong>：<ul>
+<li><strong>挑战</strong>：在流量高峰时JVM崩溃，因为系统内部使用Redisson依赖的netty与gRPC依赖的netty版本冲突。</li>
+<li><strong>解决方案</strong>：升级Redisson到最新版。</li>
+<li><strong>效果</strong>：崩溃问题消失。</li>
+</ul>
+</li>
 </ol>
-<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
-<ol>
-<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
-<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
+<h2 id="迁移成果"><a href="#迁移成果" class="headerlink" title="迁移成果"></a>迁移成果</h2><ul>
+<li><strong>性能与稳定性</strong>：<ul>
+<li>迁移后性能和稳定性与Memcached持平，未见提升，因目标非性能优化。</li>
+<li>压测显示两者在20万QPS下表现相当。</li>
+</ul>
+</li>
+<li><strong>用户体验</strong>：<ul>
+<li>页面加载时间和服务稳定性无变化，用户无感知反馈。</li>
+</ul>
+</li>
+<li><strong>实际价值</strong>：<ul>
+<li><strong>扩展性</strong>：Redis集群支持动态扩容，解决了Memcached的瓶颈。</li>
+<li><strong>监控性</strong>：丰富指标提升了运维效率。</li>
+</ul>
+</li>
+</ul>
+<h2 id="经验教训"><a href="#经验教训" class="headerlink" title="经验教训"></a>经验教训</h2><ol>
+<li><strong>无侵入SDK</strong>：降低风险，业务代码稳定。</li>
+<li><strong>灰度发布</strong>：分阶段切换，问题可控。</li>
+<li><strong>关闭持久化</strong>：提升性能，适配需求。为了追求更高的读写性能，我们选择关闭了Redis的持久化功能。在生产环境中，需要根据具体的业务场景权衡是否开启持久化以及选择合适的持久化策略。</li>
+<li><strong>全面监控</strong>：实时反馈，快速响应。</li>
+<li><strong>聚焦扩展性</strong>：明确目标，预留潜力。</li>
 </ol>
-<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
-<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a target="_blank" rel="noopener" href="https://grpc.io/">https://grpc.io/</a><br><a target="_blank" rel="noopener" href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a target="_blank" rel="noopener" href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
+<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>这次迁移让我们从Memcached的局限中解脱，Redis集群为未来增长奠定了基础。虽然性能未提升，但扩展性和监控能力的改善达到了预期。关于成本方面，迁移到Redis集群可能会带来一定的服务器成本增加，但运维效率的提升有望在长期降低总体成本。</p>
 
     </div>
 
@@ -251,7 +308,7 @@
       <footer class="post-footer">
           <div class="post-tags">
               <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag"># 微服务</a>
-              <a href="/tags/RPC/" rel="tag"># RPC</a>
+              <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag"># 分布式</a>
           </div>
 
         
@@ -260,12 +317,12 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2019/04/27/Tech-VS-Biz/" rel="prev" title="技术给业务赋能">
-      <i class="fa fa-chevron-left"></i> 技术给业务赋能
+    <a href="/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/" rel="prev" title="灰度发布过程中缓存数据一致性问题">
+      <i class="fa fa-chevron-left"></i> 灰度发布过程中缓存数据一致性问题
     </a></div>
       <div class="post-nav-item">
-    <a href="/2019/12/27/Jaeger-Thread/" rel="next" title="Open Tracing(Jaeger) 遭遇多线程">
-      Open Tracing(Jaeger) 遭遇多线程 <i class="fa fa-chevron-right"></i>
+    <a href="/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/" rel="next" title="Sharding-JDBC(ShardingSphere)SQL监控实践">
+      Sharding-JDBC(ShardingSphere)SQL监控实践 <i class="fa fa-chevron-right"></i>
     </a></div>
     </div>
       </footer>
@@ -325,7 +382,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%A1%B9%E7%9B%AE%E8%83%8C%E6%99%AF%EF%BC%9A"><span class="nav-number">1.</span> <span class="nav-text">项目背景：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E9%87%8D%E7%8E%B0"><span class="nav-number">2.</span> <span class="nav-text">问题重现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%97%AE%E9%A2%98%E5%8E%9F%E5%9B%A0"><span class="nav-number">3.</span> <span class="nav-text">问题原因</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%B6%E5%AE%83%E9%97%AE%E9%A2%98"><span class="nav-number">4.</span> <span class="nav-text">其它问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-number">5.</span> <span class="nav-text">解决方案:</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%80%E7%82%B9%E6%80%9D%E8%80%83"><span class="nav-number">6.</span> <span class="nav-text">一点思考</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">6.0.1.</span> <span class="nav-text">参考资料:</span></a></li></ol></li></ol></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%A1%B9%E7%9B%AE%E8%83%8C%E6%99%AF%E4%B8%8E%E8%BF%81%E7%A7%BB%E5%8A%A8%E6%9C%BA"><span class="nav-number">1.</span> <span class="nav-text">项目背景与迁移动机</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8A%80%E6%9C%AF%E9%80%89%E5%9E%8B%EF%BC%9A%E4%B8%BA%E4%BB%80%E4%B9%88%E9%80%89%E6%8B%A9Redis%E9%9B%86%E7%BE%A4"><span class="nav-number">2.</span> <span class="nav-text">技术选型：为什么选择Redis集群</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%81%E7%A7%BB%E8%BF%87%E7%A8%8B"><span class="nav-number">3.</span> <span class="nav-text">迁移过程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8C%91%E6%88%98%E4%B8%8E%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-number">4.</span> <span class="nav-text">挑战与解决方案</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%81%E7%A7%BB%E6%88%90%E6%9E%9C"><span class="nav-number">5.</span> <span class="nav-text">迁移成果</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%8F%E9%AA%8C%E6%95%99%E8%AE%AD"><span class="nav-number">6.</span> <span class="nav-text">经验教训</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%93%E8%AF%AD"><span class="nav-number">7.</span> <span class="nav-text">结语</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 

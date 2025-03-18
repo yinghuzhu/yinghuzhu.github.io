@@ -1,6 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>在线工具集合网站</title>
+    <url>/2024/11/15/First-Efficiency-Lab/</url>
+    <content><![CDATA[<p>在日常开发项目中，我们经常需要处理格式转换、日期计算、编码解码等琐碎的操作。这些任务通常要么需要在IDE中编写代码实现，要么需要在网上搜索相应的在线工具。经过一段时间后，我发现这种方式效率较低，于是我开发了一个集成常用工具的网站：<a href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a> <span id="more"></span></p>
+<p>该网站目前提供了以下几个工具:</p>
+<h3 id="日期计算器"><a href="#日期计算器" class="headerlink" title="日期计算器"></a><a href="https://www.firstefficiencylab.com/date-calc.html">日期计算器</a></h3><p>计算日期天数差、增减天数以及查找特定日期,常用于处理与日期相关的业务需求。</p>
+<h3 id="单位转换器"><a href="#单位转换器" class="headerlink" title="单位转换器"></a><a href="https://www.firstefficiencylab.com/unit-conv.html">单位转换器</a></h3><p>帮助进行英制和公制单位之间的自由转换,如常用的长度、重量、体积、温度等维度。</p>
+<h3 id="JSON格式化"><a href="#JSON格式化" class="headerlink" title="JSON格式化"></a><a href="https://www.firstefficiencylab.com/json-format.html">JSON格式化</a></h3><p>将JSON数据格式化成有层级缩进的样式,或将格式化后的JSON转成单行,方便发现JSON语法错误。</p>
+<h3 id="编-解码工具"><a href="#编-解码工具" class="headerlink" title="编/解码工具"></a><a href="https://www.firstefficiencylab.com/encode.html">编/解码工具</a></h3><p>使用常见的Base64、MD5、SHA等多种编码解码算法对文本进行转换,适用于加解密、哈希处理等需求。</p>
+<h3 id="Unix时间戳转换"><a href="#Unix时间戳转换" class="headerlink" title="Unix时间戳转换"></a><a href="https://www.firstefficiencylab.com/timestamp.html">Unix时间戳转换</a></h3><p>将Unix时间戳转成可读的时间格式,或通过年月日等输入获取对应的时间戳。</p>
+<h3 id="YAML-JSON转换"><a href="#YAML-JSON转换" class="headerlink" title="YAML/JSON转换"></a><a href="https://www.firstefficiencylab.com/yaml-json.html">YAML/JSON转换</a></h3><p>在YAML和JSON两种格式之间双向转换,并同时支持格式化和语法验证。</p>
+<h3 id="转换图片为白地图"><a href="#转换图片为白地图" class="headerlink" title="转换图片为白地图"></a><a href="https://www.firstefficiencylab.com/image-segment.html">转换图片为白地图</a></h3><p>快速扣除商品背景，将证件照换为白地图，等场景，能够对图片进行一键抠图，快速处理。</p>
+<p>这些工具的灵感大多来源于我们日常工作中的一些高频基本需求。核心目的是集中常用的小工具,提高这部分操作的效率。</p>
+<p>工具地址: <a href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a></p>
+]]></content>
+  </entry>
+  <entry>
     <title>基于配置中心属性,Dubbo Consumer动态切换调用RPC/本地方法</title>
     <url>/2018/07/06/Dubbo-Local-RPC-Switch/</url>
     <content><![CDATA[<h2 id="需求缘由"><a href="#需求缘由" class="headerlink" title="需求缘由"></a>需求缘由</h2><p>最近部分只读服务已经切换到了Dubbo提供的服务化接口；经过一段时间的生产验证, 各种监控指标显示非常稳定，所以打算开始切换写服务接口; 但大家对写操作跑服务化没有信心，于是提了一个需求能随时将远程rpc调用切换打本地jar方法调用；<span id="more"></span></p>
@@ -26,20 +42,98 @@
       </tags>
   </entry>
   <entry>
-    <title>在线工具集合网站</title>
-    <url>/2024/11/15/First-Efficiency-Lab/</url>
-    <content><![CDATA[<p>在日常开发项目中，我们经常需要处理格式转换、日期计算、编码解码等琐碎的操作。这些任务通常要么需要在IDE中编写代码实现，要么需要在网上搜索相应的在线工具。经过一段时间后，我发现这种方式效率较低，于是我开发了一个集成常用工具的网站：<a href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a> <span id="more"></span></p>
-<p>该网站目前提供了以下几个工具:</p>
-<h3 id="日期计算器"><a href="#日期计算器" class="headerlink" title="日期计算器"></a><a href="https://www.firstefficiencylab.com/date-calc.html">日期计算器</a></h3><p>计算日期天数差、增减天数以及查找特定日期,常用于处理与日期相关的业务需求。</p>
-<h3 id="单位转换器"><a href="#单位转换器" class="headerlink" title="单位转换器"></a><a href="https://www.firstefficiencylab.com/unit-conv.html">单位转换器</a></h3><p>帮助进行英制和公制单位之间的自由转换,如常用的长度、重量、体积、温度等维度。</p>
-<h3 id="JSON格式化"><a href="#JSON格式化" class="headerlink" title="JSON格式化"></a><a href="https://www.firstefficiencylab.com/json-format.html">JSON格式化</a></h3><p>将JSON数据格式化成有层级缩进的样式,或将格式化后的JSON转成单行,方便发现JSON语法错误。</p>
-<h3 id="编-解码工具"><a href="#编-解码工具" class="headerlink" title="编/解码工具"></a><a href="https://www.firstefficiencylab.com/encode.html">编/解码工具</a></h3><p>使用常见的Base64、MD5、SHA等多种编码解码算法对文本进行转换,适用于加解密、哈希处理等需求。</p>
-<h3 id="Unix时间戳转换"><a href="#Unix时间戳转换" class="headerlink" title="Unix时间戳转换"></a><a href="https://www.firstefficiencylab.com/timestamp.html">Unix时间戳转换</a></h3><p>将Unix时间戳转成可读的时间格式,或通过年月日等输入获取对应的时间戳。</p>
-<h3 id="YAML-JSON转换"><a href="#YAML-JSON转换" class="headerlink" title="YAML/JSON转换"></a><a href="https://www.firstefficiencylab.com/yaml-json.html">YAML/JSON转换</a></h3><p>在YAML和JSON两种格式之间双向转换,并同时支持格式化和语法验证。</p>
-<h3 id="转换图片为白地图"><a href="#转换图片为白地图" class="headerlink" title="转换图片为白地图"></a><a href="https://www.firstefficiencylab.com/image-segment.html">转换图片为白地图</a></h3><p>快速扣除商品背景，将证件照换为白地图，等场景，能够对图片进行一键抠图，快速处理。</p>
-<p>这些工具的灵感大多来源于我们日常工作中的一些高频基本需求。核心目的是集中常用的小工具,提高这部分操作的效率。</p>
-<p>工具地址: <a href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a></p>
+    <title>Data Memcached集群迁移至Redis集群</title>
+    <url>/2023/09/09/Data-Memcached-To-Redis/</url>
+    <content><![CDATA[<p>随着业务规模的增长，我们的缓存系统面临扩展性和运维效率的挑战。近期我们团队将缓存系统从Memcached迁移到Redis集群。<span id="more"></span></p>
+<h2 id="项目背景与迁移动机"><a href="#项目背景与迁移动机" class="headerlink" title="项目背景与迁移动机"></a>项目背景与迁移动机</h2><p>我们的缓存系统最初基于Memcached，性能表现稳定，但随着业务发展，Memcached的局限性逐渐暴露：</p>
+<ul>
+<li><strong>扩展性受限</strong>：Memcached集群不支持自动分片，扩容和缩容需客户端手动实现，操作繁琐且运维成本高，难以应对流量快速增长。</li>
+<li><strong>监控能力薄弱</strong>：Memcached提供的指标有限（仅命中率、内存使用等），故障排查和告警不便，影响问题定位效率。</li>
+<li><strong>数据类型单一</strong>：仅支持键值对，复杂业务需求需额外开发支持，效率低下。</li>
+</ul>
+<p>这些问题促使我们寻找替代方案，最终选择了Redis集群。迁移的目标不是提升性能，而是解决扩展性和监控问题，为未来发展预留空间。</p>
+<h2 id="技术选型：为什么选择Redis集群"><a href="#技术选型：为什么选择Redis集群" class="headerlink" title="技术选型：为什么选择Redis集群"></a>技术选型：为什么选择Redis集群</h2><p>我们直接选择了Redis集群，原因如下：</p>
+<ul>
+<li><strong>成熟度</strong>：Redis的社区拥有丰富文档和活跃支持，而且我们团队在其他项目中的使用已非常成熟。</li>
+<li><strong>功能优势</strong>：支持自动分片、丰富数据结构（如Hash、List）和内置监控，弥补Memcached的不足。</li>
+<li><strong>团队熟悉</strong>：团队对Redis的开发和运维经验丰富，降低了学习成本。</li>
+</ul>
+<h2 id="迁移过程"><a href="#迁移过程" class="headerlink" title="迁移过程"></a>迁移过程</h2><p>迁移分为几个阶段，确保无侵入且风险可控：</p>
+<ol>
+<li><strong>代码改造</strong>：<ul>
+<li>通过底层SDK适配Redis集群，封装缓存操作接口（<code>get</code>、<code>set</code>），业务代码无需改动。</li>
+<li>配置动态切换缓存后端（Memcached或Redis）。</li>
+</ul>
+</li>
+<li><strong>测试验证</strong>：<ul>
+<li>模拟业务场景验证功能正确性。</li>
+<li>测试Redis集群的扩容/缩容，确保无影响。</li>
+</ul>
+</li>
+<li><strong>灰度发布</strong>：<ul>
+<li>从5%流量开始，逐步增至20%，观察一周后全量切换。</li>
+<li>按用户维度区分流量，避免数据一致性问题。</li>
+</ul>
+</li>
+<li><strong>数据过渡</strong>：<ul>
+<li>新请求写入Redis，旧数据在Memcached过期，无需显式迁移。这种策略能有效降低迁移复杂性。但对于某些关键缓存数据，可能需要更谨慎的迁移方案。</li>
+</ul>
+</li>
+<li><strong>监控支持</strong>：<ul>
+<li>使用Prometheus和Grafana，从测试到全量全程监控Redis和业务指标。关键监控指标包括Redis的CPU使用率、内存使用率、连接数、命中率、Key的数量，以及业务相关的错误率、请求量等。</li>
+</ul>
+</li>
+</ol>
+<h2 id="挑战与解决方案"><a href="#挑战与解决方案" class="headerlink" title="挑战与解决方案"></a>挑战与解决方案</h2><p>迁移中暴露了三个主要挑战，我们逐一解决：</p>
+<ol>
+<li><strong>大Key问题</strong>：<ul>
+<li><strong>挑战</strong>：Memcached节点内存大，大Key不明显；Redis集群分片内存小，大Key导致负载不均。</li>
+<li><strong>解决方案</strong>：将大Key拆分为多个小Key（如<code>user:123</code>拆为<code>user:123:profile</code>），均匀分布。</li>
+<li><strong>效果</strong>：内存使用率从100%降至50%。</li>
+</ul>
+</li>
+<li><strong>热Key问题</strong>：<ul>
+<li><strong>挑战</strong>：Redis分片配置低，热Key高频访问导致QPS激增。</li>
+<li><strong>解决方案</strong>：引入本地缓存（TTL 1分钟），允许短暂不一致，优先从本地读取。</li>
+<li><strong>效果</strong>：Redis负载减少80%。</li>
+</ul>
+</li>
+<li><strong>JVM崩溃</strong>：<ul>
+<li><strong>挑战</strong>：在流量高峰时JVM崩溃，因为系统内部使用Redisson依赖的netty与gRPC依赖的netty版本冲突。</li>
+<li><strong>解决方案</strong>：升级Redisson到最新版。</li>
+<li><strong>效果</strong>：崩溃问题消失。</li>
+</ul>
+</li>
+</ol>
+<h2 id="迁移成果"><a href="#迁移成果" class="headerlink" title="迁移成果"></a>迁移成果</h2><ul>
+<li><strong>性能与稳定性</strong>：<ul>
+<li>迁移后性能和稳定性与Memcached持平，未见提升，因目标非性能优化。</li>
+<li>压测显示两者在20万QPS下表现相当。</li>
+</ul>
+</li>
+<li><strong>用户体验</strong>：<ul>
+<li>页面加载时间和服务稳定性无变化，用户无感知反馈。</li>
+</ul>
+</li>
+<li><strong>实际价值</strong>：<ul>
+<li><strong>扩展性</strong>：Redis集群支持动态扩容，解决了Memcached的瓶颈。</li>
+<li><strong>监控性</strong>：丰富指标提升了运维效率。</li>
+</ul>
+</li>
+</ul>
+<h2 id="经验教训"><a href="#经验教训" class="headerlink" title="经验教训"></a>经验教训</h2><ol>
+<li><strong>无侵入SDK</strong>：降低风险，业务代码稳定。</li>
+<li><strong>灰度发布</strong>：分阶段切换，问题可控。</li>
+<li><strong>关闭持久化</strong>：提升性能，适配需求。为了追求更高的读写性能，我们选择关闭了Redis的持久化功能。在生产环境中，需要根据具体的业务场景权衡是否开启持久化以及选择合适的持久化策略。</li>
+<li><strong>全面监控</strong>：实时反馈，快速响应。</li>
+<li><strong>聚焦扩展性</strong>：明确目标，预留潜力。</li>
+</ol>
+<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>这次迁移让我们从Memcached的局限中解脱，Redis集群为未来增长奠定了基础。虽然性能未提升，但扩展性和监控能力的改善达到了预期。关于成本方面，迁移到Redis集群可能会带来一定的服务器成本增加，但运维效率的提升有望在长期降低总体成本。</p>
 ]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>分布式</tag>
+      </tags>
   </entry>
   <entry>
     <title>灰度发布过程中缓存数据一致性问题</title>
@@ -97,6 +191,15 @@
 ]]></content>
       <tags>
         <tag>线上问题</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>JVM初探</title>
+    <url>/2020/03/29/JVM-NEW/</url>
+    <content><![CDATA[<p>最近经常有人跟我一起讨论JVM的相关话题，所以将以前分享过的一篇JVM的基础知识在这里分享出来，欢迎大家指正.<span id="more"></span></p>
+<div class="pdfobject-container" data-target="/pdf/jvm.pdf" data-height="500px"></div>]]></content>
+      <tags>
+        <tag>JVM</tag>
       </tags>
   </entry>
   <entry>
@@ -170,15 +273,6 @@
 <li>遵循规范：组件实现需要遵循行业设计规范和标准,以提升互操作性</li>
 </ol>
 ]]></content>
-  </entry>
-  <entry>
-    <title>JVM初探</title>
-    <url>/2020/03/29/JVM-NEW/</url>
-    <content><![CDATA[<p>最近经常有人跟我一起讨论JVM的相关话题，所以将以前分享过的一篇JVM的基础知识在这里分享出来，欢迎大家指正.<span id="more"></span></p>
-<div class="pdfobject-container" data-target="/pdf/jvm.pdf" data-height="500px"></div>]]></content>
-      <tags>
-        <tag>JVM</tag>
-      </tags>
   </entry>
   <entry>
     <title>Open Tracing(Jaeger) 遭遇多线程</title>
@@ -1191,81 +1285,6 @@
       </tags>
   </entry>
   <entry>
-    <title>Java与Go之间gRPC调用失败问题排查</title>
-    <url>/2019/06/02/gRPC-Go-Java/</url>
-    <content><![CDATA[<p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
-<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
-<ol>
-<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
-<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
-<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
-<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
-<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
-</ol>
-<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
-<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
-<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
-<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
-</ol>
-<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
-<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
-<ol>
-<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
-<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
-<li>最终还是要升级到新版本</li>
-</ol>
-<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
-<ol>
-<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
-<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
-</ol>
-<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
-<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a href="https://grpc.io/">https://grpc.io/</a><br><a href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>RPC</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>基于protobuf的定义在跨语言消息传递中的应用</title>
-    <url>/2021/09/21/message-dsl-base-protobuff/</url>
-    <content><![CDATA[<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>在需要消息队列的场景中，生产端和消费端会事先就消息体格式达成共识确保生产端发送的消息在消费端能正常识别；如果生产端和消费都是Java项目，我们通常会定义消息体的Jar，让生产端和消费端都引用Jar确保消息的一致性；但在跨语言消息传递中<span id="more"></span>通常通过文档约定消息格式各自定义自己的消息体。在我们实际使用过程中发现不同语言之间传递信息还是会出现一些问题；比如：Java用fastjson输出复杂数据在Go项目解析失败，而且各语言在配置mq参数时候有各自的约定,人工操作容易引起误操作，所以我们希望能有一套跨语言的工具能分别生出各自语言的代码和配置。</p>
-<h3 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h3><p>现有系统跨语言之间RPC的调用我们采用了gRPC,很自然的想到可以借鉴gRPC Protobuf定义消息体。具体方法就是扩展<code>google.protobuf.MethodOptions</code>定义</p>
-<h5 id="方法"><a href="#方法" class="headerlink" title="方法"></a>方法</h5><p>下面以RabbitMQ为例，在Protobuf文件中定义MQ相关参数</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">extend google.protobuf.MethodOptions &#123;</span><br><span class="line">    </span><br><span class="line">    // exchange类型: topic direct fanout ,默认: direct</span><br><span class="line">    string routeType = 7010101;</span><br><span class="line"></span><br><span class="line">	// producer 发送到exchange上有效的routekey; 仅topic模式有效</span><br><span class="line">    repeated string routeKey = 7010102;</span><br><span class="line"></span><br><span class="line">    //consumer监听的队列名称，direct模式 该参数无效</span><br><span class="line">    repeated string listener = 7010103;</span><br><span class="line"></span><br><span class="line">   // 延迟队列的延迟时间</span><br><span class="line">   int32 delay = 6010106;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p><strong>说明</strong>: 如果exchange为topic模式，监听队列绑定的routekey必须根据此处定义的routKey定义设置;比如文件定义的routeKey是a.b.c则consumer端绑定到队列的routkey只能是 a.b.c, a.b.<em>, a.</em>, * 其中之一</p>
-<h5 id="生产Java代码"><a href="#生产Java代码" class="headerlink" title="生产Java代码"></a>生产Java代码</h5><p>通常在Maven工程中我们使用<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成gRPC的Java代码。现在我们可以扩展<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成MQ的代码。核心扩展点如下:</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> @Mojo(</span><br><span class="line">        name = &quot;compile-mq&quot;,</span><br><span class="line">        defaultPhase = LifecyclePhase.GENERATE_SOURCES,</span><br><span class="line">        requiresDependencyResolution = ResolutionScope.COMPILE,</span><br><span class="line">        threadSafe = true</span><br><span class="line">)</span><br><span class="line">public class ProtocCompileMQMojo extends AbstractProtocCompileMojo&#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void execute() throws MojoExecutionException, MojoFailureException &#123;</span><br><span class="line">        super.execute();  </span><br><span class="line">        // 利用 DescriptorProtos.FileDescriptorSet 读取proto文件的定义根据规范生出Java文件</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>最后配合MQ的SDK可以大大提高开发效率而且减低配置的复杂性。</p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>分布式</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>如何提一个问题</title>
-    <url>/2018/12/23/how-to-question/</url>
-    <content><![CDATA[<p>在我们日常生活以及工作中经常会遇到提问题, 我们有没有想过如何提一个好问题？也许有人会说，「提问谁不回？会讲话的小孩子就会问为什么，这有什么值得说的？」没错，从这个角度上说机会每个人都会提问。但是，我们有没有想过，我们问问题的目的是什么？是得到对问题的解答。大家有没有遇到过这样的情况，自己问题发给对方后始终得不到回复，或者对方敷衍了事，更有甚者被对方怼回去。如果遇到这些情况，我们应该好好反思一下，我们是不是提了一个好问题；在说好问题之前结合个人的经历谈谈什么样的问题不是一个好问题。<span id="more"></span></p>
-<ol>
-<li>提问者在im上发一个截图，截图里面是一个异常栈，没有任何上下文，然后就没有然后了；解答者在那里等对方进一步的信息，结果什么也等到；过了很久(估计等很久没回复)，亲自过来说「帮我看看我的问题」；这个时候才开始沟通，问题是怎么出现的，什么环境，上下文，等… </li>
-<li>有些问题在技术文档，产品文档上都已经说的很清楚；但提问者不看文档，直接把问题抛过来；也许是提问者自己没有按照文档要求操作，或者真的是一个问题但文档FAQ部分已经解释的很清楚 ；</li>
-<li>提问者直接将问题抛出来，不做任何思考和尝试，只在那里等答案；不知道提问者有没有想过，解答者也要花费大量的时间去调研；</li>
-<li>提问者提问道时候，发的关键信息是一张截图，截图中可能有id之类的标示，此时解答者可能需要根据id搜索，只能手工输入，这样既浪费时间也容易出错；</li>
-</ol>
-<p>对于以上的案例，个人觉得提问者需要加强独立思考的能力，不然会给对方留下「伸手党」的感觉；个人觉得可以按照如下的方式考虑提问:</p>
-<ol>
-<li>对于技术问题或者产品问题，一般作者会提供相应的文档；首先我们应该阅读相关文档，特别注意FAQ部分；</li>
-<li>善于使用搜索引擎，具备基本的搜商(SQ) ,推荐用google(对技术工作者，这个不需要解释), 百度请忽略所有「广告」字样的文章，微信，知乎等工具;</li>
-<li>在以上两步都没有找到答案情况下，可以参考第二步搜索过程中出现的文章以及官方提供的文档尝试；比如是否可以升级软件版本，是否可以调整某些参数；相信在尝试过程中会加深自己对问题的理解以及提升自己解决问题的能力</li>
-<li>经过以上步骤能解决95%的问题了；如果还没有解决，这时候再提问，相信这个时候提出的问题质量是非常高的；比如: 该问题是如何出现的，什么环境，硬件型号是什么，软件版本是什么，我的操作步骤是什么，我做了哪些调研，尝试了哪些方式，得到结果是什么,等.. </li>
-</ol>
-<p>那么提一个好问题有那么重要吗？我认为提一个好问题比解答一个问题更能体现一个人的真实水平，因为这证明提问者有独立思考的能力；比如在职场中一个常见的场景是这样的，面试最后部分面试官会问面试者有什么问题吗？这个时候如果提一个高质量的问题，相信会加深面试官的印象,在同等条件的候选者中相信胜出的概率会更高;</p>
-<p>最后关于什么是好问题，这里引用某大佬的一句话 「什么是好问题，你对某个领域有一定研究，你已经翻阅和查询了足够的资料，然后你基于你的理解，对这些资料中，某几个无法理解的细节提出来，希望专业人士给与解惑，而这个细节问题确实具有足够代表性，是理解一些关键问题的钥匙，这就是好问题。」</p>
-]]></content>
-  </entry>
-  <entry>
     <title>转载：寂静之城 -- 马伯庸</title>
     <url>/2020/09/05/The-Silence-City/</url>
     <content><![CDATA[<p>转载马伯庸一篇短篇小说 「寂静之城」 ；记得好多年前看的时候认为是科幻小说，现在想想还是自己太年轻<span id="more"></span></p>
@@ -1587,6 +1606,64 @@
 ]]></content>
   </entry>
   <entry>
+    <title>如何提一个问题</title>
+    <url>/2018/12/23/how-to-question/</url>
+    <content><![CDATA[<p>在我们日常生活以及工作中经常会遇到提问题, 我们有没有想过如何提一个好问题？也许有人会说，「提问谁不回？会讲话的小孩子就会问为什么，这有什么值得说的？」没错，从这个角度上说机会每个人都会提问。但是，我们有没有想过，我们问问题的目的是什么？是得到对问题的解答。大家有没有遇到过这样的情况，自己问题发给对方后始终得不到回复，或者对方敷衍了事，更有甚者被对方怼回去。如果遇到这些情况，我们应该好好反思一下，我们是不是提了一个好问题；在说好问题之前结合个人的经历谈谈什么样的问题不是一个好问题。<span id="more"></span></p>
+<ol>
+<li>提问者在im上发一个截图，截图里面是一个异常栈，没有任何上下文，然后就没有然后了；解答者在那里等对方进一步的信息，结果什么也等到；过了很久(估计等很久没回复)，亲自过来说「帮我看看我的问题」；这个时候才开始沟通，问题是怎么出现的，什么环境，上下文，等… </li>
+<li>有些问题在技术文档，产品文档上都已经说的很清楚；但提问者不看文档，直接把问题抛过来；也许是提问者自己没有按照文档要求操作，或者真的是一个问题但文档FAQ部分已经解释的很清楚 ；</li>
+<li>提问者直接将问题抛出来，不做任何思考和尝试，只在那里等答案；不知道提问者有没有想过，解答者也要花费大量的时间去调研；</li>
+<li>提问者提问道时候，发的关键信息是一张截图，截图中可能有id之类的标示，此时解答者可能需要根据id搜索，只能手工输入，这样既浪费时间也容易出错；</li>
+</ol>
+<p>对于以上的案例，个人觉得提问者需要加强独立思考的能力，不然会给对方留下「伸手党」的感觉；个人觉得可以按照如下的方式考虑提问:</p>
+<ol>
+<li>对于技术问题或者产品问题，一般作者会提供相应的文档；首先我们应该阅读相关文档，特别注意FAQ部分；</li>
+<li>善于使用搜索引擎，具备基本的搜商(SQ) ,推荐用google(对技术工作者，这个不需要解释), 百度请忽略所有「广告」字样的文章，微信，知乎等工具;</li>
+<li>在以上两步都没有找到答案情况下，可以参考第二步搜索过程中出现的文章以及官方提供的文档尝试；比如是否可以升级软件版本，是否可以调整某些参数；相信在尝试过程中会加深自己对问题的理解以及提升自己解决问题的能力</li>
+<li>经过以上步骤能解决95%的问题了；如果还没有解决，这时候再提问，相信这个时候提出的问题质量是非常高的；比如: 该问题是如何出现的，什么环境，硬件型号是什么，软件版本是什么，我的操作步骤是什么，我做了哪些调研，尝试了哪些方式，得到结果是什么,等.. </li>
+</ol>
+<p>那么提一个好问题有那么重要吗？我认为提一个好问题比解答一个问题更能体现一个人的真实水平，因为这证明提问者有独立思考的能力；比如在职场中一个常见的场景是这样的，面试最后部分面试官会问面试者有什么问题吗？这个时候如果提一个高质量的问题，相信会加深面试官的印象,在同等条件的候选者中相信胜出的概率会更高;</p>
+<p>最后关于什么是好问题，这里引用某大佬的一句话 「什么是好问题，你对某个领域有一定研究，你已经翻阅和查询了足够的资料，然后你基于你的理解，对这些资料中，某几个无法理解的细节提出来，希望专业人士给与解惑，而这个细节问题确实具有足够代表性，是理解一些关键问题的钥匙，这就是好问题。」</p>
+]]></content>
+  </entry>
+  <entry>
+    <title>Java与Go之间gRPC调用失败问题排查</title>
+    <url>/2019/06/02/gRPC-Go-Java/</url>
+    <content><![CDATA[<p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
+<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
+<ol>
+<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
+<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
+<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
+<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
+<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
+</ol>
+<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
+<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
+<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
+<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
+</ol>
+<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
+<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
+<ol>
+<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
+<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
+<li>最终还是要升级到新版本</li>
+</ol>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
+<ol>
+<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
+<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
+</ol>
+<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
+<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a href="https://grpc.io/">https://grpc.io/</a><br><a href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>RPC</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>海恩法则与生产Bug</title>
     <url>/2019/03/01/product-bug/</url>
     <content><![CDATA[<p><img src="/2019/03/01/product-bug/heinrich-law.jpeg"><br>「海恩法则」是航空涡轮发动机的发明者帕布斯·海恩提出一个在航空界关于飞行安全的法则。海恩指出：每一起严重事故的背后，必然有29次轻微事故和300起未遂先兆以及1000起事故隐患。法则强调两点：一是事故的发生是量的积累的结果；二是再好的技术，再完美的规章，在实际操作层面，也无法取代人自身的素质和责任心。「海恩法则」虽然针对的是飞行领域，在软件开发领域遭遇生产bug<span id="more"></span>，用「海恩法则」也可以解释。</p>
@@ -1597,6 +1674,23 @@
 ]]></content>
       <tags>
         <tag>线上问题</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>基于protobuf的定义在跨语言消息传递中的应用</title>
+    <url>/2021/09/21/message-dsl-base-protobuff/</url>
+    <content><![CDATA[<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>在需要消息队列的场景中，生产端和消费端会事先就消息体格式达成共识确保生产端发送的消息在消费端能正常识别；如果生产端和消费都是Java项目，我们通常会定义消息体的Jar，让生产端和消费端都引用Jar确保消息的一致性；但在跨语言消息传递中<span id="more"></span>通常通过文档约定消息格式各自定义自己的消息体。在我们实际使用过程中发现不同语言之间传递信息还是会出现一些问题；比如：Java用fastjson输出复杂数据在Go项目解析失败，而且各语言在配置mq参数时候有各自的约定,人工操作容易引起误操作，所以我们希望能有一套跨语言的工具能分别生出各自语言的代码和配置。</p>
+<h3 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h3><p>现有系统跨语言之间RPC的调用我们采用了gRPC,很自然的想到可以借鉴gRPC Protobuf定义消息体。具体方法就是扩展<code>google.protobuf.MethodOptions</code>定义</p>
+<h5 id="方法"><a href="#方法" class="headerlink" title="方法"></a>方法</h5><p>下面以RabbitMQ为例，在Protobuf文件中定义MQ相关参数</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">extend google.protobuf.MethodOptions &#123;</span><br><span class="line">    </span><br><span class="line">    // exchange类型: topic direct fanout ,默认: direct</span><br><span class="line">    string routeType = 7010101;</span><br><span class="line"></span><br><span class="line">	// producer 发送到exchange上有效的routekey; 仅topic模式有效</span><br><span class="line">    repeated string routeKey = 7010102;</span><br><span class="line"></span><br><span class="line">    //consumer监听的队列名称，direct模式 该参数无效</span><br><span class="line">    repeated string listener = 7010103;</span><br><span class="line"></span><br><span class="line">   // 延迟队列的延迟时间</span><br><span class="line">   int32 delay = 6010106;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>说明</strong>: 如果exchange为topic模式，监听队列绑定的routekey必须根据此处定义的routKey定义设置;比如文件定义的routeKey是a.b.c则consumer端绑定到队列的routkey只能是 a.b.c, a.b.<em>, a.</em>, * 其中之一</p>
+<h5 id="生产Java代码"><a href="#生产Java代码" class="headerlink" title="生产Java代码"></a>生产Java代码</h5><p>通常在Maven工程中我们使用<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成gRPC的Java代码。现在我们可以扩展<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成MQ的代码。核心扩展点如下:</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> @Mojo(</span><br><span class="line">        name = &quot;compile-mq&quot;,</span><br><span class="line">        defaultPhase = LifecyclePhase.GENERATE_SOURCES,</span><br><span class="line">        requiresDependencyResolution = ResolutionScope.COMPILE,</span><br><span class="line">        threadSafe = true</span><br><span class="line">)</span><br><span class="line">public class ProtocCompileMQMojo extends AbstractProtocCompileMojo&#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void execute() throws MojoExecutionException, MojoFailureException &#123;</span><br><span class="line">        super.execute();  </span><br><span class="line">        // 利用 DescriptorProtos.FileDescriptorSet 读取proto文件的定义根据规范生出Java文件</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>最后配合MQ的SDK可以大大提高开发效率而且减低配置的复杂性。</p>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>分布式</tag>
       </tags>
   </entry>
   <entry>
