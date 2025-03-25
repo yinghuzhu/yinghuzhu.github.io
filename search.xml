@@ -1,47 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>在线工具集合网站</title>
-    <url>/2024/11/15/First-Efficiency-Lab/</url>
-    <content><![CDATA[<p>在日常开发项目中，我们经常需要处理格式转换、日期计算、编码解码等琐碎的操作。这些任务通常要么需要在IDE中编写代码实现，要么需要在网上搜索相应的在线工具。经过一段时间后，我发现这种方式效率较低，于是我开发了一个集成常用工具的网站：<a href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a> <span id="more"></span></p>
-<p>该网站目前提供了以下几个工具:</p>
-<h3 id="日期计算器"><a href="#日期计算器" class="headerlink" title="日期计算器"></a><a href="https://www.firstefficiencylab.com/date-calc.html">日期计算器</a></h3><p>计算日期天数差、增减天数以及查找特定日期,常用于处理与日期相关的业务需求。</p>
-<h3 id="单位转换器"><a href="#单位转换器" class="headerlink" title="单位转换器"></a><a href="https://www.firstefficiencylab.com/unit-conv.html">单位转换器</a></h3><p>帮助进行英制和公制单位之间的自由转换,如常用的长度、重量、体积、温度等维度。</p>
-<h3 id="JSON格式化"><a href="#JSON格式化" class="headerlink" title="JSON格式化"></a><a href="https://www.firstefficiencylab.com/json-format.html">JSON格式化</a></h3><p>将JSON数据格式化成有层级缩进的样式,或将格式化后的JSON转成单行,方便发现JSON语法错误。</p>
-<h3 id="编-解码工具"><a href="#编-解码工具" class="headerlink" title="编/解码工具"></a><a href="https://www.firstefficiencylab.com/encode.html">编/解码工具</a></h3><p>使用常见的Base64、MD5、SHA等多种编码解码算法对文本进行转换,适用于加解密、哈希处理等需求。</p>
-<h3 id="Unix时间戳转换"><a href="#Unix时间戳转换" class="headerlink" title="Unix时间戳转换"></a><a href="https://www.firstefficiencylab.com/timestamp.html">Unix时间戳转换</a></h3><p>将Unix时间戳转成可读的时间格式,或通过年月日等输入获取对应的时间戳。</p>
-<h3 id="YAML-JSON转换"><a href="#YAML-JSON转换" class="headerlink" title="YAML/JSON转换"></a><a href="https://www.firstefficiencylab.com/yaml-json.html">YAML/JSON转换</a></h3><p>在YAML和JSON两种格式之间双向转换,并同时支持格式化和语法验证。</p>
-<h3 id="转换图片为白地图"><a href="#转换图片为白地图" class="headerlink" title="转换图片为白地图"></a><a href="https://www.firstefficiencylab.com/image-segment.html">转换图片为白地图</a></h3><p>快速扣除商品背景，将证件照换为白地图，等场景，能够对图片进行一键抠图，快速处理。</p>
-<p>这些工具的灵感大多来源于我们日常工作中的一些高频基本需求。核心目的是集中常用的小工具,提高这部分操作的效率。</p>
-<p>工具地址: <a href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a></p>
-]]></content>
-  </entry>
-  <entry>
-    <title>基于配置中心属性,Dubbo Consumer动态切换调用RPC/本地方法</title>
-    <url>/2018/07/06/Dubbo-Local-RPC-Switch/</url>
-    <content><![CDATA[<h2 id="需求缘由"><a href="#需求缘由" class="headerlink" title="需求缘由"></a>需求缘由</h2><p>最近部分只读服务已经切换到了Dubbo提供的服务化接口；经过一段时间的生产验证, 各种监控指标显示非常稳定，所以打算开始切换写服务接口; 但大家对写操作跑服务化没有信心，于是提了一个需求能随时将远程rpc调用切换打本地jar方法调用；<span id="more"></span></p>
-<h2 id="dubbo的stub"><a href="#dubbo的stub" class="headerlink" title="dubbo的stub"></a>dubbo的stub</h2><p>听到这个需求，马上想到dubbo的stub属性；但需要在原来代码中做部分改造,具体步骤是：</p>
-<ol>
-<li>原来的jar包实现方法中增加带自身接口类型参数的构造函数;</li>
-<li>在所有的接口实现方法中判断开关状态决定调用RPC/本地方法;<br>但是，这样对原代码有极强入侵性；我们认为这不是最好的方案，于是有了下面的方案；</li>
-</ol>
-<h2 id="扩展dubbo-reference标签属性"><a href="#扩展dubbo-reference标签属性" class="headerlink" title="扩展dubbo:reference标签属性"></a>扩展dubbo:reference标签属性</h2><p>首先需要说明，我们在实际使用dubbo的过程中并没有直接使用dubbo这个命名空间，而是自定义了自己的命名空间，自定义命名空间兼容了dubbo命名空间的所有属性，而且扩展了自己的属性；于是针对该需求我们有了新的方案，具体流程如下 ：</p>
-<ol>
-<li>增加<strong>reference</strong>的属性<strong>localbean</strong>，这个属性值为一个本地bean的id；类似的xml配置如下：<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">bean</span> <span class="attr">id</span>=<span class="string">&quot;localDemoService&quot;</span> <span class="attr">class</span>=<span class="string">&quot;com.example.Service.impl.DemoServiceImpl&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">mydubbo:reference</span> <span class="attr">interface</span>=<span class="string">&quot;com.example.Service.DemoService&quot;</span> <span class="attr">id</span>=<span class="string">&quot;remoteDemoService&quot;</span></span></span><br><span class="line"><span class="tag">                 <span class="attr">localbean</span> =<span class="string">&quot;localDemoService&quot;</span> <span class="attr">version</span>=<span class="string">&quot;1.0&quot;</span>/&gt;</span></span><br></pre></td></tr></table></figure></li>
-<li>继承ReferenceBean实现自定义属性locbean；</li>
-<li>继承DubboNamespaceHandler重写init方法,如下:<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">init</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.init();</span><br><span class="line">        <span class="keyword">this</span>.registerBeanDefinitionParser(<span class="string">&quot;reference&quot;</span>, <span class="keyword">new</span> MyBeanDefinitionParser(LocalReferenceBean.class, <span class="keyword">false</span>));</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></li>
-<li>自定义filter<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">RPCLocalSwitchFilter</span>&lt;<span class="title">T</span>&gt; <span class="keyword">implements</span> <span class="title">Filter</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Logger logger = LoggerFactory.getLogger(RPCLocalSwitchFilter.class);</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ProxyFactory PROXY_FACTORY = (ProxyFactory)ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">RPCLocalSwitchFilter</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Result <span class="title">invoke</span><span class="params">(Invoker&lt;?&gt; invoker, Invocation invocation)</span> <span class="keyword">throws</span> RpcException </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(cfg.getBooleanProperty(<span class="string">&quot;&quot;</span>)) &#123;  <span class="comment">//判断配置中心开工状态</span></span><br><span class="line">            Object bean = <span class="keyword">this</span>.getLocalBean(invoker);</span><br><span class="line">            <span class="keyword">return</span> bean != <span class="keyword">null</span>?<span class="keyword">this</span>.executeLocalMethod(bean, invoker, invocation):invoker.invoke(invocation);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> invoker.invoke(invocation);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> Result <span class="title">executeLocalMethod</span><span class="params">(T bean, Invoker&lt;?&gt; invoker, Invocation invocation)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(logger.isDebugEnabled()) &#123;</span><br><span class="line">            logger.debug(<span class="string">&quot;execute local method instead of rpc &quot;</span> + bean.getClass().getCanonicalName() + <span class="string">&quot;.&quot;</span> + invocation.getMethodName());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        Invoker localInvoker = PROXY_FACTORY.getInvoker(bean, invoker.getInterface(), invoker.getUrl());</span><br><span class="line">        <span class="keyword">return</span> localInvoker.invoke(invocation);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> &lt;T&gt; <span class="function">T <span class="title">getLocalBean</span><span class="params">(Invoker&lt;?&gt; invoker)</span> </span>&#123;</span><br><span class="line">        String refLocal = invoker.getUrl().getParameter(<span class="string">&quot;localBean&quot;</span>);</span><br><span class="line">        <span class="keyword">if</span>(refLocal != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                ApplicationContext e = LocalReferenceBean.getSpringContext();</span><br><span class="line">                <span class="keyword">return</span> e.getBean(refLocal, invoker.getInterface());</span><br><span class="line">            &#125; <span class="keyword">catch</span> (BeansException e) &#123;</span><br><span class="line">                logger.error(var4.getMessage() + <span class="string">&quot; couldn\&#x27;t find the bean[&quot;</span> + localBean + <span class="string">&quot;], please check&quot;</span>, e);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
-<li>配置filter<br>在resources/META-INF/dubbo/com.alibaba.dubbo.rpc.Filter文件中增加如下内容:<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">reflocal=com.example.filter. RPCLocalSwitchFilter</span><br></pre></td></tr></table></figure>
-配置consumer的filter属性<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">mydubbo:consumer</span> <span class="attr">filter</span>=<span class="string">&quot;reflocal&quot;</span> /&gt;</span></span><br></pre></td></tr></table></figure>
-至此可以通过配置中的开关状态来控制远程RPC/本地jar方法调用 ;</li>
-</ol>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>RPC</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Data Memcached集群迁移至Redis集群</title>
     <url>/2023/09/09/Data-Memcached-To-Redis/</url>
     <content><![CDATA[<p>随着业务规模的增长，我们的缓存系统面临扩展性和运维效率的挑战。近期我们团队将缓存系统从Memcached迁移到Redis集群。<span id="more"></span></p>
@@ -136,6 +95,47 @@
       </tags>
   </entry>
   <entry>
+    <title>基于配置中心属性,Dubbo Consumer动态切换调用RPC/本地方法</title>
+    <url>/2018/07/06/Dubbo-Local-RPC-Switch/</url>
+    <content><![CDATA[<h2 id="需求缘由"><a href="#需求缘由" class="headerlink" title="需求缘由"></a>需求缘由</h2><p>最近部分只读服务已经切换到了Dubbo提供的服务化接口；经过一段时间的生产验证, 各种监控指标显示非常稳定，所以打算开始切换写服务接口; 但大家对写操作跑服务化没有信心，于是提了一个需求能随时将远程rpc调用切换打本地jar方法调用；<span id="more"></span></p>
+<h2 id="dubbo的stub"><a href="#dubbo的stub" class="headerlink" title="dubbo的stub"></a>dubbo的stub</h2><p>听到这个需求，马上想到dubbo的stub属性；但需要在原来代码中做部分改造,具体步骤是：</p>
+<ol>
+<li>原来的jar包实现方法中增加带自身接口类型参数的构造函数;</li>
+<li>在所有的接口实现方法中判断开关状态决定调用RPC/本地方法;<br>但是，这样对原代码有极强入侵性；我们认为这不是最好的方案，于是有了下面的方案；</li>
+</ol>
+<h2 id="扩展dubbo-reference标签属性"><a href="#扩展dubbo-reference标签属性" class="headerlink" title="扩展dubbo:reference标签属性"></a>扩展dubbo:reference标签属性</h2><p>首先需要说明，我们在实际使用dubbo的过程中并没有直接使用dubbo这个命名空间，而是自定义了自己的命名空间，自定义命名空间兼容了dubbo命名空间的所有属性，而且扩展了自己的属性；于是针对该需求我们有了新的方案，具体流程如下 ：</p>
+<ol>
+<li>增加<strong>reference</strong>的属性<strong>localbean</strong>，这个属性值为一个本地bean的id；类似的xml配置如下：<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">bean</span> <span class="attr">id</span>=<span class="string">&quot;localDemoService&quot;</span> <span class="attr">class</span>=<span class="string">&quot;com.example.Service.impl.DemoServiceImpl&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">mydubbo:reference</span> <span class="attr">interface</span>=<span class="string">&quot;com.example.Service.DemoService&quot;</span> <span class="attr">id</span>=<span class="string">&quot;remoteDemoService&quot;</span></span></span><br><span class="line"><span class="tag">                 <span class="attr">localbean</span> =<span class="string">&quot;localDemoService&quot;</span> <span class="attr">version</span>=<span class="string">&quot;1.0&quot;</span>/&gt;</span></span><br></pre></td></tr></table></figure></li>
+<li>继承ReferenceBean实现自定义属性locbean；</li>
+<li>继承DubboNamespaceHandler重写init方法,如下:<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">init</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.init();</span><br><span class="line">        <span class="keyword">this</span>.registerBeanDefinitionParser(<span class="string">&quot;reference&quot;</span>, <span class="keyword">new</span> MyBeanDefinitionParser(LocalReferenceBean.class, <span class="keyword">false</span>));</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></li>
+<li>自定义filter<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">RPCLocalSwitchFilter</span>&lt;<span class="title">T</span>&gt; <span class="keyword">implements</span> <span class="title">Filter</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Logger logger = LoggerFactory.getLogger(RPCLocalSwitchFilter.class);</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ProxyFactory PROXY_FACTORY = (ProxyFactory)ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">RPCLocalSwitchFilter</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Result <span class="title">invoke</span><span class="params">(Invoker&lt;?&gt; invoker, Invocation invocation)</span> <span class="keyword">throws</span> RpcException </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(cfg.getBooleanProperty(<span class="string">&quot;&quot;</span>)) &#123;  <span class="comment">//判断配置中心开工状态</span></span><br><span class="line">            Object bean = <span class="keyword">this</span>.getLocalBean(invoker);</span><br><span class="line">            <span class="keyword">return</span> bean != <span class="keyword">null</span>?<span class="keyword">this</span>.executeLocalMethod(bean, invoker, invocation):invoker.invoke(invocation);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> invoker.invoke(invocation);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">private</span> Result <span class="title">executeLocalMethod</span><span class="params">(T bean, Invoker&lt;?&gt; invoker, Invocation invocation)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span>(logger.isDebugEnabled()) &#123;</span><br><span class="line">            logger.debug(<span class="string">&quot;execute local method instead of rpc &quot;</span> + bean.getClass().getCanonicalName() + <span class="string">&quot;.&quot;</span> + invocation.getMethodName());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        Invoker localInvoker = PROXY_FACTORY.getInvoker(bean, invoker.getInterface(), invoker.getUrl());</span><br><span class="line">        <span class="keyword">return</span> localInvoker.invoke(invocation);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> &lt;T&gt; <span class="function">T <span class="title">getLocalBean</span><span class="params">(Invoker&lt;?&gt; invoker)</span> </span>&#123;</span><br><span class="line">        String refLocal = invoker.getUrl().getParameter(<span class="string">&quot;localBean&quot;</span>);</span><br><span class="line">        <span class="keyword">if</span>(refLocal != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                ApplicationContext e = LocalReferenceBean.getSpringContext();</span><br><span class="line">                <span class="keyword">return</span> e.getBean(refLocal, invoker.getInterface());</span><br><span class="line">            &#125; <span class="keyword">catch</span> (BeansException e) &#123;</span><br><span class="line">                logger.error(var4.getMessage() + <span class="string">&quot; couldn\&#x27;t find the bean[&quot;</span> + localBean + <span class="string">&quot;], please check&quot;</span>, e);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li>配置filter<br>在resources/META-INF/dubbo/com.alibaba.dubbo.rpc.Filter文件中增加如下内容:<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">reflocal=com.example.filter. RPCLocalSwitchFilter</span><br></pre></td></tr></table></figure>
+配置consumer的filter属性<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">mydubbo:consumer</span> <span class="attr">filter</span>=<span class="string">&quot;reflocal&quot;</span> /&gt;</span></span><br></pre></td></tr></table></figure>
+至此可以通过配置中的开关状态来控制远程RPC/本地jar方法调用 ;</li>
+</ol>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>RPC</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>在线工具集合网站</title>
+    <url>/2024/11/15/First-Efficiency-Lab/</url>
+    <content><![CDATA[<p>在日常开发项目中，我们经常需要处理格式转换、日期计算、编码解码等琐碎的操作。这些任务通常要么需要在IDE中编写代码实现，要么需要在网上搜索相应的在线工具。经过一段时间后，我发现这种方式效率较低，于是我开发了一个集成常用工具的网站：<a href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a> <span id="more"></span></p>
+<p>该网站目前提供了以下几个工具:</p>
+<h3 id="日期计算器"><a href="#日期计算器" class="headerlink" title="日期计算器"></a><a href="https://www.firstefficiencylab.com/date-calc.html">日期计算器</a></h3><p>计算日期天数差、增减天数以及查找特定日期,常用于处理与日期相关的业务需求。</p>
+<h3 id="单位转换器"><a href="#单位转换器" class="headerlink" title="单位转换器"></a><a href="https://www.firstefficiencylab.com/unit-conv.html">单位转换器</a></h3><p>帮助进行英制和公制单位之间的自由转换,如常用的长度、重量、体积、温度等维度。</p>
+<h3 id="JSON格式化"><a href="#JSON格式化" class="headerlink" title="JSON格式化"></a><a href="https://www.firstefficiencylab.com/json-format.html">JSON格式化</a></h3><p>将JSON数据格式化成有层级缩进的样式,或将格式化后的JSON转成单行,方便发现JSON语法错误。</p>
+<h3 id="编-解码工具"><a href="#编-解码工具" class="headerlink" title="编/解码工具"></a><a href="https://www.firstefficiencylab.com/encode.html">编/解码工具</a></h3><p>使用常见的Base64、MD5、SHA等多种编码解码算法对文本进行转换,适用于加解密、哈希处理等需求。</p>
+<h3 id="Unix时间戳转换"><a href="#Unix时间戳转换" class="headerlink" title="Unix时间戳转换"></a><a href="https://www.firstefficiencylab.com/timestamp.html">Unix时间戳转换</a></h3><p>将Unix时间戳转成可读的时间格式,或通过年月日等输入获取对应的时间戳。</p>
+<h3 id="YAML-JSON转换"><a href="#YAML-JSON转换" class="headerlink" title="YAML/JSON转换"></a><a href="https://www.firstefficiencylab.com/yaml-json.html">YAML/JSON转换</a></h3><p>在YAML和JSON两种格式之间双向转换,并同时支持格式化和语法验证。</p>
+<h3 id="转换图片为白地图"><a href="#转换图片为白地图" class="headerlink" title="转换图片为白地图"></a><a href="https://www.firstefficiencylab.com/image-segment.html">转换图片为白地图</a></h3><p>快速扣除商品背景，将证件照换为白地图，等场景，能够对图片进行一键抠图，快速处理。</p>
+<p>这些工具的灵感大多来源于我们日常工作中的一些高频基本需求。核心目的是集中常用的小工具,提高这部分操作的效率。</p>
+<p>工具地址: <a href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a></p>
+]]></content>
+  </entry>
+  <entry>
     <title>灰度发布过程中缓存数据一致性问题</title>
     <url>/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/</url>
     <content><![CDATA[<p>灰度发布是一种常见的上线策略。如果灰度发布时间较长，且在灰度期间各分组共用缓存，那么该过程中可能会面临缓存数据一致性的挑战。本文将讨论在灰度发布过程中导致缓存数据不一致的问题和解决方案。 <span id="more"></span></p>
@@ -191,15 +191,6 @@
 ]]></content>
       <tags>
         <tag>线上问题</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>JVM初探</title>
-    <url>/2020/03/29/JVM-NEW/</url>
-    <content><![CDATA[<p>最近经常有人跟我一起讨论JVM的相关话题，所以将以前分享过的一篇JVM的基础知识在这里分享出来，欢迎大家指正.<span id="more"></span></p>
-<div class="pdfobject-container" data-target="/pdf/jvm.pdf" data-height="500px"></div>]]></content>
-      <tags>
-        <tag>JVM</tag>
       </tags>
   </entry>
   <entry>
@@ -275,6 +266,15 @@
 ]]></content>
   </entry>
   <entry>
+    <title>JVM初探</title>
+    <url>/2020/03/29/JVM-NEW/</url>
+    <content><![CDATA[<p>最近经常有人跟我一起讨论JVM的相关话题，所以将以前分享过的一篇JVM的基础知识在这里分享出来，欢迎大家指正.<span id="more"></span></p>
+<div class="pdfobject-container" data-target="/pdf/jvm.pdf" data-height="500px"></div>]]></content>
+      <tags>
+        <tag>JVM</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Open Tracing(Jaeger) 遭遇多线程</title>
     <url>/2019/12/27/Jaeger-Thread/</url>
     <content><![CDATA[<p>我们知道在Java技术体系中，链路跟踪严重依赖ThreadLocal；因此在多线程的场景下会导致链路跟踪失效.<span id="more"></span></p>
@@ -300,214 +300,6 @@
       <tags>
         <tag>微服务</tag>
         <tag>链路跟踪</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>微服务框架选型之 Dubbo VS. Spring Cloud</title>
-    <url>/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</url>
-    <content><![CDATA[<p>当前开源的微服务框架有Dubbo, Spring Cloud, Dubbox, Motan, Thrift, GRPC 等；以Dubbo和Spring Cloud使用最广，本文仅对这两个框架结合自己项目的情况进行比较。<span id="more"></span></p>
-<h2 id="Dubbo-架构"><a href="#Dubbo-架构" class="headerlink" title="Dubbo 架构"></a>Dubbo 架构</h2><p><img src="/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/dubbo-architecture.png" alt="Dubbo 架构图"></p>
-<p>从Dubbo的架构图中我们可以看出Dubbo重点是RPC框架,对应微服务相关的其它组件,如服务发现,配置管理等需要用户自己适配;</p>
-<h2 id="Spring-Cloud架构"><a href="#Spring-Cloud架构" class="headerlink" title="Spring Cloud架构"></a>Spring Cloud架构</h2><p><img src="/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/diagram-distributed-systems.svg" alt="Spring Cloud架构图"></p>
-<p>Spring Cloud架构中包括了微服务生态中的大部分组件，包括但不限于服务发现，配置管理，路由网关,限流熔断等</p>
-<h2 id="详细比较"><a href="#详细比较" class="headerlink" title="详细比较"></a>详细比较</h2><p>我们结合自己项目的情况从10个方面对两个框架比较</p>
-<h3 id="迁移成本"><a href="#迁移成本" class="headerlink" title="迁移成本"></a>迁移成本</h3><p>  现有的系统正在线上运行，所以迁移过程中不能影响现有的系统而且尽量不耽误新功能的开发；</p>
-<ol>
-<li>Dubbo迁移过程</li>
-</ol>
-<ul>
-<li>分离服务接口到独立的jar包</li>
-<li>在服务端xml文件中配置服务接口将服务暴露出去</li>
-<li>在客户端引入接口jar包，在xml文件中引入服务端暴露的接口</li>
-</ul>
-<ol start="2">
-<li>Spring Cloud迁移过程</li>
-</ol>
-<ul>
-<li>为接口定义HTTP协议 </li>
-<li>服务端在controller里面以rest API的方式暴露接口</li>
-<li>客户端根据定义的http协议用FeignClient注解的形式定义访问接口</li>
-<li>客户端代码引入FeignClient定义的协议接口</li>
-</ul>
-<p>由此可见，dubbo迁移不需要修改java 代码，spring cloud 需要为每个接口定义一套http协议，而且客户端需要定义访问接口</p>
-<h3 id="社区支持"><a href="#社区支持" class="headerlink" title="社区支持"></a>社区支持</h3><p>社区支持我们参考github的数据</p>
-<table>
-<thead>
-<tr>
-<th></th>
-<th>Dubbo</th>
-<th>Spring Cloud</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>Star</td>
-<td>18k+</td>
-<td>2.1k+</td>
-</tr>
-<tr>
-<td>Fork</td>
-<td>12k+</td>
-<td>1.1k+</td>
-</tr>
-<tr>
-<td>Contribute</td>
-<td>70+</td>
-<td>130+</td>
-</tr>
-<tr>
-<td>Open Issues</td>
-<td>430+</td>
-<td>380+</td>
-</tr>
-<tr>
-<td>Close Issues</td>
-<td>740+</td>
-<td>1.9k+</td>
-</tr>
-<tr>
-<td>Latest Updated</td>
-<td>几个小时前，但是2014-10-30到2017-09-07断更</td>
-<td>几个小时前</td>
-</tr>
-</tbody></table>
-<h3 id="服务治理"><a href="#服务治理" class="headerlink" title="服务治理"></a>服务治理</h3><ul>
-<li>Dubbo服务治理不太完善</li>
-<li>Spring Cloud有比较完善的服务治理组件,Zuul, Ribbon, Hystrix等</li>
-</ul>
-<h3 id="生态建设"><a href="#生态建设" class="headerlink" title="生态建设"></a>生态建设</h3><ul>
-<li>Dubbo生态包括:   RPC框架，服务治理, 服务降级，其它相关组件可以集成第三方成熟的开源组件；</li>
-<li>Spring Cloud生态包括: RPC框架，服务发现，配置服务，服务治理，服务降级，日志收集，任务管理，几乎包括了服务化相关的所有组件；</li>
-</ul>
-<h3 id="分布式事务"><a href="#分布式事务" class="headerlink" title="分布式事务"></a>分布式事务</h3><p>  Dubbo和Spring Cloud 都没有实现分布式事务 </p>
-<h3 id="运维成本"><a href="#运维成本" class="headerlink" title="运维成本"></a>运维成本</h3><p>  运维需要关注以下组件</p>
-<ol>
-<li>服务发现</li>
-</ol>
-<ul>
-<li>Dubbo采用Zookeeper公司有Zookeeper的使用经验</li>
-<li>Spring Cloud采用Eureka,需要搭建新的eureka服务</li>
-</ul>
-<ol start="2">
-<li>配置管理</li>
-</ol>
-<ul>
-<li>Dubbo采用Apollo，公司已经投入生产环境</li>
-<li>Spring Cloud 需要重新部署spring cloud config </li>
-</ul>
-<ol start="3">
-<li>服务治理</li>
-</ol>
-<ul>
-<li>Dubbo 需要独立部署Dubbo-OPS, Zipkin/hydp/cat</li>
-<li>Spring Cloud 需要独立部署 Zuul, Zipkin<br>综上，Dubbo新部署2个组件，Sping Cloud新部署4个组件</li>
-</ul>
-<h3 id="开发流程"><a href="#开发流程" class="headerlink" title="开发流程"></a>开发流程</h3><ul>
-<li>Dubbo开发流程<ol>
-<li>确保服务发现组件已启动</li>
-<li>定义接口，生成接口jar包发布到maven仓库</li>
-<li>服务端实现接口逻辑；同时客户端引入接口jar包,实现客户端逻辑, 完成自测</li>
-<li>客户端服务端联调</li>
-</ol>
-</li>
-<li>Spring Cloud开发流程<ol>
-<li>确保服务发现组件已启动</li>
-<li>定义http接口，形成文档</li>
-<li>服务端实现接口逻辑而且以rest API的形式发布出去；同时客户端根据http接口约定实现客户端逻辑，完成自测</li>
-<li>客户端服务端联调<br>所以，Dubbo的接口具有强依赖性，Spring Cloud主要依赖约定</li>
-</ol>
-</li>
-</ul>
-<h3 id="集成测试"><a href="#集成测试" class="headerlink" title="集成测试"></a>集成测试</h3><p>Dubbo和Spring Cloud集成测试的时候都需要服务的和客户端配合完成</p>
-<h3 id="学习成本"><a href="#学习成本" class="headerlink" title="学习成本"></a>学习成本</h3><ul>
-<li>Dubbo主要提供Spring Xml配置的方式，同时社区也提供SpringBoot的注解方式Dubbo Spring Boot Project ，而且Dubbo官方提供了最佳实践；目前我们的项目中两种方式都存在，所以学习成本基本可以忽略；</li>
-<li>Spring Clould是建立在SpringBoot基础上的，采用大量的注解方式，目前我们也大量使用SpringBoot, 所以学习成本基本可以忽略；</li>
-</ul>
-<h3 id="性能"><a href="#性能" class="headerlink" title="性能"></a>性能</h3><ul>
-<li>Dubbo默认采用Dubbo协议，Dubbo协议工作在TCP层,同等条件下性能优于HTTP协议</li>
-<li>Spring Clould采用HTTP协议, 性能略逊与Dubbo</li>
-</ul>
-<p>最后将以上比较项目给出数值的形式 </p>
-<table>
-<thead>
-<tr>
-<th>对比项目</th>
-<th>权重</th>
-<th>Dubbo</th>
-<th>Spring Cloud</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>迁移成本</td>
-<td>10</td>
-<td>8</td>
-<td>4</td>
-</tr>
-<tr>
-<td>社区支持</td>
-<td>9</td>
-<td>7</td>
-<td>8</td>
-</tr>
-<tr>
-<td>服务治理</td>
-<td>8</td>
-<td>5</td>
-<td>7</td>
-</tr>
-<tr>
-<td>生态建设</td>
-<td>7</td>
-<td>7</td>
-<td>8</td>
-</tr>
-<tr>
-<td>分布式事务</td>
-<td>6</td>
-<td>0</td>
-<td>0</td>
-</tr>
-<tr>
-<td>运维成本</td>
-<td>5</td>
-<td>4</td>
-<td>3</td>
-</tr>
-<tr>
-<td>开发流程</td>
-<td>4</td>
-<td>3</td>
-<td>2</td>
-</tr>
-<tr>
-<td>集成测试</td>
-<td>3</td>
-<td>2</td>
-<td>2</td>
-</tr>
-<tr>
-<td>学习成本</td>
-<td>2</td>
-<td>2</td>
-<td>1</td>
-</tr>
-<tr>
-<td>性能</td>
-<td>1</td>
-<td>1</td>
-<td>0</td>
-</tr>
-<tr>
-<td>总计</td>
-<td></td>
-<td>37</td>
-<td>33</td>
-</tr>
-</tbody></table>
-<h2 id="结论："><a href="#结论：" class="headerlink" title="结论："></a>结论：</h2><p>  Dubbo优势在于从迁移成本低，能在尽可能不改动现有代码的基础上完成服务化的迁移，而且我们团队成员使用Dubbo的经验比使用Spring Cloud的经验丰富；Spring Cloud的优势在于生态比较完善，社区支持良好；最终根据我们项目当前实际情况,我们认为Dubbo是最好的选择，可以在业务开发的同时平滑地完成服务化;</p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>RPC</tag>
       </tags>
   </entry>
   <entry>
@@ -615,6 +407,182 @@
 ]]></content>
       <tags>
         <tag>微服务</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>跨境电商支付系统重构实战：从单体到微服务的演进</title>
+    <url>/2021/01/09/Payement-Rebuild/</url>
+    <content><![CDATA[<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>我们的支付系统最初作为单体应用的子模块存在，随着业务规模扩大，高并发下的<strong>掉单</strong>和<strong>重复支付</strong>问题频发，日均人工对账成本高达数小时。为解决这些痛点并支持未来业务扩展，我们决定将支付系统重构为独立的微服务架构，核心目标包括：<span id="more"></span><br><strong>稳定性</strong>：消除中间状态不一致导致的掉单<br><strong>可扩展性</strong>：快速接入新的支付渠道<br><strong>可维护性</strong>：降低模块耦合，提升迭代效率</p>
+<h2 id="系统架构概览"><a href="#系统架构概览" class="headerlink" title="系统架构概览"></a>系统架构概览</h2><p>新的支付系统采用微服务架构并使用Docker部署，主要分为以下四个子服务：</p>
+<table>
+<thead>
+<tr>
+<th>服务名称</th>
+<th>职责描述</th>
+<th>特性要求</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>pay-front</code></td>
+<td>处理用户端支付请求，高并发优化</td>
+<td>秒级弹性扩展</td>
+</tr>
+<tr>
+<td><code>pay-backend</code></td>
+<td>对接后端系统（如 OMS），保障交易稳定性</td>
+<td>99.99% 可用性</td>
+</tr>
+<tr>
+<td><code>pay-admin</code></td>
+<td>管理后台配置（支付路由、规则）</td>
+<td>配置变更秒级生效</td>
+</tr>
+<tr>
+<td><code>pay-job</code></td>
+<td>执行定时任务（对账、退款补偿）</td>
+<td>分布式任务调度</td>
+</tr>
+</tbody></table>
+<h4 id="服务间交互"><a href="#服务间交互" class="headerlink" title="服务间交互"></a>服务间交互</h4><ul>
+<li><strong>pay-front:</strong> 接收到用户支付请求后，调用第三方支付渠道的接口进行支付处理。支付成功后通过 RabbitMQ 推送支付成功消息。</li>
+<li><strong>pay-backend:</strong> 通过RPC接口接收来自后端系统（如 OMS）的查询和人工退款请求。</li>
+<li><strong>pay-admin:</strong> 通过操作数据库（主库）来管理支付规则、支付路由等配置，并会主动使Redis缓存中的相关配置失效，使得下次用户请求时能够从数据库加载最新的配置。</li>
+<li><strong>pay-job:</strong> 主要与数据库进行交互，执行定时任务，例如检查长时间处于中间状态的订单（支付中、退款中），并同步第三方支付渠道的状态来更新订单的最终状态。</li>
+</ul>
+<h4 id="数据库架构"><a href="#数据库架构" class="headerlink" title="数据库架构"></a>数据库架构</h4><p><strong>主从分离 + 读写隔离</strong>：</p>
+<pre class="mermaid">graph TD
+    A[主库（写）] --> B[从库1（pay-front读）]
+    A --> C[从库2（其他服务读）]</pre>
+
+
+<h2 id="技术选型"><a href="#技术选型" class="headerlink" title="技术选型"></a>技术选型</h2><p>为了降低学习成本和提高开发效率，我们选择了团队目前最熟悉的技术栈：</p>
+<ul>
+<li><strong>开发语言:</strong> Java</li>
+<li><strong>微服务框架:</strong> SpringCloud</li>
+<li><strong>配置中心和注册中心:</strong> Consul</li>
+<li><strong>缓存:</strong> Redis集群</li>
+<li><strong>数据库:</strong> MySQL 主从分离</li>
+<li><strong>消息队列:</strong> RabbitMQ</li>
+<li><strong>链路跟踪</strong> Jaeger</li>
+<li><strong>监控报警</strong>：Prometheus+Grafana+AlertManager</li>
+<li><strong>日志</strong>：ELK</li>
+<li><strong>容器化:</strong> Docker </li>
+</ul>
+<h2 id="核心功能实现"><a href="#核心功能实现" class="headerlink" title="核心功能实现"></a>核心功能实现</h2><p>新的支付系统涵盖了跨境电商支付的核心功能，包括：</p>
+<ul>
+<li>下单支付</li>
+<li>退款</li>
+<li>支付查询</li>
+<li>对账</li>
+<li>与全球10+三方支付渠道的集成</li>
+</ul>
+<h4 id="幂等性保障"><a href="#幂等性保障" class="headerlink" title="幂等性保障"></a>幂等性保障</h4><p><strong>问题</strong>：第三方支付回调重复导致订单状态混乱</p>
+<p><strong>解决方案</strong>：</p>
+<ul>
+<li><strong>幂等 Key 生成</strong>：<code>订单号+支付渠道+时间戳</code>哈希值</li>
+<li><strong>存储层校验</strong>：<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">INSERT INTO payment (id, order\_id, status, version)&amp;#x20;</span><br><span class="line"></span><br><span class="line">VALUES (?, ?, &#x27;PROCESSING&#x27;, 1)&amp;#x20;</span><br><span class="line"></span><br><span class="line">ON DUPLICATE KEY UPDATE version=version+1;</span><br></pre></td></tr></table></figure></li>
+<li>*第三方透传**：在请求参数中携带幂等 Key，确保唯一请求标识<h4 id="最终一致性保障"><a href="#最终一致性保障" class="headerlink" title="最终一致性保障"></a>最终一致性保障</h4></li>
+</ul>
+<p><strong>中间状态处理流程</strong>：</p>
+<pre class="mermaid">sequenceDiagram
+    participant User
+    participant pay-front
+    participant 第三方支付
+    participant pay-job
+    
+    User->>pay-front: 用户在电商平台发起支付
+    pay-front->>第三方支付: 携带幂等Key请求
+    第三方支付-->>pay-front: 返回支付中
+    pay-front->>pay-job: 记录中间状态
+    pay-job->>第三方支付: 定时查询状态（每5分钟）
+    第三方支付-->>pay-job: 返回最终状态
+    pay-job->>数据库: 更新订单状态</pre>
+<h4 id="配置动态生效"><a href="#配置动态生效" class="headerlink" title="配置动态生效"></a>配置动态生效</h4><p><code>pay-admin</code> 修改数据库配置后，触发 Redis 缓存失效；<code>pay-front</code>下次请求时从数据库加载最新配置</p>
+<h4 id="错误处理与一致性"><a href="#错误处理与一致性" class="headerlink" title="错误处理与一致性"></a>错误处理与一致性</h4><p>设计<code>支付中</code>和<code>退款中</code>的中间状态，通过定时任务检查并更新订单状态以保证数据最终一致性。</p>
+<h2 id="高可用与监控"><a href="#高可用与监控" class="headerlink" title="高可用与监控"></a>高可用与监控</h2><h3 id="监控体系"><a href="#监控体系" class="headerlink" title="监控体系"></a>监控体系</h3><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>工具</th>
+<th>监控指标</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>性能监控</td>
+<td>Prometheus+Grafana</td>
+<td>QPS、RT、线程池利用率</td>
+</tr>
+<tr>
+<td>日志分析</td>
+<td>ELK</td>
+<td>支付链路日志、异常堆栈</td>
+</tr>
+<tr>
+<td>分布式追踪</td>
+<td>Jaeger</td>
+<td>服务间调用耗时、错误节点定位</td>
+</tr>
+</tbody></table>
+<h2 id="部署策略"><a href="#部署策略" class="headerlink" title="部署策略"></a>部署策略</h2><p><strong>灰度发布流程</strong>：</p>
+<pre class="mermaid">graph LR
+    A[旧系统] --> B{流量分配}
+    B -->|5%| C[新系统]
+    B -->|95%| A
+    C --> D[监控中心]
+    D -->|异常| E[触发回滚]
+    D -->|稳定| F[逐步增加至100%]</pre>
+<p>我们采用了灰度发布的方式来上线新系统。首先将少量（5%）的用户流量切换到新系统，在一周内逐步增加流量到20%，稳定运行一周后，才进行全量切换。同时，我们的新系统接口能够兼容新旧数据格式，确保可以平滑过渡。</p>
+<h2 id="关键挑战与解决方案"><a href="#关键挑战与解决方案" class="headerlink" title="关键挑战与解决方案"></a>关键挑战与解决方案</h2><h4 id="挑战-1：新旧系统平滑切换"><a href="#挑战-1：新旧系统平滑切换" class="headerlink" title="挑战 1：新旧系统平滑切换"></a>挑战 1：新旧系统平滑切换</h4><p>本次重构最大的挑战在于如何在保障现有系统稳定运行的前提下，平滑地切换到新的支付系统，并且几乎不对现有业务造成任何影响。我们主要通过以下策略来应对：</p>
+<ul>
+<li><strong>灰度发布:</strong> 逐步将用户流量导向新系统，降低风险。</li>
+<li><strong>接口兼容:</strong> 新系统接口兼容旧数据格式，减少调用方改动。</li>
+<li><strong>完善的监控和回滚计划:</strong> 实时监控系统状态，并制定了详细的回滚方案，以应对可能出现的问题。</li>
+</ul>
+<h4 id="挑战-2：第三方支付渠道适配"><a href="#挑战-2：第三方支付渠道适配" class="headerlink" title="挑战 2：第三方支付渠道适配"></a>挑战 2：第三方支付渠道适配</h4><p><strong>统一接入层设计</strong>：</p>
+<ul>
+<li>工厂模式：抽象PaymentChannelFactory，根据渠道ID自动路由到具体实现（如PayPal、Stripe）；</li>
+<li>​模板方法模式：定义支付流程标准骨架（创建订单→调用渠道→状态回调），子类仅实现差异步骤。</li>
+</ul>
+<h2 id="收益与总结"><a href="#收益与总结" class="headerlink" title="收益与总结"></a>收益与总结</h2><p>新的支付系统上线至今，我们已经取得了显著的收益：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>旧系统</th>
+<th>新系统</th>
+<th>提升幅度</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>日均掉单数</td>
+<td>20+</td>
+<td>0</td>
+<td>100%</td>
+</tr>
+<tr>
+<td>支付接口响应时间</td>
+<td>1000ms</td>
+<td>300ms</td>
+<td>70%</td>
+</tr>
+<tr>
+<td>新支付方式接入周期</td>
+<td>5 天</td>
+<td>1.5 天</td>
+<td>70%</td>
+</tr>
+<tr>
+<td>人工对账成本</td>
+<td>4 小时 / 天</td>
+<td>0.5 小时 / 天</td>
+<td>87.5%</td>
+</tr>
+</tbody></table>
+<p>本次支付系统的重构是一次成功的实践，我们不仅解决了旧系统的历史遗留问题，也为未来的业务发展奠定了坚实的技术基础。通过采用微服务架构、熟悉的技术栈和稳健的部署策略，我们实现了系统的平滑过渡，并显著提升了系统的稳定性、可扩展性和可维护性。</p>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>分布式</tag>
       </tags>
   </entry>
   <entry>
@@ -958,31 +926,211 @@
       </tags>
   </entry>
   <entry>
-    <title>Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</title>
-    <url>/2020/04/11/ShardingSphere-Springboot/</url>
-    <content><![CDATA[<p>Sharding-JDBC(ShardingSphere)作为分布式数据库中间件,在Java的JDBC层提供的额外服务。它使用客户端直连数据库，以jar包形式提供服务。引入<code>sharding-jdbc-spring-boot-starter</code>可以快速完成与springboot的集成; 但是默认情况下只能支持到一个数据库，如果支持多数据库，需要做部分扩展；本文记录支持多数据库所做的扩展。<span id="more"></span></p>
-<h3 id="引入依赖"><a href="#引入依赖" class="headerlink" title="引入依赖"></a>引入依赖</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">  &lt;groupId&gt;org.apache.shardingsphere&lt;/groupId&gt;</span><br><span class="line">  &lt;artifactId&gt;sharding-jdbc-spring-boot-starter&lt;/artifactId&gt;</span><br><span class="line">  &lt;version&gt;4.0.1&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
-
-<h3 id="扩展部分"><a href="#扩展部分" class="headerlink" title="扩展部分"></a>扩展部分</h3><ul>
-<li><p> 实现<code>EnvironmentAware</code>接口 ，在方法<code>setEnvironment</code>解析properties配置可以获取所有配置信息</p>
-</li>
-<li><p>获取以<code>spring.ydal</code>为前缀的所有数据库配置</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Map&lt;String, Object&gt; databases = PropertyUtil.handle(environment, &quot;spring.ydal&quot; , Map.class);</span><br></pre></td></tr></table></figure></li>
-<li><p>构造每个数据库的数据库的MasterSlave数据源</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> Map&lt;String, Object&gt; dataSourceProps = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;datasource&quot;, Map.class);</span><br><span class="line"> Preconditions.checkState(!dataSourceProps.isEmpty(), &quot;Wrong datasource properties!&quot;);</span><br><span class="line"></span><br><span class="line"> DataSource datasource = DataSourceUtil.getDataSource(dataSourceProps.get(&quot;type&quot;).toString(), dataSourceProps);</span><br><span class="line"> Optional&lt;DataSourcePropertiesSetter&gt; dataSourcePropertiesSetter = DataSourcePropertiesSetterHolder.getDataSourcePropertiesSetterByType(dataSourceProps.get(&quot;type&quot;).toString());</span><br><span class="line"> if (dataSourcePropertiesSetter.isPresent()) &#123;</span><br><span class="line">     dataSourcePropertiesSetter.get().propertiesSet(environment, prefix, dataSourceName, datasource);</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">masterSlaveRule = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;.masterslave&quot;, YamlMasterSlaveRuleConfiguration.class);</span><br><span class="line">MasterSlaveRuleConfiguration msConfig = new MasterSlaveRuleConfigurationYamlSwapper().swap(masterSlaveRule);</span><br><span class="line"></span><br><span class="line">Properties dsProps = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;.props&quot;, Properties.class);</span><br><span class="line">MasterSlaveDataSourceFactory.createDataSource(datasource, msConfig, dsProps)</span><br></pre></td></tr></table></figure></li>
-</ul>
-<h3 id="禁用ShardingSphere的Springboot的自动配置"><a href="#禁用ShardingSphere的Springboot的自动配置" class="headerlink" title="禁用ShardingSphere的Springboot的自动配置"></a>禁用ShardingSphere的Springboot的自动配置</h3><p>实现该扩展后以jar包的形式提供出去供多个项目使用，所以我们必须在jar里面禁用ShardingSphere的Springboot的自动配置；可以实现如下接口:</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">public class YdalAutoConfigurationImportFilter implements AutoConfigurationImportFilter &#123;</span><br><span class="line">    private static final Set&lt;String&gt; SHOULD_SKIP = new HashSet&lt;&gt;(</span><br><span class="line">            Arrays.asList(&quot;org.apache.shardingsphere.shardingjdbc.spring.boot.SpringBootConfiguration&quot;));</span><br><span class="line">    @Override</span><br><span class="line">    public boolean[] match(String[] autoConfigurationClasses, AutoConfigurationMetadata autoConfigurationMetadata) &#123;</span><br><span class="line">        boolean[] matches = new boolean[autoConfigurationClasses.length];</span><br><span class="line"></span><br><span class="line">        for(int i = 0; i&lt; autoConfigurationClasses.length; i++) &#123;</span><br><span class="line">            matches[i] = !SHOULD_SKIP.contains(autoConfigurationClasses[i]);</span><br><span class="line">        &#125;</span><br><span class="line">        return matches;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+    <title>微服务框架选型之 Dubbo VS. Spring Cloud</title>
+    <url>/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</url>
+    <content><![CDATA[<p>当前开源的微服务框架有Dubbo, Spring Cloud, Dubbox, Motan, Thrift, GRPC 等；以Dubbo和Spring Cloud使用最广，本文仅对这两个框架结合自己项目的情况进行比较。<span id="more"></span></p>
+<h2 id="Dubbo-架构"><a href="#Dubbo-架构" class="headerlink" title="Dubbo 架构"></a>Dubbo 架构</h2><p><img src="/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/dubbo-architecture.png" alt="Dubbo 架构图"></p>
+<p>从Dubbo的架构图中我们可以看出Dubbo重点是RPC框架,对应微服务相关的其它组件,如服务发现,配置管理等需要用户自己适配;</p>
+<h2 id="Spring-Cloud架构"><a href="#Spring-Cloud架构" class="headerlink" title="Spring Cloud架构"></a>Spring Cloud架构</h2><p><img src="/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/diagram-distributed-systems.svg" alt="Spring Cloud架构图"></p>
+<p>Spring Cloud架构中包括了微服务生态中的大部分组件，包括但不限于服务发现，配置管理，路由网关,限流熔断等</p>
+<h2 id="详细比较"><a href="#详细比较" class="headerlink" title="详细比较"></a>详细比较</h2><p>我们结合自己项目的情况从10个方面对两个框架比较</p>
+<h3 id="迁移成本"><a href="#迁移成本" class="headerlink" title="迁移成本"></a>迁移成本</h3><p>  现有的系统正在线上运行，所以迁移过程中不能影响现有的系统而且尽量不耽误新功能的开发；</p>
+<ol>
+<li>Dubbo迁移过程</li>
+</ol>
 <ul>
-<li>将<code>YdalAutoConfigurationImportFilter</code>加入<code>META-INF/spring.factories</code></li>
+<li>分离服务接口到独立的jar包</li>
+<li>在服务端xml文件中配置服务接口将服务暴露出去</li>
+<li>在客户端引入接口jar包，在xml文件中引入服务端暴露的接口</li>
 </ul>
-<h5 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h5><ul>
-<li>详细代码： <a href="https://github.com/yinghuzhu/ydal-spring-boot-starter">https://github.com/yinghuzhu/ydal-spring-boot-starter</a></li>
+<ol start="2">
+<li>Spring Cloud迁移过程</li>
+</ol>
+<ul>
+<li>为接口定义HTTP协议 </li>
+<li>服务端在controller里面以rest API的方式暴露接口</li>
+<li>客户端根据定义的http协议用FeignClient注解的形式定义访问接口</li>
+<li>客户端代码引入FeignClient定义的协议接口</li>
 </ul>
+<p>由此可见，dubbo迁移不需要修改java 代码，spring cloud 需要为每个接口定义一套http协议，而且客户端需要定义访问接口</p>
+<h3 id="社区支持"><a href="#社区支持" class="headerlink" title="社区支持"></a>社区支持</h3><p>社区支持我们参考github的数据</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Dubbo</th>
+<th>Spring Cloud</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Star</td>
+<td>18k+</td>
+<td>2.1k+</td>
+</tr>
+<tr>
+<td>Fork</td>
+<td>12k+</td>
+<td>1.1k+</td>
+</tr>
+<tr>
+<td>Contribute</td>
+<td>70+</td>
+<td>130+</td>
+</tr>
+<tr>
+<td>Open Issues</td>
+<td>430+</td>
+<td>380+</td>
+</tr>
+<tr>
+<td>Close Issues</td>
+<td>740+</td>
+<td>1.9k+</td>
+</tr>
+<tr>
+<td>Latest Updated</td>
+<td>几个小时前，但是2014-10-30到2017-09-07断更</td>
+<td>几个小时前</td>
+</tr>
+</tbody></table>
+<h3 id="服务治理"><a href="#服务治理" class="headerlink" title="服务治理"></a>服务治理</h3><ul>
+<li>Dubbo服务治理不太完善</li>
+<li>Spring Cloud有比较完善的服务治理组件,Zuul, Ribbon, Hystrix等</li>
+</ul>
+<h3 id="生态建设"><a href="#生态建设" class="headerlink" title="生态建设"></a>生态建设</h3><ul>
+<li>Dubbo生态包括:   RPC框架，服务治理, 服务降级，其它相关组件可以集成第三方成熟的开源组件；</li>
+<li>Spring Cloud生态包括: RPC框架，服务发现，配置服务，服务治理，服务降级，日志收集，任务管理，几乎包括了服务化相关的所有组件；</li>
+</ul>
+<h3 id="分布式事务"><a href="#分布式事务" class="headerlink" title="分布式事务"></a>分布式事务</h3><p>  Dubbo和Spring Cloud 都没有实现分布式事务 </p>
+<h3 id="运维成本"><a href="#运维成本" class="headerlink" title="运维成本"></a>运维成本</h3><p>  运维需要关注以下组件</p>
+<ol>
+<li>服务发现</li>
+</ol>
+<ul>
+<li>Dubbo采用Zookeeper公司有Zookeeper的使用经验</li>
+<li>Spring Cloud采用Eureka,需要搭建新的eureka服务</li>
+</ul>
+<ol start="2">
+<li>配置管理</li>
+</ol>
+<ul>
+<li>Dubbo采用Apollo，公司已经投入生产环境</li>
+<li>Spring Cloud 需要重新部署spring cloud config </li>
+</ul>
+<ol start="3">
+<li>服务治理</li>
+</ol>
+<ul>
+<li>Dubbo 需要独立部署Dubbo-OPS, Zipkin/hydp/cat</li>
+<li>Spring Cloud 需要独立部署 Zuul, Zipkin<br>综上，Dubbo新部署2个组件，Sping Cloud新部署4个组件</li>
+</ul>
+<h3 id="开发流程"><a href="#开发流程" class="headerlink" title="开发流程"></a>开发流程</h3><ul>
+<li>Dubbo开发流程<ol>
+<li>确保服务发现组件已启动</li>
+<li>定义接口，生成接口jar包发布到maven仓库</li>
+<li>服务端实现接口逻辑；同时客户端引入接口jar包,实现客户端逻辑, 完成自测</li>
+<li>客户端服务端联调</li>
+</ol>
+</li>
+<li>Spring Cloud开发流程<ol>
+<li>确保服务发现组件已启动</li>
+<li>定义http接口，形成文档</li>
+<li>服务端实现接口逻辑而且以rest API的形式发布出去；同时客户端根据http接口约定实现客户端逻辑，完成自测</li>
+<li>客户端服务端联调<br>所以，Dubbo的接口具有强依赖性，Spring Cloud主要依赖约定</li>
+</ol>
+</li>
+</ul>
+<h3 id="集成测试"><a href="#集成测试" class="headerlink" title="集成测试"></a>集成测试</h3><p>Dubbo和Spring Cloud集成测试的时候都需要服务的和客户端配合完成</p>
+<h3 id="学习成本"><a href="#学习成本" class="headerlink" title="学习成本"></a>学习成本</h3><ul>
+<li>Dubbo主要提供Spring Xml配置的方式，同时社区也提供SpringBoot的注解方式Dubbo Spring Boot Project ，而且Dubbo官方提供了最佳实践；目前我们的项目中两种方式都存在，所以学习成本基本可以忽略；</li>
+<li>Spring Clould是建立在SpringBoot基础上的，采用大量的注解方式，目前我们也大量使用SpringBoot, 所以学习成本基本可以忽略；</li>
+</ul>
+<h3 id="性能"><a href="#性能" class="headerlink" title="性能"></a>性能</h3><ul>
+<li>Dubbo默认采用Dubbo协议，Dubbo协议工作在TCP层,同等条件下性能优于HTTP协议</li>
+<li>Spring Clould采用HTTP协议, 性能略逊与Dubbo</li>
+</ul>
+<p>最后将以上比较项目给出数值的形式 </p>
+<table>
+<thead>
+<tr>
+<th>对比项目</th>
+<th>权重</th>
+<th>Dubbo</th>
+<th>Spring Cloud</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>迁移成本</td>
+<td>10</td>
+<td>8</td>
+<td>4</td>
+</tr>
+<tr>
+<td>社区支持</td>
+<td>9</td>
+<td>7</td>
+<td>8</td>
+</tr>
+<tr>
+<td>服务治理</td>
+<td>8</td>
+<td>5</td>
+<td>7</td>
+</tr>
+<tr>
+<td>生态建设</td>
+<td>7</td>
+<td>7</td>
+<td>8</td>
+</tr>
+<tr>
+<td>分布式事务</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>运维成本</td>
+<td>5</td>
+<td>4</td>
+<td>3</td>
+</tr>
+<tr>
+<td>开发流程</td>
+<td>4</td>
+<td>3</td>
+<td>2</td>
+</tr>
+<tr>
+<td>集成测试</td>
+<td>3</td>
+<td>2</td>
+<td>2</td>
+</tr>
+<tr>
+<td>学习成本</td>
+<td>2</td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>性能</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>总计</td>
+<td></td>
+<td>37</td>
+<td>33</td>
+</tr>
+</tbody></table>
+<h2 id="结论："><a href="#结论：" class="headerlink" title="结论："></a>结论：</h2><p>  Dubbo优势在于从迁移成本低，能在尽可能不改动现有代码的基础上完成服务化的迁移，而且我们团队成员使用Dubbo的经验比使用Spring Cloud的经验丰富；Spring Cloud的优势在于生态比较完善，社区支持良好；最终根据我们项目当前实际情况,我们认为Dubbo是最好的选择，可以在业务开发的同时平滑地完成服务化;</p>
 ]]></content>
       <tags>
         <tag>微服务</tag>
-        <tag>分布式</tag>
+        <tag>RPC</tag>
       </tags>
   </entry>
   <entry>
@@ -1010,6 +1158,34 @@
 <h3 id="与产品人员沟通"><a href="#与产品人员沟通" class="headerlink" title="与产品人员沟通"></a>与产品人员沟通</h3><p>我们经常看到一些关于产品人员和技术人员相爱相杀的段子，我认为现实中这样的例子并不多「也许我经历少」。技术人员拿到PRD后要仔细分析PRD背后的逻辑和诉求，有些看似简单需求背后可能需要复杂的技术支撑，不是每一个产品人员都有技术背景，此时需要技术人员跟产品人员充分沟通该需求的实现成本「理论上来说所有的需求都是可以实现的」，帮助产品人员梳理出重点和优先级，适当的时候可以减少需求或者改变产品逻辑。切忌一句“这是一个伪需求”或“这个需求实现不了” ；如果认为是伪需求请给出具体的数据，一切以数据为依据 ，即使实现不了也应该告知当前的困难，是资源问题，还是时间的问题等。如果多次沟通都没效果建议换个产品人员伺候，如果你没有选择的余地或者你认为公司都是这种产品人员，建议还是换工作吧。</p>
 <h3 id="一些思考"><a href="#一些思考" class="headerlink" title="一些思考"></a>一些思考</h3><p>技术的世界比较简单，确定的输入一定可以得到确定的输出，然而，我们的世界并不总是这样，有很多东西是没有绝对的对错之分。技术人员可以经常与非技术人员聊聊，听听他们看问题的角度，听听他们的诉求；也许这样可以让技术更好的帮助业务成长。</p>
 ]]></content>
+  </entry>
+  <entry>
+    <title>Sharding-JDBC(ShardingSphere)多数据库与springboot集成 -- 读写分离</title>
+    <url>/2020/04/11/ShardingSphere-Springboot/</url>
+    <content><![CDATA[<p>Sharding-JDBC(ShardingSphere)作为分布式数据库中间件,在Java的JDBC层提供的额外服务。它使用客户端直连数据库，以jar包形式提供服务。引入<code>sharding-jdbc-spring-boot-starter</code>可以快速完成与springboot的集成; 但是默认情况下只能支持到一个数据库，如果支持多数据库，需要做部分扩展；本文记录支持多数据库所做的扩展。<span id="more"></span></p>
+<h3 id="引入依赖"><a href="#引入依赖" class="headerlink" title="引入依赖"></a>引入依赖</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">  &lt;groupId&gt;org.apache.shardingsphere&lt;/groupId&gt;</span><br><span class="line">  &lt;artifactId&gt;sharding-jdbc-spring-boot-starter&lt;/artifactId&gt;</span><br><span class="line">  &lt;version&gt;4.0.1&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+
+<h3 id="扩展部分"><a href="#扩展部分" class="headerlink" title="扩展部分"></a>扩展部分</h3><ul>
+<li><p> 实现<code>EnvironmentAware</code>接口 ，在方法<code>setEnvironment</code>解析properties配置可以获取所有配置信息</p>
+</li>
+<li><p>获取以<code>spring.ydal</code>为前缀的所有数据库配置</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Map&lt;String, Object&gt; databases = PropertyUtil.handle(environment, &quot;spring.ydal&quot; , Map.class);</span><br></pre></td></tr></table></figure></li>
+<li><p>构造每个数据库的数据库的MasterSlave数据源</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> Map&lt;String, Object&gt; dataSourceProps = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;datasource&quot;, Map.class);</span><br><span class="line"> Preconditions.checkState(!dataSourceProps.isEmpty(), &quot;Wrong datasource properties!&quot;);</span><br><span class="line"></span><br><span class="line"> DataSource datasource = DataSourceUtil.getDataSource(dataSourceProps.get(&quot;type&quot;).toString(), dataSourceProps);</span><br><span class="line"> Optional&lt;DataSourcePropertiesSetter&gt; dataSourcePropertiesSetter = DataSourcePropertiesSetterHolder.getDataSourcePropertiesSetterByType(dataSourceProps.get(&quot;type&quot;).toString());</span><br><span class="line"> if (dataSourcePropertiesSetter.isPresent()) &#123;</span><br><span class="line">     dataSourcePropertiesSetter.get().propertiesSet(environment, prefix, dataSourceName, datasource);</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">masterSlaveRule = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;.masterslave&quot;, YamlMasterSlaveRuleConfiguration.class);</span><br><span class="line">MasterSlaveRuleConfiguration msConfig = new MasterSlaveRuleConfigurationYamlSwapper().swap(masterSlaveRule);</span><br><span class="line"></span><br><span class="line">Properties dsProps = PropertyUtil.handle(environment, &quot;spring.eldal.&quot; + dataBaseName+&quot;.props&quot;, Properties.class);</span><br><span class="line">MasterSlaveDataSourceFactory.createDataSource(datasource, msConfig, dsProps)</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h3 id="禁用ShardingSphere的Springboot的自动配置"><a href="#禁用ShardingSphere的Springboot的自动配置" class="headerlink" title="禁用ShardingSphere的Springboot的自动配置"></a>禁用ShardingSphere的Springboot的自动配置</h3><p>实现该扩展后以jar包的形式提供出去供多个项目使用，所以我们必须在jar里面禁用ShardingSphere的Springboot的自动配置；可以实现如下接口:</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">public class YdalAutoConfigurationImportFilter implements AutoConfigurationImportFilter &#123;</span><br><span class="line">    private static final Set&lt;String&gt; SHOULD_SKIP = new HashSet&lt;&gt;(</span><br><span class="line">            Arrays.asList(&quot;org.apache.shardingsphere.shardingjdbc.spring.boot.SpringBootConfiguration&quot;));</span><br><span class="line">    @Override</span><br><span class="line">    public boolean[] match(String[] autoConfigurationClasses, AutoConfigurationMetadata autoConfigurationMetadata) &#123;</span><br><span class="line">        boolean[] matches = new boolean[autoConfigurationClasses.length];</span><br><span class="line"></span><br><span class="line">        for(int i = 0; i&lt; autoConfigurationClasses.length; i++) &#123;</span><br><span class="line">            matches[i] = !SHOULD_SKIP.contains(autoConfigurationClasses[i]);</span><br><span class="line">        &#125;</span><br><span class="line">        return matches;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>将<code>YdalAutoConfigurationImportFilter</code>加入<code>META-INF/spring.factories</code></li>
+</ul>
+<h5 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h5><ul>
+<li>详细代码： <a href="https://github.com/yinghuzhu/ydal-spring-boot-starter">https://github.com/yinghuzhu/ydal-spring-boot-starter</a></li>
+</ul>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>分布式</tag>
+      </tags>
   </entry>
   <entry>
     <title>跨境电商用户标签系统架构设计</title>
@@ -1282,6 +1458,81 @@
         <tag>微服务</tag>
         <tag>分布式</tag>
         <tag>一致性</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Java与Go之间gRPC调用失败问题排查</title>
+    <url>/2019/06/02/gRPC-Go-Java/</url>
+    <content><![CDATA[<p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
+<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
+<ol>
+<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
+<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
+<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
+<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
+<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
+</ol>
+<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
+<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
+<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
+<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
+</ol>
+<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
+<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
+<ol>
+<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
+<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
+<li>最终还是要升级到新版本</li>
+</ol>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
+<ol>
+<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
+<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
+</ol>
+<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
+<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a href="https://grpc.io/">https://grpc.io/</a><br><a href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>RPC</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>如何提一个问题</title>
+    <url>/2018/12/23/how-to-question/</url>
+    <content><![CDATA[<p>在我们日常生活以及工作中经常会遇到提问题, 我们有没有想过如何提一个好问题？也许有人会说，「提问谁不回？会讲话的小孩子就会问为什么，这有什么值得说的？」没错，从这个角度上说机会每个人都会提问。但是，我们有没有想过，我们问问题的目的是什么？是得到对问题的解答。大家有没有遇到过这样的情况，自己问题发给对方后始终得不到回复，或者对方敷衍了事，更有甚者被对方怼回去。如果遇到这些情况，我们应该好好反思一下，我们是不是提了一个好问题；在说好问题之前结合个人的经历谈谈什么样的问题不是一个好问题。<span id="more"></span></p>
+<ol>
+<li>提问者在im上发一个截图，截图里面是一个异常栈，没有任何上下文，然后就没有然后了；解答者在那里等对方进一步的信息，结果什么也等到；过了很久(估计等很久没回复)，亲自过来说「帮我看看我的问题」；这个时候才开始沟通，问题是怎么出现的，什么环境，上下文，等… </li>
+<li>有些问题在技术文档，产品文档上都已经说的很清楚；但提问者不看文档，直接把问题抛过来；也许是提问者自己没有按照文档要求操作，或者真的是一个问题但文档FAQ部分已经解释的很清楚 ；</li>
+<li>提问者直接将问题抛出来，不做任何思考和尝试，只在那里等答案；不知道提问者有没有想过，解答者也要花费大量的时间去调研；</li>
+<li>提问者提问道时候，发的关键信息是一张截图，截图中可能有id之类的标示，此时解答者可能需要根据id搜索，只能手工输入，这样既浪费时间也容易出错；</li>
+</ol>
+<p>对于以上的案例，个人觉得提问者需要加强独立思考的能力，不然会给对方留下「伸手党」的感觉；个人觉得可以按照如下的方式考虑提问:</p>
+<ol>
+<li>对于技术问题或者产品问题，一般作者会提供相应的文档；首先我们应该阅读相关文档，特别注意FAQ部分；</li>
+<li>善于使用搜索引擎，具备基本的搜商(SQ) ,推荐用google(对技术工作者，这个不需要解释), 百度请忽略所有「广告」字样的文章，微信，知乎等工具;</li>
+<li>在以上两步都没有找到答案情况下，可以参考第二步搜索过程中出现的文章以及官方提供的文档尝试；比如是否可以升级软件版本，是否可以调整某些参数；相信在尝试过程中会加深自己对问题的理解以及提升自己解决问题的能力</li>
+<li>经过以上步骤能解决95%的问题了；如果还没有解决，这时候再提问，相信这个时候提出的问题质量是非常高的；比如: 该问题是如何出现的，什么环境，硬件型号是什么，软件版本是什么，我的操作步骤是什么，我做了哪些调研，尝试了哪些方式，得到结果是什么,等.. </li>
+</ol>
+<p>那么提一个好问题有那么重要吗？我认为提一个好问题比解答一个问题更能体现一个人的真实水平，因为这证明提问者有独立思考的能力；比如在职场中一个常见的场景是这样的，面试最后部分面试官会问面试者有什么问题吗？这个时候如果提一个高质量的问题，相信会加深面试官的印象,在同等条件的候选者中相信胜出的概率会更高;</p>
+<p>最后关于什么是好问题，这里引用某大佬的一句话 「什么是好问题，你对某个领域有一定研究，你已经翻阅和查询了足够的资料，然后你基于你的理解，对这些资料中，某几个无法理解的细节提出来，希望专业人士给与解惑，而这个细节问题确实具有足够代表性，是理解一些关键问题的钥匙，这就是好问题。」</p>
+]]></content>
+  </entry>
+  <entry>
+    <title>基于protobuf的定义在跨语言消息传递中的应用</title>
+    <url>/2021/09/21/message-dsl-base-protobuff/</url>
+    <content><![CDATA[<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>在需要消息队列的场景中，生产端和消费端会事先就消息体格式达成共识确保生产端发送的消息在消费端能正常识别；如果生产端和消费都是Java项目，我们通常会定义消息体的Jar，让生产端和消费端都引用Jar确保消息的一致性；但在跨语言消息传递中<span id="more"></span>通常通过文档约定消息格式各自定义自己的消息体。在我们实际使用过程中发现不同语言之间传递信息还是会出现一些问题；比如：Java用fastjson输出复杂数据在Go项目解析失败，而且各语言在配置mq参数时候有各自的约定,人工操作容易引起误操作，所以我们希望能有一套跨语言的工具能分别生出各自语言的代码和配置。</p>
+<h3 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h3><p>现有系统跨语言之间RPC的调用我们采用了gRPC,很自然的想到可以借鉴gRPC Protobuf定义消息体。具体方法就是扩展<code>google.protobuf.MethodOptions</code>定义</p>
+<h5 id="方法"><a href="#方法" class="headerlink" title="方法"></a>方法</h5><p>下面以RabbitMQ为例，在Protobuf文件中定义MQ相关参数</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">extend google.protobuf.MethodOptions &#123;</span><br><span class="line">    </span><br><span class="line">    // exchange类型: topic direct fanout ,默认: direct</span><br><span class="line">    string routeType = 7010101;</span><br><span class="line"></span><br><span class="line">	// producer 发送到exchange上有效的routekey; 仅topic模式有效</span><br><span class="line">    repeated string routeKey = 7010102;</span><br><span class="line"></span><br><span class="line">    //consumer监听的队列名称，direct模式 该参数无效</span><br><span class="line">    repeated string listener = 7010103;</span><br><span class="line"></span><br><span class="line">   // 延迟队列的延迟时间</span><br><span class="line">   int32 delay = 6010106;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>说明</strong>: 如果exchange为topic模式，监听队列绑定的routekey必须根据此处定义的routKey定义设置;比如文件定义的routeKey是a.b.c则consumer端绑定到队列的routkey只能是 a.b.c, a.b.<em>, a.</em>, * 其中之一</p>
+<h5 id="生产Java代码"><a href="#生产Java代码" class="headerlink" title="生产Java代码"></a>生产Java代码</h5><p>通常在Maven工程中我们使用<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成gRPC的Java代码。现在我们可以扩展<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成MQ的代码。核心扩展点如下:</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> @Mojo(</span><br><span class="line">        name = &quot;compile-mq&quot;,</span><br><span class="line">        defaultPhase = LifecyclePhase.GENERATE_SOURCES,</span><br><span class="line">        requiresDependencyResolution = ResolutionScope.COMPILE,</span><br><span class="line">        threadSafe = true</span><br><span class="line">)</span><br><span class="line">public class ProtocCompileMQMojo extends AbstractProtocCompileMojo&#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void execute() throws MojoExecutionException, MojoFailureException &#123;</span><br><span class="line">        super.execute();  </span><br><span class="line">        // 利用 DescriptorProtos.FileDescriptorSet 读取proto文件的定义根据规范生出Java文件</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>最后配合MQ的SDK可以大大提高开发效率而且减低配置的复杂性。</p>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>分布式</tag>
       </tags>
   </entry>
   <entry>
@@ -1606,64 +1857,6 @@
 ]]></content>
   </entry>
   <entry>
-    <title>如何提一个问题</title>
-    <url>/2018/12/23/how-to-question/</url>
-    <content><![CDATA[<p>在我们日常生活以及工作中经常会遇到提问题, 我们有没有想过如何提一个好问题？也许有人会说，「提问谁不回？会讲话的小孩子就会问为什么，这有什么值得说的？」没错，从这个角度上说机会每个人都会提问。但是，我们有没有想过，我们问问题的目的是什么？是得到对问题的解答。大家有没有遇到过这样的情况，自己问题发给对方后始终得不到回复，或者对方敷衍了事，更有甚者被对方怼回去。如果遇到这些情况，我们应该好好反思一下，我们是不是提了一个好问题；在说好问题之前结合个人的经历谈谈什么样的问题不是一个好问题。<span id="more"></span></p>
-<ol>
-<li>提问者在im上发一个截图，截图里面是一个异常栈，没有任何上下文，然后就没有然后了；解答者在那里等对方进一步的信息，结果什么也等到；过了很久(估计等很久没回复)，亲自过来说「帮我看看我的问题」；这个时候才开始沟通，问题是怎么出现的，什么环境，上下文，等… </li>
-<li>有些问题在技术文档，产品文档上都已经说的很清楚；但提问者不看文档，直接把问题抛过来；也许是提问者自己没有按照文档要求操作，或者真的是一个问题但文档FAQ部分已经解释的很清楚 ；</li>
-<li>提问者直接将问题抛出来，不做任何思考和尝试，只在那里等答案；不知道提问者有没有想过，解答者也要花费大量的时间去调研；</li>
-<li>提问者提问道时候，发的关键信息是一张截图，截图中可能有id之类的标示，此时解答者可能需要根据id搜索，只能手工输入，这样既浪费时间也容易出错；</li>
-</ol>
-<p>对于以上的案例，个人觉得提问者需要加强独立思考的能力，不然会给对方留下「伸手党」的感觉；个人觉得可以按照如下的方式考虑提问:</p>
-<ol>
-<li>对于技术问题或者产品问题，一般作者会提供相应的文档；首先我们应该阅读相关文档，特别注意FAQ部分；</li>
-<li>善于使用搜索引擎，具备基本的搜商(SQ) ,推荐用google(对技术工作者，这个不需要解释), 百度请忽略所有「广告」字样的文章，微信，知乎等工具;</li>
-<li>在以上两步都没有找到答案情况下，可以参考第二步搜索过程中出现的文章以及官方提供的文档尝试；比如是否可以升级软件版本，是否可以调整某些参数；相信在尝试过程中会加深自己对问题的理解以及提升自己解决问题的能力</li>
-<li>经过以上步骤能解决95%的问题了；如果还没有解决，这时候再提问，相信这个时候提出的问题质量是非常高的；比如: 该问题是如何出现的，什么环境，硬件型号是什么，软件版本是什么，我的操作步骤是什么，我做了哪些调研，尝试了哪些方式，得到结果是什么,等.. </li>
-</ol>
-<p>那么提一个好问题有那么重要吗？我认为提一个好问题比解答一个问题更能体现一个人的真实水平，因为这证明提问者有独立思考的能力；比如在职场中一个常见的场景是这样的，面试最后部分面试官会问面试者有什么问题吗？这个时候如果提一个高质量的问题，相信会加深面试官的印象,在同等条件的候选者中相信胜出的概率会更高;</p>
-<p>最后关于什么是好问题，这里引用某大佬的一句话 「什么是好问题，你对某个领域有一定研究，你已经翻阅和查询了足够的资料，然后你基于你的理解，对这些资料中，某几个无法理解的细节提出来，希望专业人士给与解惑，而这个细节问题确实具有足够代表性，是理解一些关键问题的钥匙，这就是好问题。」</p>
-]]></content>
-  </entry>
-  <entry>
-    <title>Java与Go之间gRPC调用失败问题排查</title>
-    <url>/2019/06/02/gRPC-Go-Java/</url>
-    <content><![CDATA[<p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
-<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
-<ol>
-<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
-<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
-<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
-<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
-<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
-</ol>
-<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
-<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
-<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
-<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
-</ol>
-<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
-<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
-<ol>
-<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
-<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
-<li>最终还是要升级到新版本</li>
-</ol>
-<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
-<ol>
-<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
-<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
-</ol>
-<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
-<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a href="https://grpc.io/">https://grpc.io/</a><br><a href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>RPC</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>海恩法则与生产Bug</title>
     <url>/2019/03/01/product-bug/</url>
     <content><![CDATA[<p><img src="/2019/03/01/product-bug/heinrich-law.jpeg"><br>「海恩法则」是航空涡轮发动机的发明者帕布斯·海恩提出一个在航空界关于飞行安全的法则。海恩指出：每一起严重事故的背后，必然有29次轻微事故和300起未遂先兆以及1000起事故隐患。法则强调两点：一是事故的发生是量的积累的结果；二是再好的技术，再完美的规章，在实际操作层面，也无法取代人自身的素质和责任心。「海恩法则」虽然针对的是飞行领域，在软件开发领域遭遇生产bug<span id="more"></span>，用「海恩法则」也可以解释。</p>
@@ -1674,23 +1867,6 @@
 ]]></content>
       <tags>
         <tag>线上问题</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>基于protobuf的定义在跨语言消息传递中的应用</title>
-    <url>/2021/09/21/message-dsl-base-protobuff/</url>
-    <content><![CDATA[<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>在需要消息队列的场景中，生产端和消费端会事先就消息体格式达成共识确保生产端发送的消息在消费端能正常识别；如果生产端和消费都是Java项目，我们通常会定义消息体的Jar，让生产端和消费端都引用Jar确保消息的一致性；但在跨语言消息传递中<span id="more"></span>通常通过文档约定消息格式各自定义自己的消息体。在我们实际使用过程中发现不同语言之间传递信息还是会出现一些问题；比如：Java用fastjson输出复杂数据在Go项目解析失败，而且各语言在配置mq参数时候有各自的约定,人工操作容易引起误操作，所以我们希望能有一套跨语言的工具能分别生出各自语言的代码和配置。</p>
-<h3 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h3><p>现有系统跨语言之间RPC的调用我们采用了gRPC,很自然的想到可以借鉴gRPC Protobuf定义消息体。具体方法就是扩展<code>google.protobuf.MethodOptions</code>定义</p>
-<h5 id="方法"><a href="#方法" class="headerlink" title="方法"></a>方法</h5><p>下面以RabbitMQ为例，在Protobuf文件中定义MQ相关参数</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">extend google.protobuf.MethodOptions &#123;</span><br><span class="line">    </span><br><span class="line">    // exchange类型: topic direct fanout ,默认: direct</span><br><span class="line">    string routeType = 7010101;</span><br><span class="line"></span><br><span class="line">	// producer 发送到exchange上有效的routekey; 仅topic模式有效</span><br><span class="line">    repeated string routeKey = 7010102;</span><br><span class="line"></span><br><span class="line">    //consumer监听的队列名称，direct模式 该参数无效</span><br><span class="line">    repeated string listener = 7010103;</span><br><span class="line"></span><br><span class="line">   // 延迟队列的延迟时间</span><br><span class="line">   int32 delay = 6010106;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p><strong>说明</strong>: 如果exchange为topic模式，监听队列绑定的routekey必须根据此处定义的routKey定义设置;比如文件定义的routeKey是a.b.c则consumer端绑定到队列的routkey只能是 a.b.c, a.b.<em>, a.</em>, * 其中之一</p>
-<h5 id="生产Java代码"><a href="#生产Java代码" class="headerlink" title="生产Java代码"></a>生产Java代码</h5><p>通常在Maven工程中我们使用<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成gRPC的Java代码。现在我们可以扩展<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成MQ的代码。核心扩展点如下:</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> @Mojo(</span><br><span class="line">        name = &quot;compile-mq&quot;,</span><br><span class="line">        defaultPhase = LifecyclePhase.GENERATE_SOURCES,</span><br><span class="line">        requiresDependencyResolution = ResolutionScope.COMPILE,</span><br><span class="line">        threadSafe = true</span><br><span class="line">)</span><br><span class="line">public class ProtocCompileMQMojo extends AbstractProtocCompileMojo&#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void execute() throws MojoExecutionException, MojoFailureException &#123;</span><br><span class="line">        super.execute();  </span><br><span class="line">        // 利用 DescriptorProtos.FileDescriptorSet 读取proto文件的定义根据规范生出Java文件</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>最后配合MQ的SDK可以大大提高开发效率而且减低配置的复杂性。</p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>分布式</tag>
       </tags>
   </entry>
   <entry>
