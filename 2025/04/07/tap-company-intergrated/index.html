@@ -30,7 +30,7 @@
 <meta property="og:description" content="1. Project NameBiometric-Based Phone-Less Payment Product for Saudi Arabia">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2025-04-07T15:40:26.000Z">
-<meta property="article:modified_time" content="2025-04-07T15:44:07.055Z">
+<meta property="article:modified_time" content="2025-04-08T06:23:11.257Z">
 <meta property="article:author" content="yhzhu">
 <meta name="twitter:card" content="summary">
 
@@ -411,7 +411,68 @@
 <li> Training and support for merchants.</li>
 <li> Merchants can view transaction records and manage store information through the Admin Backend.</li>
 </ol>
-<!-- flag of hidden posts -->
+<h2 id="14-Interactive-Process"><a href="#14-Interactive-Process" class="headerlink" title="14 Interactive Process"></a>14 Interactive Process</h2><h4 id="Sign-up"><a href="#Sign-up" class="headerlink" title="Sign up"></a>Sign up</h4><pre class="mermaid">sequenceDiagram
+    participant User
+    participant App
+    participant Backend
+    participant Kafi
+
+    User->>App: Initiate Registration Request
+    App->>Backend: Send Registration Request (User Information)
+    Backend->>Kafi: Request Biometric Capture
+    Kafi->>User: Prompt User for Biometric Capture
+    User->>Kafi: Complete Biometric Capture
+    Kafi->>Backend: Send Biometric Data
+    Backend->>Database: Store User Information and Biometric Information
+    Database-->>Backend: Return Storage Result
+    Backend-->>App: Return Registration Success Information
+    App->>User: Display Registration Success</pre>
+
+<h4 id="Link-Bank-Card"><a href="#Link-Bank-Card" class="headerlink" title="Link Bank Card"></a>Link Bank Card</h4><pre class="mermaid">sequenceDiagram
+    participant User
+    participant App
+    participant Backend
+    participant Tap as Tap Payment API
+
+    User->>App: Initiate Card Linking
+    App->>Backend: Request Card Linking Initiation (User ID)
+    Backend->>App: Instruct App to Present Tap's Secure Form
+    App->>User: Display Tap's Secure Card Input Form
+    User->>App: Enter Bank Card Details
+    App->>Tap: Send Card Details Securely (via SDK or Payment Page)
+    Tap-->>App: Return Card Token
+    App->>Backend: Send Card Token and User ID
+    Backend->>Database: Associate Card Token with User Account
+    Database-->>Backend: Return Association Result
+    Backend-->>App: Return Card Linking Success Confirmation
+    App->>User: Display "Card Linked Successfully"</pre>
+
+
+<h4 id="Payment"><a href="#Payment" class="headerlink" title="Payment"></a>Payment</h4><pre class="mermaid">sequenceDiagram
+    participant User
+    participant Kafi
+    participant Backend
+    participant Tap as Tap Payment API
+
+    User->>Kafi: Initiate Payment Request
+    Kafi->>Backend: Send Payment Request (Device ID, May Contain Initial User Identification)
+    Backend->>Kafi: Request Biometric Verification
+    Kafi->>User: Prompt User for Biometric Verification
+    User->>Kafi: Complete Biometric Verification
+    Kafi->>Backend: Send Biometric Data
+    Backend->>Database: Query User Biometric Information
+    Database-->>Backend: Return User Biometric Information
+    alt Verification Successful
+        Backend->>Database: Retrieve User's Card Token
+        Database-->>Backend: Return Card Token
+        Backend->>Tap: Initiate Payment Request (Amount, Card Token, Merchant ID, etc.)
+        Tap-->>Backend: Return Payment Result
+        Backend->>Kafi: Return Payment Success Information
+        Kafi->>User: Display Payment Success
+    else Verification Failed
+        Backend->>Kafi: Return Payment Failure Information
+        Kafi->>User: Display Payment Failure
+    end</pre><!-- flag of hidden posts -->
     </div>
 
     
@@ -481,7 +542,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-Project-Name"><span class="nav-number">1.</span> <span class="nav-text">1. Project Name</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-Executive-Summary"><span class="nav-number">2.</span> <span class="nav-text">2. Executive Summary</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-Project-Goals"><span class="nav-number">3.</span> <span class="nav-text">3. Project Goals</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-Target-Audience"><span class="nav-number">4.</span> <span class="nav-text">4. Target Audience</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-Product-Feature-List"><span class="nav-number">5.</span> <span class="nav-text">5. Product Feature List</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-User-Features"><span class="nav-number">5.1.</span> <span class="nav-text">5.1 User Features:</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-Merchant-Features"><span class="nav-number">5.2.</span> <span class="nav-text">5.2 Merchant Features:</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-System-Management-Features-for-operations-and-maintenance-personnel"><span class="nav-number">5.3.</span> <span class="nav-text">5.3 System Management Features (for operations and maintenance personnel):</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-System-Architecture-High-Level-Overview"><span class="nav-number">6.</span> <span class="nav-text">6. System Architecture (High-Level Overview)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-Feature-Component-Allocation"><span class="nav-number">7.</span> <span class="nav-text">7. Feature Component Allocation</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-Project-Preparation-Work"><span class="nav-number">8.</span> <span class="nav-text">8. Project Preparation Work</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-Integration-with-Tap-Company"><span class="nav-number">9.</span> <span class="nav-text">9. Integration with Tap Company</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-Integration-with-Biometric-Capture-Vendor-Specific-details-to-be-determined-after-discussion"><span class="nav-number">10.</span> <span class="nav-text">10. Integration with Biometric Capture Vendor (Specific details to be determined after discussion)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#11-Security-Considerations"><span class="nav-number">11.</span> <span class="nav-text">11. Security Considerations</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#12-Compliance-with-Saudi-Regulations"><span class="nav-number">12.</span> <span class="nav-text">12. Compliance with Saudi Regulations</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#13-Merchant-Collaboration-Process"><span class="nav-number">13.</span> <span class="nav-text">13. Merchant Collaboration Process</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-Project-Name"><span class="nav-number">1.</span> <span class="nav-text">1. Project Name</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-Executive-Summary"><span class="nav-number">2.</span> <span class="nav-text">2. Executive Summary</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-Project-Goals"><span class="nav-number">3.</span> <span class="nav-text">3. Project Goals</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-Target-Audience"><span class="nav-number">4.</span> <span class="nav-text">4. Target Audience</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-Product-Feature-List"><span class="nav-number">5.</span> <span class="nav-text">5. Product Feature List</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-User-Features"><span class="nav-number">5.1.</span> <span class="nav-text">5.1 User Features:</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-Merchant-Features"><span class="nav-number">5.2.</span> <span class="nav-text">5.2 Merchant Features:</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-System-Management-Features-for-operations-and-maintenance-personnel"><span class="nav-number">5.3.</span> <span class="nav-text">5.3 System Management Features (for operations and maintenance personnel):</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-System-Architecture-High-Level-Overview"><span class="nav-number">6.</span> <span class="nav-text">6. System Architecture (High-Level Overview)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-Feature-Component-Allocation"><span class="nav-number">7.</span> <span class="nav-text">7. Feature Component Allocation</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-Project-Preparation-Work"><span class="nav-number">8.</span> <span class="nav-text">8. Project Preparation Work</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-Integration-with-Tap-Company"><span class="nav-number">9.</span> <span class="nav-text">9. Integration with Tap Company</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-Integration-with-Biometric-Capture-Vendor-Specific-details-to-be-determined-after-discussion"><span class="nav-number">10.</span> <span class="nav-text">10. Integration with Biometric Capture Vendor (Specific details to be determined after discussion)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#11-Security-Considerations"><span class="nav-number">11.</span> <span class="nav-text">11. Security Considerations</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#12-Compliance-with-Saudi-Regulations"><span class="nav-number">12.</span> <span class="nav-text">12. Compliance with Saudi Regulations</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#13-Merchant-Collaboration-Process"><span class="nav-number">13.</span> <span class="nav-text">13. Merchant Collaboration Process</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#14-Interactive-Process"><span class="nav-number">14.</span> <span class="nav-text">14 Interactive Process</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Sign-up"><span class="nav-number">14.0.1.</span> <span class="nav-text">Sign up</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Link-Bank-Card"><span class="nav-number">14.0.2.</span> <span class="nav-text">Link Bank Card</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Payment"><span class="nav-number">14.0.3.</span> <span class="nav-text">Payment</span></a></li></ol></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
