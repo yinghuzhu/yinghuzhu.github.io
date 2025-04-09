@@ -333,13 +333,6 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/RPC/</loc>
-    <lastmod>2025-04-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
     <loc>https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/</loc>
     <lastmod>2025-04-09</lastmod>
     <changefreq>weekly</changefreq>
@@ -348,6 +341,13 @@
   
   <url>
     <loc>https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/</loc>
+    <lastmod>2025-04-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/RPC/</loc>
     <lastmod>2025-04-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
