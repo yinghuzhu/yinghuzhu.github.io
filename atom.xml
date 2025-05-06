@@ -6,7 +6,7 @@
   <link href="https://www.yzhu.name/atom.xml" rel="self"/>
   
   <link href="https://www.yzhu.name/"/>
-  <updated>2025-04-06T13:34:11.835Z</updated>
+  <updated>2025-05-06T10:07:01.488Z</updated>
   <id>https://www.yzhu.name/</id>
   
   <author>
@@ -15,6 +15,23 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>在线工具集合网站</title>
+    <link href="https://www.yzhu.name/2024/11/15/First-Efficiency-Lab/"/>
+    <id>https://www.yzhu.name/2024/11/15/First-Efficiency-Lab/</id>
+    <published>2024-11-15T14:16:33.000Z</published>
+    <updated>2025-05-06T10:07:01.488Z</updated>
+    
+    <content type="html"><![CDATA[<p>在日常开发项目中，我们经常需要处理格式转换、日期计算、编码解码等琐碎的操作。这些任务通常要么需要在IDE中编写代码实现，要么需要在网上搜索相应的在线工具。经过一段时间后，我发现这种方式效率较低，于是我开发了一个集成常用工具的网站：<a href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a> <span id="more"></span></p><p>该网站目前提供了以下几个工具:</p><h3 id="日期计算器"><a href="#日期计算器" class="headerlink" title="日期计算器"></a><a href="https://www.firstefficiencylab.com/date-calc.html">日期计算器</a></h3><p>计算日期天数差、增减天数以及查找特定日期,常用于处理与日期相关的业务需求。</p><h3 id="单位转换器"><a href="#单位转换器" class="headerlink" title="单位转换器"></a><a href="https://www.firstefficiencylab.com/unit-conv.html">单位转换器</a></h3><p>帮助进行英制和公制单位之间的自由转换,如常用的长度、重量、体积、温度等维度。</p><h3 id="JSON格式化"><a href="#JSON格式化" class="headerlink" title="JSON格式化"></a><a href="https://www.firstefficiencylab.com/json-format.html">JSON格式化</a></h3><p>将JSON数据格式化成有层级缩进的样式,或将格式化后的JSON转成单行,方便发现JSON语法错误。</p><h3 id="编-解码工具"><a href="#编-解码工具" class="headerlink" title="编/解码工具"></a><a href="https://www.firstefficiencylab.com/encode.html">编/解码工具</a></h3><p>使用常见的Base64、MD5、SHA等多种编码解码算法对文本进行转换,适用于加解密、哈希处理等需求。</p><h3 id="Unix时间戳转换"><a href="#Unix时间戳转换" class="headerlink" title="Unix时间戳转换"></a><a href="https://www.firstefficiencylab.com/timestamp.html">Unix时间戳转换</a></h3><p>将Unix时间戳转成可读的时间格式,或通过年月日等输入获取对应的时间戳。</p><h3 id="YAML-JSON转换"><a href="#YAML-JSON转换" class="headerlink" title="YAML/JSON转换"></a><a href="https://www.firstefficiencylab.com/yaml-json.html">YAML/JSON转换</a></h3><p>在YAML和JSON两种格式之间双向转换,并同时支持格式化和语法验证。</p><h3 id="转换图片为白地图"><a href="#转换图片为白地图" class="headerlink" title="转换图片为白地图"></a><a href="https://www.firstefficiencylab.com/image-segment.html">转换图片为白地图</a></h3><p>快速扣除商品背景，将证件照换为白地图，等场景，能够对图片进行一键抠图，快速处理。</p><p>这些工具的灵感大多来源于我们日常工作中的一些高频基本需求。核心目的是集中常用的小工具,提高这部分操作的效率。</p><p>工具地址: <a href="https://www.firstefficiencylab.com/">https://www.firstefficiencylab.com</a></p>]]></content>
+    
+    
+    <summary type="html">&lt;p&gt;在日常开发项目中，我们经常需要处理格式转换、日期计算、编码解码等琐碎的操作。这些任务通常要么需要在IDE中编写代码实现，要么需要在网上搜索相应的在线工具。经过一段时间后，我发现这种方式效率较低，于是我开发了一个集成常用工具的网站：&lt;a href=&quot;https://www.firstefficiencylab.com/&quot;&gt;https://www.firstefficiencylab.com&lt;/a&gt;&lt;/p&gt;</summary>
+    
+    
+    
+    
+  </entry>
   
   <entry>
     <title>跨境电商用户标签系统架构设计</title>
@@ -406,27 +423,6 @@
     
     
     <category term="线上问题" scheme="https://www.yzhu.name/tags/%E7%BA%BF%E4%B8%8A%E9%97%AE%E9%A2%98/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>服务化多项目测试环境隔离</title>
-    <link href="https://www.yzhu.name/2019/02/13/Multi-Project-Test-Env/"/>
-    <id>https://www.yzhu.name/2019/02/13/Multi-Project-Test-Env/</id>
-    <published>2019-02-13T13:33:10.000Z</published>
-    <updated>2025-04-06T13:37:55.459Z</updated>
-    
-    <content type="html"><![CDATA[<p>单体应用依赖比较少，大部分情况我们只需要启动一个应用就可以开始测试工作。架构升级到服务化后，每个应用依赖比较多，任何一个依赖有问题都会影响测试结果；如果服务化环境中多项目并行测试，测试效率会更差 。 <span id="more"></span> 为此，我们给出服务化多项目并行测试方案。</p><h3 id="版本号隔离"><a href="#版本号隔离" class="headerlink" title="版本号隔离"></a>版本号隔离</h3><p>首先能想到的方法就是利用版本号的特征「类dubb的RPC框架都有版本号属性」，对不同的项目给出不同的版本号; 比如有如下调用关系:</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Client -&gt; SA  </span><br></pre></td></tr></table></figure><p>在启动SA的时候对不同的项目指定不同的版本号,Client在调用SA的时候根据不同的项目指定与SA相匹配的版本号.</p><ul><li>优点: 简单，无需额外开发，类dubbo的RPC框架都支持 </li></ul><h3 id="多项目开发测试现状"><a href="#多项目开发测试现状" class="headerlink" title="多项目开发测试现状"></a>多项目开发测试现状</h3><p>实际项目中的调用关系： </p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Client -&gt; SA -&gt; SB -&gt; SC -&gt; SD</span><br></pre></td></tr></table></figure><p>有两个项目在并行开发：</p><ul><li>project1「以下简称P1」代码变更部分是SA, SC</li><li>project2「以下简称P2」代码变更部分是SB, SD</li></ul><p>如果我们采用「版本号隔离」方案; 对于P1, 不但需要部署SA和SC，还需要部署Client和SB，因为Client调用SA，SB调用SC的<strong>版本号分别指向新部署的SA和SC</strong> 。P2也需要类似的部署方法；这样我们发现，几乎所有的服务在每个项目中都需要部署一套；造成资源大量浪费，显然不现实。 因此，我们有了下面的方案「动态路由」 。</p><h3 id="动态路由"><a href="#动态路由" class="headerlink" title="动态路由"></a>动态路由</h3><p>动态路由的思路是环境分<strong>一套稳定环境和每个项目对应一套项目测试环境,其中稳定环境包括所有的服务，项目测试环境仅包括该项目代码变更部分的服务</strong>,各个环境的所有服务采用同一注册中心；方案如下图所示 </p><p><img src="/2019/02/13/Multi-Project-Test-Env/multi-test-env.png" alt="服务化多项目测试环境"></p><ul><li>稳定环境: 部署所有的服务，保证稳定环境作为完整的系统；可以利用CI/CD每日从Master拉稳定版本的代码完成自动部署</li><li>P1: project1测试环境，仅部署有代码变更的SA1和SC1 </li><li>P2: project2测试环境，仅部署有代码变更的SB2和SD2</li><li>路由策略： Client发起调用的时候携带该调用链路所有测试环境的路由规则，如果没有指定路由规则请求默认环境的服务 </li></ul><h5 id="实现要点"><a href="#实现要点" class="headerlink" title="实现要点"></a>实现要点</h5><ul><li>每个服务启动时候在注册中心注册服务所在节点测试环境类型(P1，P2或者默认环境)，默认情况注册为默认环境 </li><li>自定义loadbalance，根据路由规则将RPC请求路由到指定节点上</li><li>每次RPC调用将该调用链路的路由规则隐士传递到下层服务</li><li>每个测试环境需要一个独立的入口，以WEB项目为例可以将nginx作为入口，路由规则可以配置在nginx的配置文件中</li><li>对接发布系统，有变更的服务发布到测试环境时候，该测试环境的路由规则自动写入测试环境的入口配置文件</li></ul>]]></content>
-    
-    
-    <summary type="html">&lt;p&gt;单体应用依赖比较少，大部分情况我们只需要启动一个应用就可以开始测试工作。架构升级到服务化后，每个应用依赖比较多，任何一个依赖有问题都会影响测试结果；如果服务化环境中多项目并行测试，测试效率会更差 。&lt;/p&gt;</summary>
-    
-    
-    
-    
-    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
-    
-    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
     
   </entry>
   
