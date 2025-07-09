@@ -6,7 +6,7 @@
   <link href="https://www.yzhu.name/atom.xml" rel="self"/>
   
   <link href="https://www.yzhu.name/"/>
-  <updated>2025-05-06T17:10:11.358Z</updated>
+  <updated>2025-07-09T11:22:55.098Z</updated>
   <id>https://www.yzhu.name/</id>
   
   <author>
@@ -15,6 +15,27 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>分布式系统核心组件对比：Nacos、Consul、ZooKeeper与etcd</title>
+    <link href="https://www.yzhu.name/2025/07/08/Nacos-Consul-Zk-Etcd/"/>
+    <id>https://www.yzhu.name/2025/07/08/Nacos-Consul-Zk-Etcd/</id>
+    <published>2025-07-08T08:01:07.000Z</published>
+    <updated>2025-07-09T11:22:55.098Z</updated>
+    
+    <content type="html"><![CDATA[<p>在分布式系统架构中，服务发现、配置管理和分布式协调是三大核心挑战。目前业界主流的解决方案包括 Nacos、Consul、ZooKeeper 和 etcd，它们各自基于不同的设计理念，适用于不同的业务场景。本文将从核心功能、特性细节、适用场景等多个维度进行深入对比，帮助技术团队在实际项目中做出合适的选择。<span id="more"></span></p><h2 id="核心功能对比概览"><a href="#核心功能对比概览" class="headerlink" title="核心功能对比概览"></a>核心功能对比概览</h2><table><thead><tr><th><strong>特性</strong></th><th><strong>ZooKeeper</strong></th><th><strong>etcd</strong></th><th><strong>Consul</strong></th><th><strong>Nacos</strong></th></tr></thead><tbody><tr><td><strong>诞生时间</strong></td><td>最早 (2006)</td><td>较新 (2013)</td><td>较新 (2014)</td><td>最新 (2018)</td></tr><tr><td><strong>主要定位</strong></td><td>分布式协调服务</td><td>分布式键值存储，K8s 核心组件</td><td>服务网格与服务发现平台</td><td>微服务一站式服务治理平台</td></tr><tr><td><strong>一致性协议</strong></td><td>ZAB (ZooKeeper Atomic Broadcast)</td><td>Raft</td><td>Raft（单数据中心强一致，跨中心最终一致）</td><td>CP (Raft) &amp; AP (Distro) 双模</td></tr><tr><td><strong>数据模型</strong></td><td>层次化的 ZNode 节点 (类似文件系统)</td><td>扁平的键值对 (支持范围查询)</td><td>扁平的键值对 (支持目录和前缀查询)</td><td>扁平的键值对 (支持分组和命名空间)</td></tr><tr><td><strong>API/协议</strong></td><td>自定义 TCP 协议，Java/C 客户端</td><td>HTTP/JSON, gRPC</td><td>HTTP/JSON, DNS 接口</td><td>HTTP/JSON, gRPC 接口</td></tr><tr><td><strong>性能特点</strong></td><td>读多写少场景性能优异</td><td>读写性能均高，写入线性一致</td><td>读写性能高，支持健康检查优化</td><td>支持大规模实例注册，读写性能优越</td></tr><tr><td><strong>开发语言</strong></td><td>Java</td><td>Go</td><td>Go</td><td>Java</td></tr><tr><td><strong>高可用与扩展性</strong></td><td>需奇数节点，扩容复杂，强一致性</td><td>动态扩容，强一致性</td><td>多数据中心支持，动态扩缩容</td><td>AP/CP 复合模型，服务注册高可用，配置需关注 Raft</td></tr><tr><td><strong>运维与监控</strong></td><td>无原生 UI，依赖第三方工具</td><td>提供 CLI 和 API，支持 Prometheus</td><td>自带 Web UI，监控集成友好</td><td>自带 Web 控制台，Prometheus 集成</td></tr><tr><td><strong>安全性</strong></td><td>支持 SASL、ACL、TLS，配置复杂</td><td>支持 TLS、RBAC、认证机制完善</td><td>支持 TLS、ACL，企业版更强</td><td>支持 TLS、认证，需关注 JVM 相关安全配置</td></tr></tbody></table><blockquote><p><strong>注：Nacos 2.x 采用复合一致性模型。Raft 协议用于所有持久化数据（包括配置管理和服务的持久化实例），保证 CP 强一致性；而服务注册中的临时实例则采用自研的 Distro 协议，实现高可用但弱一致性。</strong></p></blockquote><hr><h2 id="组件详细分析"><a href="#组件详细分析" class="headerlink" title="组件详细分析"></a>组件详细分析</h2><h3 id="1-ZooKeeper：分布式协调的元老"><a href="#1-ZooKeeper：分布式协调的元老" class="headerlink" title="1. ZooKeeper：分布式协调的元老"></a>1. ZooKeeper：分布式协调的元老</h3><p><strong>核心特点</strong>：</p><ul><li>Apache 顶级项目，诞生于 2006 年，是分布式协调领域的标杆，被 Kafka、Hadoop、HBase 等广泛采用。</li><li>提供分布式锁、领导者选举、集群成员管理等分布式原语，是许多底层系统的“神经中枢”。</li><li>使用树状结构（ZNode），支持 Watch 机制，实现事件驱动的数据订阅。</li><li>生态成熟，配合 Curator 框架可简化开发复杂度。</li></ul><p><strong>适用场景</strong>：</p><ul><li>分布式协调为核心诉求的系统</li><li>与 Hadoop/Kafka 等大数据生态深度集成</li><li>需要分布式锁、选举、元数据管理的场景</li></ul><p><strong>局限性</strong>：</p><ul><li>原生 API 设计底层，开发复杂</li><li>服务发现能力弱，无内置健康检查</li><li>集群扩容需重启，维护复杂，对网络抖动敏感</li></ul><hr><h3 id="2-etcd：云原生时代的强一致存储基石"><a href="#2-etcd：云原生时代的强一致存储基石" class="headerlink" title="2. etcd：云原生时代的强一致存储基石"></a>2. etcd：云原生时代的强一致存储基石</h3><p><strong>核心特点</strong>：</p><ul><li>Kubernetes 默认数据存储，专为云原生架构设计</li><li>使用 Raft 算法，保证写入线性一致性</li><li>支持 gRPC 和 REST API，跨语言友好</li><li>Watch 机制支持事件监听，便于配置推送</li></ul><p><strong>适用场景</strong>：</p><ul><li>Kubernetes 环境中的配置与元数据存储</li><li>高可用、强一致性键值存储需求</li><li>轻量级服务注册中心</li></ul><p><strong>局限性</strong>：</p><ul><li>默认单键值大小不超过 1.5MB（可通过参数调整）</li><li>不提供服务网格、健康检查等治理功能</li><li>更偏向平台组件，缺乏一站式管理体验</li></ul><hr><h3 id="3-Consul：服务治理的全能选手"><a href="#3-Consul：服务治理的全能选手" class="headerlink" title="3. Consul：服务治理的全能选手"></a>3. Consul：服务治理的全能选手</h3><p><strong>核心特点</strong>：</p><ul><li>集服务发现、KV 存储、健康检查、服务网格于一体</li><li>支持 DNS 和 HTTP 两种服务发现方式</li><li>内建多数据中心支持，跨地域部署方便</li><li>Consul Connect 支持 mTLS、服务代理、ACL 等网格能力</li><li>自带 Web UI，状态管理直观</li></ul><p><strong>适用场景</strong>：</p><ul><li>微服务架构中的服务注册与健康检查</li><li>构建跨区域服务网络</li><li>对服务网格、安全加密通信有要求的系统</li></ul><p><strong>局限性</strong>：</p><ul><li>多中心间仅提供最终一致性</li><li>服务网格功能需额外部署 Envoy 等代理组件</li><li>企业版功能更丰富，开源版略显不足</li></ul><hr><h3 id="4-Nacos：为微服务而生的一站式平台"><a href="#4-Nacos：为微服务而生的一站式平台" class="headerlink" title="4. Nacos：为微服务而生的一站式平台"></a>4. Nacos：为微服务而生的一站式平台</h3><p><strong>核心特点</strong>：</p><ul><li>集服务注册、配置管理、服务治理为一体，降低集成成本</li><li>支持双模一致性模型（Raft + Distro）：<ul><li><strong>Raft（CP 模式）</strong>：持久化数据，如配置与持久实例</li><li><strong>Distro（AP 模式）</strong>：临时实例注册，保障高可用</li></ul></li><li>与 Spring Cloud、Dubbo 等主流框架深度集成</li><li>提供服务分组、命名空间、灰度发布、流量调度等高级能力</li></ul><p><strong>适用场景</strong>：</p><ul><li>Java 技术栈微服务项目</li><li>同时需要配置中心与注册中心的系统</li><li>需要灵活服务治理能力的中大型项目</li></ul><p><strong>局限性</strong>：</p><ul><li>国际社区活跃度不如 Consul、etcd</li><li>JVM 运维调优要求高，大规模场景下需关注数据库与线程资源配置</li></ul><hr><h2 id="高可用性与扩展性对比"><a href="#高可用性与扩展性对比" class="headerlink" title="高可用性与扩展性对比"></a>高可用性与扩展性对比</h2><ul><li><strong>ZooKeeper</strong>：需奇数节点，扩容需重启，稳定性依赖网络状况</li><li><strong>etcd</strong>：支持动态扩容，Raft 保障强一致，适合云原生部署</li><li><strong>Consul</strong>：支持多数据中心同步，本地强一致，远端最终一致</li><li><strong>Nacos</strong>：服务注册基于 AP 模型具备扩展弹性，配置管理依赖 CP 模式的 Raft 集群</li></ul><hr><h2 id="运维与监控对比"><a href="#运维与监控对比" class="headerlink" title="运维与监控对比"></a>运维与监控对比</h2><ul><li><strong>ZooKeeper</strong>：需第三方工具如 zkui、Exhibitor，监控配置复杂</li><li><strong>etcd</strong>：CLI/API 直观，支持 Prometheus 集成，自动化程度高</li><li><strong>Consul</strong>：自带 UI，支持 Prometheus、Grafana，易于观测与故障排查</li><li><strong>Nacos</strong>：内建控制台，支持 Prometheus，界面友好，易于入门</li></ul><hr><h2 id="安全性对比"><a href="#安全性对比" class="headerlink" title="安全性对比"></a>安全性对比</h2><ul><li><strong>ZooKeeper</strong>：支持 SASL、ACL、TLS，但配置繁琐</li><li><strong>etcd</strong>：支持 TLS 加密、客户端认证、RBAC 权限控制，安全性强</li><li><strong>Consul</strong>：支持 TLS 和 ACL，企业版安全能力更强</li><li><strong>Nacos</strong>：支持 TLS 和认证机制，需关注 JVM 及配置安全</li></ul><hr><h2 id="生态与集成对比"><a href="#生态与集成对比" class="headerlink" title="生态与集成对比"></a>生态与集成对比</h2><table><thead><tr><th>组件</th><th>集成生态</th></tr></thead><tbody><tr><td><strong>ZooKeeper</strong></td><td>Kafka、Hadoop、HBase、Java 系统</td></tr><tr><td><strong>etcd</strong></td><td>Kubernetes、CoreOS、Go 微服务框架</td></tr><tr><td><strong>Consul</strong></td><td>HashiCorp 工具链（Terraform、Nomad）、云原生生态</td></tr><tr><td><strong>Nacos</strong></td><td>Spring Cloud、Dubbo、阿里云微服务生态，中国社区活跃</td></tr></tbody></table><hr><h2 id="组件选择指南"><a href="#组件选择指南" class="headerlink" title="组件选择指南"></a>组件选择指南</h2><h3 id="按核心需求选型"><a href="#按核心需求选型" class="headerlink" title="按核心需求选型"></a>按核心需求选型</h3><ul><li><strong>分布式协调需求高</strong>：ZooKeeper（配 Curator）或 etcd</li><li><strong>注册中心 + 健康检查</strong>：Consul 或 Nacos 更适合</li><li><strong>配置中心为主</strong>：Nacos（功能齐全）、etcd（一致性强）、Consul（KV存储稳健）</li><li><strong>服务网格需求强</strong>：首选 Consul Connect（或考虑 Istio）</li><li><strong>Java 技术栈</strong>：Nacos 与 Spring Cloud 集成最顺畅</li></ul><h3 id="按团队技术栈选型"><a href="#按团队技术栈选型" class="headerlink" title="按团队技术栈选型"></a>按团队技术栈选型</h3><ul><li><strong>偏向 Java</strong>：ZooKeeper 或 Nacos</li><li><strong>Go/K8s 环境</strong>：etcd 或 Consul</li><li><strong>大数据系统</strong>：ZooKeeper 为首选</li></ul><h3 id="按规模与运维能力选型"><a href="#按规模与运维能力选型" class="headerlink" title="按规模与运维能力选型"></a>按规模与运维能力选型</h3><ul><li><strong>小团队初创项目</strong>：Nacos 上手快，维护简单</li><li><strong>大规模微服务体系</strong>：Consul/Nacos 可应对大并发</li><li><strong>极简架构偏好者</strong>：etcd 功能聚焦，部署简便</li></ul><hr><h2 id="典型场景推荐方案"><a href="#典型场景推荐方案" class="headerlink" title="典型场景推荐方案"></a>典型场景推荐方案</h2><ol><li><p><strong>传统 Java 微服务（非 K8s）</strong>：</p><ul><li>服务治理：Nacos（Spring Cloud 深度集成）</li><li>分布式协调：etcd 或 ZooKeeper + Curator</li><li>一体化方案：Nacos 支持服务注册 + 配置管理</li></ul></li><li><p><strong>Kubernetes 容器平台</strong>：</p><ul><li>核心数据存储：etcd（K8s 标配）</li><li>服务注册：K8s Service + CoreDNS</li><li>高级配置中心：etcd 或 Nacos</li></ul></li><li><p><strong>跨地域部署系统</strong>：</p><ul><li>服务网络管理：Consul（内建多数据中心）</li><li>配置中心：Consul KV 或 Nacos（命名空间隔离）</li></ul></li></ol><hr><h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>分布式基础设施组件没有一劳永逸的选择，只有契合业务场景的最优解。ZooKeeper 是协调领域的经典基石，etcd 成为云原生中的强一致核心，Consul 在服务网格和网络治理中独具优势，而 Nacos 提供了微服务体系下的一体化解决方案。</p><p>实际项目中建议根据业务需求、技术生态、团队能力三方面综合评估，灵活选型。通常微服务体系下，<strong>Nacos 和 Consul</strong> 是兼顾功能与复杂度的优选；而在 K8s 环境中，<strong>etcd</strong> 是不可替代的基础设施核心。</p><hr><h2 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h2><ul><li><a href="https://nacos.io/">Nacos</a></li><li><a href="https://www.consul.io/">Consul</a></li><li><a href="https://zookeeper.apache.org/">ZooKeeper</a></li><li><a href="https://etcd.io/">etcd</a></li></ul>]]></content>
+    
+    
+    <summary type="html">&lt;p&gt;在分布式系统架构中，服务发现、配置管理和分布式协调是三大核心挑战。目前业界主流的解决方案包括 Nacos、Consul、ZooKeeper 和 etcd，它们各自基于不同的设计理念，适用于不同的业务场景。本文将从核心功能、特性细节、适用场景等多个维度进行深入对比，帮助技术团队在实际项目中做出合适的选择。&lt;/p&gt;</summary>
+    
+    
+    
+    
+    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
+    
+    <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
+    
+  </entry>
   
   <entry>
     <title>Biometric-Based Payment Product</title>
@@ -31,9 +52,9 @@
     
     
     
-    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
-    
     <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
+    
+    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
     
   </entry>
   
@@ -69,11 +90,11 @@
     
     
     
-    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
+    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
     
     <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
     
-    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
+    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
     
   </entry>
   
@@ -111,11 +132,11 @@
     
     
     
-    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
+    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
     
     <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
     
-    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
+    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
     
   </entry>
   
@@ -134,9 +155,9 @@
     
     
     
-    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
-    
     <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
+    
+    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
     
     <category term="一致性" scheme="https://www.yzhu.name/tags/%E4%B8%80%E8%87%B4%E6%80%A7/"/>
     
@@ -159,11 +180,11 @@
     
     
     
-    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
+    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
     
     <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
     
-    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
+    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
     
   </entry>
   
@@ -218,9 +239,9 @@
     
     
     
-    <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
-    
     <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
+    
+    <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
     
   </entry>
   
@@ -239,9 +260,9 @@
     
     
     
-    <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
-    
     <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
+    
+    <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
     
   </entry>
   
@@ -260,11 +281,11 @@
     
     
     
-    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
+    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
     
     <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
     
-    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
+    <category term="技术方案" scheme="https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/"/>
     
   </entry>
   
@@ -319,9 +340,9 @@
     
     
     
-    <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
-    
     <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
+    
+    <category term="分布式" scheme="https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"/>
     
   </entry>
   
@@ -400,31 +421,6 @@
     
     
     
-    
-  </entry>
-  
-  <entry>
-    <title>分布式调度系统选型</title>
-    <link href="https://www.yzhu.name/2019/03/30/Schedule-Job/"/>
-    <id>https://www.yzhu.name/2019/03/30/Schedule-Job/</id>
-    <published>2019-03-30T05:56:45.000Z</published>
-    <updated>2022-01-19T07:06:58.609Z</updated>
-    
-    <content type="html"><![CDATA[<h4 id="为什么需要调度系统"><a href="#为什么需要调度系统" class="headerlink" title="为什么需要调度系统"></a>为什么需要调度系统</h4><p>我们可能有这样的需求:</p><ol><li>在某个指定的时间点执行一个任务, 比如凌晨对前一天的数据进行汇总;</li><li>在某个操作后的指定时刻执行某一操作，比如：电商下单后一小时没有支付的订单需要被取消; </li><li>微服务失败后补偿操作;<span id="more"></span></li></ol><p>类似的需求我们都可以通过定时任务去完成。当然对于需求2，我们也可以利用MQ的延时投递功能去实现；但是，与外部系统交互只能用定时任务。</p><h4 id="Java领域主要分布式调度系统"><a href="#Java领域主要分布式调度系统" class="headerlink" title="Java领域主要分布式调度系统"></a>Java领域主要分布式调度系统</h4><ol><li>xxl-job：是一个轻量级分布式任务调度平台，其核心设计目标是开发迅速、学习简单、轻量级、易扩展 。</li><li>Elastic-Job： 当当开源的分布式调度解决方案，由两个相互独立的子项目Elastic-Job-Lite和Elastic-Job-Cloud组成；Elastic-Job-Lite定位为轻量级无中心化解决方案，使用jar包的形式提供分布式任务的协调服务；Elastic-Job-Cloud采用自研Mesos Framework的解决方案，额外提供资源治理、应用分发以及进程隔离等功能；</li><li>Saturn：是唯品会开源的一个分布式任务调度平台，在当当开源的Elastic Job基础上，取代传统的Linux Cron/Spring Batch Job的方式，做到全域统一配置，统一监控，任务高可用以及分片并发处理；</li><li>light-task-scheduler：阿里员工开源的个人项目,主要用于解决分布式任务调度问题，支持实时任务，定时任务和Cron任务。有较好的伸缩性，扩展性，健壮稳定性</li><li>Quartz: Java定时任务的标配。利用数据库的锁机制实现集群调度，业务代码需要考虑调度的逻辑，对业务代码有入侵。</li></ol><p>可能还有一些其它的系统个人不太了解，或者长期不在维护，它不在我们讨论的范畴。在这些系统中以xxl-job和Elastic-Job影响力最大，所以在调研的过程中以这两个系统为主.</p><h4 id="系统架构"><a href="#系统架构" class="headerlink" title="系统架构"></a>系统架构</h4><ol><li><p>xxl-job架构 </p><p><img src="/2019/03/30/Schedule-Job/xxl-job.png" alt="xxl-job架构"></p></li><li><p>Elastic-Job-Lite架构</p><p><img src="/2019/03/30/Schedule-Job/Elastic-Job-Lite.png" alt="Elastic-Job-Lite架构"></p></li></ol><p>从两个系统的架构上可以看出最大的区别是xxl-job有中心化的调度中心，所有的job由调度中心统一调度。而Elastic-Job-Lite没有统一调度中心，由每个Job各自任务节点通过选举算法选出调度节点，确切的说各个job之间没有统一的调度中心 ；Elastic-Job-Cloud依赖Mesos完成调度，资源隔离等工作。</p><h4 id="主要功能特性"><a href="#主要功能特性" class="headerlink" title="主要功能特性"></a>主要功能特性</h4><table><thead><tr><th></th><th>xxl-job</th><th>Elastic-Job</th></tr></thead><tbody><tr><td><strong>调度中心HA</strong></td><td>Y</td><td>Y</td></tr><tr><td><strong>执行器HA</strong></td><td>Y</td><td>Y</td></tr><tr><td><strong>弹性扩容缩容</strong></td><td>Y</td><td>Y</td></tr><tr><td><strong>失效转移</strong></td><td>Y</td><td>Y</td></tr><tr><td><strong>任务失败重试</strong></td><td>Y</td><td>Y</td></tr><tr><td><strong>作业分片一致性</strong></td><td>Y</td><td>Y</td></tr><tr><td><strong>资源隔离</strong></td><td>Y</td><td>Y</td></tr><tr><td><strong>多语言</strong></td><td>Y</td><td>N</td></tr><tr><td><strong>权限管理</strong></td><td>N</td><td>N</td></tr></tbody></table><p>从主要功能看上去两者都能提供很好的支持；在多语言支持方面，xxl-job提供通用HTTP任务Handler,业务方只需要提供HTTP链接即可，不限制语言。Elastic-Job目前只能支持Java，其它语言支持需要自行扩展。</p><h4 id="社区支持"><a href="#社区支持" class="headerlink" title="社区支持"></a>社区支持</h4><p>对于开源项目的选择，社区支持是非常重要的因素；强大的社区意味着，在遇到问题的时候可以得到社区资源的支持，否则只能自己解决了；社区支持我们以github的数据为准:</p><table><thead><tr><th></th><th>xxl-job</th><th>Elastic-Job</th></tr></thead><tbody><tr><td><strong>Star</strong></td><td>7408</td><td>4707</td></tr><tr><td><strong>Fork</strong></td><td>3121</td><td>2216</td></tr><tr><td><strong>Contributers</strong></td><td>17</td><td>17</td></tr><tr><td><strong>Open Issues</strong></td><td>82</td><td>115</td></tr><tr><td><strong>Close Issues</strong></td><td>602</td><td>384</td></tr><tr><td><strong>Latest Updated</strong></td><td>24天前</td><td>一年前</td></tr><tr><td><strong>已登记使用的公司</strong></td><td>163</td><td>63</td></tr></tbody></table><p>从以上数据可以看出来，xxl-job在社区支持方面有更大优势 。</p><h4 id="学习成本"><a href="#学习成本" class="headerlink" title="学习成本"></a>学习成本</h4><ul><li>xxl-job可以做到开箱即用，配置信息在管理控制台有UI统一配置，更容易上手 ; 包括监控，报警都可以在管理控制台完成。</li><li>Elastic-Job配置信息在执行器的spring xml文件完成，监控，报警需要自己定制 。</li></ul><h4 id="性能"><a href="#性能" class="headerlink" title="性能"></a>性能</h4><p>从两者的架构可以发现，在大任务量的情况下，Elastic-Job性能要高于xxl-job 。</p><h4 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h4><p>  如果对于技术实力比较强大的团队，而且对性能要求比较搞的情况下，建议选择Elastic-Job，在该基础上进行定制开发，可以取得更好效果；对于技术实力不足，性能能要求不是很高，而且希望快速开发，快速上线建议选择了xxl-job 。</p><h4 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h4><p><a href="http://www.xuxueli.com/xxl-job">http://www.xuxueli.com/xxl-job</a><br><a href="http://elasticjob.io/">http://elasticjob.io</a><br><a href="https://vipshop.github.io/Saturn">https://vipshop.github.io/Saturn</a><br><a href="https://github.com/ltsopensource/light-task-scheduler">https://github.com/ltsopensource/light-task-scheduler</a></p>]]></content>
-    
-    
-    <summary type="html">&lt;h4 id=&quot;为什么需要调度系统&quot;&gt;&lt;a href=&quot;#为什么需要调度系统&quot; class=&quot;headerlink&quot; title=&quot;为什么需要调度系统&quot;&gt;&lt;/a&gt;为什么需要调度系统&lt;/h4&gt;&lt;p&gt;我们可能有这样的需求:&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;在某个指定的时间点执行一个任务, 比如凌晨对前一天的数据进行汇总;&lt;/li&gt;
-&lt;li&gt;在某个操作后的指定时刻执行某一操作，比如：电商下单后一小时没有支付的订单需要被取消; &lt;/li&gt;
-&lt;li&gt;微服务失败后补偿操作;&lt;/li&gt;&lt;/ol&gt;</summary>
-    
-    
-    
-    
-    <category term="微服务" scheme="https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/"/>
-    
-    <category term="定时任务" scheme="https://www.yzhu.name/tags/%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1/"/>
     
   </entry>
   
