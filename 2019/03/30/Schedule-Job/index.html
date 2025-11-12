@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="为什么需要调度系统我们可能有这样的需求:  在某个指定的时间点执行一个任务, 比如凌晨对前一天的数据进行汇总; 在某个操作后的指定时刻执行某一操作，比如：电商下单后一小时没有支付的订单需要被取消;  微服务失败后补偿操作;">
+<meta property="og:type" content="article">
+<meta property="og:title" content="分布式调度系统选型">
+<meta property="og:url" content="https://www.yzhu.name/2019/03/30/Schedule-Job/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="为什么需要调度系统我们可能有这样的需求:  在某个指定的时间点执行一个任务, 比如凌晨对前一天的数据进行汇总; 在某个操作后的指定时刻执行某一操作，比如：电商下单后一小时没有支付的订单需要被取消;  微服务失败后补偿操作;">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yzhu.name/2019/03/30/Schedule-Job/xxl-job.png">
+<meta property="og:image" content="https://www.yzhu.name/2019/03/30/Schedule-Job/Elastic-Job-Lite.png">
+<meta property="article:published_time" content="2019-03-30T05:56:45.000Z">
+<meta property="article:modified_time" content="2025-11-11T03:53:15.773Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="定时任务">
+<meta property="article:tag" content="微服务">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yzhu.name/2019/03/30/Schedule-Job/xxl-job.png">
+
+<link rel="canonical" href="https://www.yzhu.name/2019/03/30/Schedule-Job/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>分布式调度系统选型 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2019/03/30/Schedule-Job/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          分布式调度系统选型
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-03-30 13:56:45" itemprop="dateCreated datePublished" datetime="2019-03-30T13:56:45+08:00">2019-03-30</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h4 id="为什么需要调度系统"><a href="#为什么需要调度系统" class="headerlink" title="为什么需要调度系统"></a>为什么需要调度系统</h4><p>我们可能有这样的需求:</p>
+<ol>
+<li>在某个指定的时间点执行一个任务, 比如凌晨对前一天的数据进行汇总;</li>
+<li>在某个操作后的指定时刻执行某一操作，比如：电商下单后一小时没有支付的订单需要被取消; </li>
+<li>微服务失败后补偿操作;<span id="more"></span></li>
+</ol>
+<p>类似的需求我们都可以通过定时任务去完成。当然对于需求2，我们也可以利用MQ的延时投递功能去实现；但是，与外部系统交互只能用定时任务。</p>
+<h4 id="Java领域主要分布式调度系统"><a href="#Java领域主要分布式调度系统" class="headerlink" title="Java领域主要分布式调度系统"></a>Java领域主要分布式调度系统</h4><ol>
+<li>xxl-job：是一个轻量级分布式任务调度平台，其核心设计目标是开发迅速、学习简单、轻量级、易扩展 。</li>
+<li>Elastic-Job： 当当开源的分布式调度解决方案，由两个相互独立的子项目Elastic-Job-Lite和Elastic-Job-Cloud组成；Elastic-Job-Lite定位为轻量级无中心化解决方案，使用jar包的形式提供分布式任务的协调服务；Elastic-Job-Cloud采用自研Mesos Framework的解决方案，额外提供资源治理、应用分发以及进程隔离等功能；</li>
+<li>Saturn：是唯品会开源的一个分布式任务调度平台，在当当开源的Elastic Job基础上，取代传统的Linux Cron&#x2F;Spring Batch Job的方式，做到全域统一配置，统一监控，任务高可用以及分片并发处理；</li>
+<li>light-task-scheduler：阿里员工开源的个人项目,主要用于解决分布式任务调度问题，支持实时任务，定时任务和Cron任务。有较好的伸缩性，扩展性，健壮稳定性</li>
+<li>Quartz: Java定时任务的标配。利用数据库的锁机制实现集群调度，业务代码需要考虑调度的逻辑，对业务代码有入侵。</li>
+</ol>
+<p>可能还有一些其它的系统个人不太了解，或者长期不在维护，它不在我们讨论的范畴。在这些系统中以xxl-job和Elastic-Job影响力最大，所以在调研的过程中以这两个系统为主.</p>
+<h4 id="系统架构"><a href="#系统架构" class="headerlink" title="系统架构"></a>系统架构</h4><ol>
+<li><p>xxl-job架构 </p>
+<p><img src="/2019/03/30/Schedule-Job/xxl-job.png" alt="xxl-job架构"></p>
+</li>
+<li><p>Elastic-Job-Lite架构</p>
+<p><img src="/2019/03/30/Schedule-Job/Elastic-Job-Lite.png" alt="Elastic-Job-Lite架构"></p>
+</li>
+</ol>
+<p>从两个系统的架构上可以看出最大的区别是xxl-job有中心化的调度中心，所有的job由调度中心统一调度。而Elastic-Job-Lite没有统一调度中心，由每个Job各自任务节点通过选举算法选出调度节点，确切的说各个job之间没有统一的调度中心 ；Elastic-Job-Cloud依赖Mesos完成调度，资源隔离等工作。</p>
+<h4 id="主要功能特性"><a href="#主要功能特性" class="headerlink" title="主要功能特性"></a>主要功能特性</h4><table>
+<thead>
+<tr>
+<th></th>
+<th>xxl-job</th>
+<th>Elastic-Job</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>调度中心HA</strong></td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td><strong>执行器HA</strong></td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td><strong>弹性扩容缩容</strong></td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td><strong>失效转移</strong></td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td><strong>任务失败重试</strong></td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td><strong>作业分片一致性</strong></td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td><strong>资源隔离</strong></td>
+<td>Y</td>
+<td>Y</td>
+</tr>
+<tr>
+<td><strong>多语言</strong></td>
+<td>Y</td>
+<td>N</td>
+</tr>
+<tr>
+<td><strong>权限管理</strong></td>
+<td>N</td>
+<td>N</td>
+</tr>
+</tbody></table>
+<p>从主要功能看上去两者都能提供很好的支持；在多语言支持方面，xxl-job提供通用HTTP任务Handler,业务方只需要提供HTTP链接即可，不限制语言。Elastic-Job目前只能支持Java，其它语言支持需要自行扩展。</p>
+<h4 id="社区支持"><a href="#社区支持" class="headerlink" title="社区支持"></a>社区支持</h4><p>对于开源项目的选择，社区支持是非常重要的因素；强大的社区意味着，在遇到问题的时候可以得到社区资源的支持，否则只能自己解决了；社区支持我们以github的数据为准:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>xxl-job</th>
+<th>Elastic-Job</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Star</strong></td>
+<td>7408</td>
+<td>4707</td>
+</tr>
+<tr>
+<td><strong>Fork</strong></td>
+<td>3121</td>
+<td>2216</td>
+</tr>
+<tr>
+<td><strong>Contributers</strong></td>
+<td>17</td>
+<td>17</td>
+</tr>
+<tr>
+<td><strong>Open Issues</strong></td>
+<td>82</td>
+<td>115</td>
+</tr>
+<tr>
+<td><strong>Close Issues</strong></td>
+<td>602</td>
+<td>384</td>
+</tr>
+<tr>
+<td><strong>Latest Updated</strong></td>
+<td>24天前</td>
+<td>一年前</td>
+</tr>
+<tr>
+<td><strong>已登记使用的公司</strong></td>
+<td>163</td>
+<td>63</td>
+</tr>
+</tbody></table>
+<p>从以上数据可以看出来，xxl-job在社区支持方面有更大优势 。</p>
+<h4 id="学习成本"><a href="#学习成本" class="headerlink" title="学习成本"></a>学习成本</h4><ul>
+<li>xxl-job可以做到开箱即用，配置信息在管理控制台有UI统一配置，更容易上手 ; 包括监控，报警都可以在管理控制台完成。</li>
+<li>Elastic-Job配置信息在执行器的spring xml文件完成，监控，报警需要自己定制 。</li>
+</ul>
+<h4 id="性能"><a href="#性能" class="headerlink" title="性能"></a>性能</h4><p>从两者的架构可以发现，在大任务量的情况下，Elastic-Job性能要高于xxl-job 。</p>
+<h4 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h4><p>  如果对于技术实力比较强大的团队，而且对性能要求比较搞的情况下，建议选择Elastic-Job，在该基础上进行定制开发，可以取得更好效果；对于技术实力不足，性能能要求不是很高，而且希望快速开发，快速上线建议选择了xxl-job 。</p>
+<h4 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h4><p><a href="http://www.xuxueli.com/xxl-job">http://www.xuxueli.com/xxl-job</a><br><a href="http://elasticjob.io/">http://elasticjob.io</a><br><a href="https://vipshop.github.io/Saturn">https://vipshop.github.io/Saturn</a><br><a href="https://github.com/ltsopensource/light-task-scheduler">https://github.com/ltsopensource/light-task-scheduler</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag"># 微服务</a>
+              <a href="/tags/%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1/" rel="tag"># 定时任务</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/03/01/product-bug/" rel="prev" title="海恩法则与生产Bug">
+      <i class="fa fa-chevron-left"></i> 海恩法则与生产Bug
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2019/04/27/Tech-VS-Biz/" rel="next" title="技术给业务赋能">
+      技术给业务赋能 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E8%B0%83%E5%BA%A6%E7%B3%BB%E7%BB%9F"><span class="nav-number">1.</span> <span class="nav-text">为什么需要调度系统</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Java%E9%A2%86%E5%9F%9F%E4%B8%BB%E8%A6%81%E5%88%86%E5%B8%83%E5%BC%8F%E8%B0%83%E5%BA%A6%E7%B3%BB%E7%BB%9F"><span class="nav-number">2.</span> <span class="nav-text">Java领域主要分布式调度系统</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84"><span class="nav-number">3.</span> <span class="nav-text">系统架构</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%B8%BB%E8%A6%81%E5%8A%9F%E8%83%BD%E7%89%B9%E6%80%A7"><span class="nav-number">4.</span> <span class="nav-text">主要功能特性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%A4%BE%E5%8C%BA%E6%94%AF%E6%8C%81"><span class="nav-number">5.</span> <span class="nav-text">社区支持</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AD%A6%E4%B9%A0%E6%88%90%E6%9C%AC"><span class="nav-number">6.</span> <span class="nav-text">学习成本</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%80%A7%E8%83%BD"><span class="nav-number">7.</span> <span class="nav-text">性能</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%BB%93%E8%AE%BA"><span class="nav-number">8.</span> <span class="nav-text">结论</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="nav-number">9.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

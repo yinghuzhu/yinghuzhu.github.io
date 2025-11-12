@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="基础组件是我们系统构成的关键要素，包括中间件SDK、基础架构组件等。它们为系统提供了核心功能和基本服务，为业务逻辑的实现提供支持; 近几年多做了一些基础组件的升级，有些经历了较长的升级周期，也有的一次上线直接成功，还有个别组件升级失败了，目前仍然在寻找改进方法；">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基础组件升级策略与实践">
+<meta property="og:url" content="https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="基础组件是我们系统构成的关键要素，包括中间件SDK、基础架构组件等。它们为系统提供了核心功能和基本服务，为业务逻辑的实现提供支持; 近几年多做了一些基础组件的升级，有些经历了较长的升级周期，也有的一次上线直接成功，还有个别组件升级失败了，目前仍然在寻找改进方法；">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-03-26T12:35:29.000Z">
+<meta property="article:modified_time" content="2025-11-11T03:53:15.768Z">
+<meta property="article:author" content="yhzhu">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>基础组件升级策略与实践 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          基础组件升级策略与实践
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-03-26 20:35:29" itemprop="dateCreated datePublished" datetime="2022-03-26T20:35:29+08:00">2022-03-26</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>基础组件是我们系统构成的关键要素，包括中间件SDK、基础架构组件等。它们为系统提供了核心功能和基本服务，为业务逻辑的实现提供支持; 近几年多做了一些基础组件的升级，有些经历了较长的升级周期，也有的一次上线直接成功，还有个别组件升级失败了，目前仍然在寻找改进方法； <span id="more"></span></p>
+<h2 id="为什么需要基础组件"><a href="#为什么需要基础组件" class="headerlink" title="为什么需要基础组件"></a>为什么需要基础组件</h2><p>为什么我们的系统要引入基础组件，使用基础组件由什么优势,以下根据个人体会列出了几点：</p>
+<ol>
+<li>提高开发效率：基础组件为提供了可重用、可定制和可扩展的组件和库。通过使用这些组件，开发团队能够快速搭建系统，并在不必从头开始编写代码的情况下实现常见功能。这大大提高了开发效率，缩短了产品上线时间</li>
+<li>降低开发成本：通过使用成熟的基础组件，我们能够减少自主开发和维护的工作量。这意味着可以节省开发资源，并将精力集中在增值业务和创新上。</li>
+<li>统一标准和规范：基础组件有助于确保在整个系统中使用一致的标准和规范。这种一致性使得不同团队的开发人员能够更好地协同工作，并减少因为不一致性而导致的问题。例如，使用统一的redis客户端组件限制一些危险命令的使用。</li>
+<li>提升系统可靠性和稳定性：基础组件经过专业的设计和测试，通常具有高度可靠性和稳定性。它们被广泛使用和验证，可以减少系统中的错误和故障。而且，这些组件通常具有自动化的监控和错误处理机制，能够及时发现和处理潜在的问题，提高系统的稳定性。</li>
+<li>解偶业务系统与中间件，平台之间的代码：提高系统的稳定性，方便维护，开发人员聚焦到业务功能开发；</li>
+<li>提高管理效率，通过技术手段将操作流程规范化</li>
+<li>安全性：确保系统采用安全大版本</li>
+</ol>
+<h2 id="为什么进行基础组件升级"><a href="#为什么进行基础组件升级" class="headerlink" title="为什么进行基础组件升级"></a>为什么进行基础组件升级</h2><ol>
+<li>修复组件Bug,提高系统稳定性: 随着时间的推移,基础组件中会暴露出各种Bug,这些Bug可能会导致系统崩溃或业务异常。升级组件可以修复已知的Bug,提高系统稳定性。</li>
+<li>获取最新功能特性,满足业务需要：基础组件推出新版本时,通常会提供新的功能和特性。业务需求瞬息万变,升级组件可以获得最新功能来满足业务需求。</li>
+<li>改善性能,提升效率：新版本的基础组件通常在性能和效率上有改进,如增加缓存、优化算法等。升级后可以减少响应时长,提升系统吞吐量。</li>
+<li>优化资源利用,降低成本：基础组件的新版本可能在资源调度和分配上进行了优化,可以提高资源利用率,降低系统运营成本。</li>
+<li>提高开发效率：新版本组件通常会优化API设计,提高开发效率。同时修复Bug也可以减少开发调试时间。</li>
+<li>解除对旧版的依赖：旧版本组件停止维护后,存在安全风险和兼容性问题。升级可以避免对旧版组件的依赖。</li>
+<li>减少技术债务：使用了较旧版本的基础组件，可能会有技术债务积累，包括安全漏洞、性能瓶颈等；升级基础组件是控制技术债务的重要措施之一，积压的技术债务会制约公司发展</li>
+<li>处理兼容性问题: 随着系统的发展和业务的扩展，可能需要与其他系统进行集成和交互，升级基础组件可以提供更好的兼容性和互操作性；</li>
+</ol>
+<h2 id="升级前的准备工作"><a href="#升级前的准备工作" class="headerlink" title="升级前的准备工作"></a>升级前的准备工作</h2><p>在进行基础组件升级之前，进行充分的准备工作是至关重要的，这可以帮助确保升级过程的顺利进行并最小化潜在风险。以下是升级前需要做的一些准备工作：</p>
+<ol>
+<li>明确目标： 定义升级的具体目标，明确您希望通过升级实现的业务和技术目标。了解升级所需的功能、性能、安全性等需求。</li>
+<li>收集现有信息： 收集关于当前系统和基础组件的详细信息，包括版本、依赖关系、功能和性能特征等。这将有助于为升级过程做出更准确的决策。</li>
+<li>评估风险和影响： 识别潜在的风险和影响范围，包括与升级相关的功能中断、兼容性问题、性能下降等。评估这些风险的严重程度，以便制定应对策略。</li>
+<li>数据策略： 在进行升级之前，确保对系统进行完整的备份。如果升级中出现问题，可以回滚到之前的状态。对于数据库等有状态的组件，可以创建快照； </li>
+<li>制定升级计划： 制定详细的升级计划，包括升级的步骤、时间表、责任人等。确定升级过程中需要涉及的各方，并为他们提供清晰的指导。对于较大范围升级工作，可以拆分为多个里程碑，尽可能保证每个步骤影响范围降到最低；</li>
+<li>制定回滚计划： 确定如何还原系统到升级前的状态，以便在紧急情况下进行干预。原则上对升级操作的每个步骤都有对应的回滚步骤，如果不能回滚的场景下必须给出快速解决的方法。</li>
+<li>测试环境预演： 在测试环境中进行升级的测试预演，以模拟真实生产环境。测试环境应该尽可能地与生产环境相似，以便更准确地预测升级可能的影响。</li>
+<li>性能和压力测试： 在压测环境中进行压力测试，以评估新版本基础组件在不同负载条件下的表现。这有助于预测在生产环境中可能出现的问题。</li>
+<li>制定上线计划通知所有相关方</li>
+<li>用户培训： 如果新版本引入了新的特性或变化，为团队成员提供培训，确保他们熟悉和适应新版本。</li>
+</ol>
+<h2 id="升级实践"><a href="#升级实践" class="headerlink" title="升级实践"></a>升级实践</h2><ol>
+<li>版本选择： 仔细评估新版本的功能、性能和安全特性。选择与业务需求最匹配的版本，同时考虑其稳定性和用户反馈,重点关注开源社区对issue list。</li>
+<li>兼容性检查： 检查新版本与现有系统的兼容性。确保新版本不会破坏现有的功能和集成。</li>
+<li>测试环境验证： 在测试环境中进行升级测试，尽量模拟真实生产环境，确保测试到各种可能影响到的场景。</li>
+<li>自动化测试： 针对关键业务场景和功能，创建自动化测试用例。这有助于快速验证新版本的稳定性和正确性。</li>
+<li>性能测试： 在压测环境中进行压力测试，以评估新版本在不同负载条件下的表现。识别潜在的性能问题。</li>
+<li>数据迁移计划： 如果升级涉及数据存储系统，制定数据迁移计划。确保数据的完整性和一致性。</li>
+<li>备份和回滚： 在进行任何升级操作之前，确保对系统进行全面备份。制定回滚计划，以便在升级过程中遇到问题时能够迅速还原。</li>
+<li>灰度发布： 如果条件许可尽可能采用渐进式发布策略，将新版本逐步引入生产环境，以减少风险。</li>
+<li>监控和报警： 升级后留意监控和报警，以便实时监控系统的性能和稳定性，及时发现并快速解决潜在问题。</li>
+</ol>
+<h2 id="升级后的监测与迭代"><a href="#升级后的监测与迭代" class="headerlink" title="升级后的监测与迭代"></a>升级后的监测与迭代</h2><ol>
+<li>性能监测： 持续监测系统的性能，包括响应时间、吞吐量、延迟等。比较升级前后的性能数据，确保新版本不会导致性能下降。</li>
+<li>稳定性监测： 监测系统的稳定性，识别是否存在崩溃、死锁、内存泄漏等问题。及时处理并解决这些问题，以确保系统不会因此而崩溃或变得不稳定。</li>
+<li>资源利用率监测： 监测服务器、内存、CPU、网络等资源的利用率。确保新版本不会导致资源耗尽。</li>
+<li>错误日志报警： 关注错误日志报警，确保升级后不会出现更多错误，防止问题升级为严重故障。</li>
+<li>快速响应和修复： 如果发现了严重问题，确保能够快速响应并进行修复。灵活地进行紧急发布，以解决可能影响业务的问题。</li>
+<li>收集用户的反馈: 了解用户在使用新版本时遇到的问题，帮助用户解决问题或在在后续版本修复。</li>
+</ol>
+<h2 id="设计基础组件的注意事项"><a href="#设计基础组件的注意事项" class="headerlink" title="设计基础组件的注意事项"></a>设计基础组件的注意事项</h2><p>在设计基础组件时，有一些注意事项可以考虑，以确保其可靠性、可扩展性和易用性。以下是一些常见的注意事项：</p>
+<ol>
+<li>定义清晰的接口：确保组件的功能和接口定义清晰明确。这将帮助其他开发人员理解如何正确使用组件，并减少潜在的集成问题。</li>
+<li>高可用性和容错性：基础组件通常是系统中不可或缺的一部分，因此必须具备高可用性和容错性。考虑使用冗余、自动故障转移和负载均衡等机制来提高系统的可用性。</li>
+<li>可扩展性：设计组件时要考虑到系统未来的扩展需求。确保组件可以水平扩展，以应对增加的负载和数据量。</li>
+<li>安全性：基础组件通常处理敏感数据和关键业务逻辑，因此安全性是至关重要的。实施适当的安全措施，如身份验证、访问控制和数据加密等，以保护组件免受潜在的威胁。</li>
+<li>性能优化：确保组件在处理大量请求和数据时能够提供良好的性能表现。使用高效的算法和数据结构，并进行性能测试和优化，以确保组件能够满足系统的性能需求。</li>
+<li>文档和日志记录：提供清晰、详细的文档和日志记录，以便开发人员和运维团队能够理解组件的工作原理和故障排查方法。</li>
+<li>监控和警报：实施监控和警报机制，以及时检测和响应组件的问题。监控关键指标，并设置警报以便在出现异常情况时及时通知相关人员。</li>
+<li>版本控制和发布管理：使用版本控制系统来管理组件的代码和配置，确保可追溯性和可靠的发布管理。考虑使用自动化工具和流程来简化部署和升级过程。</li>
+<li>可测试性：设计组件时要考虑到测试的可行性。提供适当的接口和工具，以便开发人员能够方便地编写和运行单元测试、集成测试和端到端测试。</li>
+<li>与其他组件的集成：如果组件需要与其他组件进行集成，要确保接口和数据格式的兼容性，并进行充分的集成测试，以验证组件的正确性和稳定性。</li>
+<li>遵循规范：组件实现需要遵循行业设计规范和标准,以提升互操作性</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/09/21/message-dsl-base-protobuff/" rel="prev" title="基于protobuf的定义在跨语言消息传递中的应用">
+      <i class="fa fa-chevron-left"></i> 基于protobuf的定义在跨语言消息传递中的应用
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/" rel="next" title="RestTemplate使用Apache HttpClinet连接池默认大小引发耗时瞬间升高">
+      RestTemplate使用Apache HttpClinet连接池默认大小引发耗时瞬间升高 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E5%9F%BA%E7%A1%80%E7%BB%84%E4%BB%B6"><span class="nav-number">1.</span> <span class="nav-text">为什么需要基础组件</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%BF%9B%E8%A1%8C%E5%9F%BA%E7%A1%80%E7%BB%84%E4%BB%B6%E5%8D%87%E7%BA%A7"><span class="nav-number">2.</span> <span class="nav-text">为什么进行基础组件升级</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8D%87%E7%BA%A7%E5%89%8D%E7%9A%84%E5%87%86%E5%A4%87%E5%B7%A5%E4%BD%9C"><span class="nav-number">3.</span> <span class="nav-text">升级前的准备工作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8D%87%E7%BA%A7%E5%AE%9E%E8%B7%B5"><span class="nav-number">4.</span> <span class="nav-text">升级实践</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8D%87%E7%BA%A7%E5%90%8E%E7%9A%84%E7%9B%91%E6%B5%8B%E4%B8%8E%E8%BF%AD%E4%BB%A3"><span class="nav-number">5.</span> <span class="nav-text">升级后的监测与迭代</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E8%AE%A1%E5%9F%BA%E7%A1%80%E7%BB%84%E4%BB%B6%E7%9A%84%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="nav-number">6.</span> <span class="nav-text">设计基础组件的注意事项</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

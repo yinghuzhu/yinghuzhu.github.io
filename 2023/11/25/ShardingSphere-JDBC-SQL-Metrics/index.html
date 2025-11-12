@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="最近我们进行了一个项目的重构，其中一个重要目标是减少数据库访问的负载。由于核心数据库被多个应用程序访问，并且数据库服务器只能对整体数据库流量进行监控，我们需要在应用程序端监控不同应用程序的SQL请求，并将其与现有的指标集成在一起">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Sharding-JDBC(ShardingSphere)SQL监控实践">
+<meta property="og:url" content="https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="最近我们进行了一个项目的重构，其中一个重要目标是减少数据库访问的负载。由于核心数据库被多个应用程序访问，并且数据库服务器只能对整体数据库流量进行监控，我们需要在应用程序端监控不同应用程序的SQL请求，并将其与现有的指标集成在一起">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/ShardingSphere-JDBC-SQL-Metrics-class.png">
+<meta property="article:published_time" content="2023-11-25T07:54:41.000Z">
+<meta property="article:modified_time" content="2025-11-11T03:53:15.775Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="监控">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/ShardingSphere-JDBC-SQL-Metrics-class.png">
+
+<link rel="canonical" href="https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Sharding-JDBC(ShardingSphere)SQL监控实践 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Sharding-JDBC(ShardingSphere)SQL监控实践
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-11-25 15:54:41" itemprop="dateCreated datePublished" datetime="2023-11-25T15:54:41+08:00">2023-11-25</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>最近我们进行了一个项目的重构，其中一个重要目标是减少数据库访问的负载。由于核心数据库被多个应用程序访问，并且数据库服务器只能对整体数据库流量进行监控，我们需要在应用程序端监控不同应用程序的SQL请求，并将其与现有的指标集成在一起<span id="more"></span>。</p>
+<h2 id="需求分析"><a href="#需求分析" class="headerlink" title="需求分析"></a>需求分析</h2><p>我们的需求是监控应用程序对数据库的SQL执行情况，并将其与现有的指标集成。我们希望监控以下指标（但不限于）：</p>
+<ul>
+<li>SQL语句的执行时间</li>
+<li>SQL语句的执行次数</li>
+<li>SQL语句的执行结果</li>
+<li>SQL语句的主库和备库路由</li>
+</ul>
+<h2 id="方案设计"><a href="#方案设计" class="headerlink" title="方案设计"></a>方案设计</h2><p>我们现有数据库相关技术栈包括MySql, Sharding-JDBC,HikariDataSource和MyBaties；在方案设计阶段，我们考虑了以下三种方案：</p>
+<h4 id="ShardingSphere的metrics"><a href="#ShardingSphere的metrics" class="headerlink" title="ShardingSphere的metrics"></a>ShardingSphere的metrics</h4><p> ShardingSphere的agent供了SQL监控的功能，具体可参考<a href="https://shardingsphere.apache.org/document/current/cn/user-manual/shardingsphere-jdbc/observability/">ShardingSphere的可观测性</a>然而，该代理会暴露一个独立的监控指标页面，无法直接集成到我们现有的监控指标页面中。我们需要单独采集ShardingSphere代理的监控指标，并将其与现有指标进行整合，这增加了一定的复杂性，因此我们放弃了该方案。</p>
+<h4 id="Mybaties的拦截器"><a href="#Mybaties的拦截器" class="headerlink" title="Mybaties的拦截器"></a>Mybaties的拦截器</h4><p> 使用MyBatis的拦截器实现SQL监控非常简单，只需实现<code>org.apache.ibatis.plugin.Interceptor</code>接口即可。以下是一个示例代码：<br>    <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">@Intercepts(&#123;</span><br><span class="line">    @Signature(type = Executor.class, method = &quot;query&quot;, args = &#123;MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class&#125;),</span><br><span class="line">    @Signature(type = Executor.class, method = &quot;query&quot;, args = &#123;MappedStatement.class, Object.class,RowBounds.class, ResultHandler.class, CacheKey.class, BoundSql.class&#125;),</span><br><span class="line">    @Signature(type = Executor.class, method = &quot;update&quot;, args = &#123;MappedStatement.class, Object.class&#125;)&#125;)</span><br><span class="line">public class SqlMetricsInterceptor implements Interceptor &#123;</span><br><span class="line">    @Override</span><br><span class="line">    public Object intercept(Invocation invocation) throws Throwable &#123;</span><br><span class="line">        MappedStatement mappedStatement = (MappedStatement) invocation.getArgs()[0];</span><br><span class="line">        SqlCommandType sqlCommandType = mappedStatement.getSqlCommandType();</span><br><span class="line">        /** 上报sql metrics**/</span><br><span class="line">        return invocation.proceed();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    public Object plugin(Object target) &#123;</span><br><span class="line">        if (target instanceof Executor) &#123;</span><br><span class="line">            return Plugin.wrap(target, this);</span><br><span class="line">        &#125;</span><br><span class="line">        return target;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    public void setProperties(Properties properties) &#123;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>  在容器启动后，我们将该拦截器注入到MyBatis的org.apache.ibatis.session.SqlSessionFactory中：<br>    <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"> @Autowired</span><br><span class="line">private ObjectProvider&lt;Interceptor&gt; interceptorsProvider;</span><br><span class="line"></span><br><span class="line">@Autowired</span><br><span class="line">private ObjectProvider&lt;SqlSessionFactory&gt; sqlSessionFactories;</span><br><span class="line"></span><br><span class="line">@Override</span><br><span class="line">public void afterPropertiesSet() throws Exception &#123;</span><br><span class="line">    for (SqlSessionFactory factory : sqlSessionFactories) &#123;</span><br><span class="line">        for (Interceptor interceptor : interceptorsProvider) &#123;</span><br><span class="line">            factory.getConfiguration().addInterceptor(interceptor);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><br>  通过以上步骤，我们可以在现有的监控指标页面中看到采集到的与SQL相关的监控指标。但是，该方案无法区分主库和备库的SQL。</p>
+<h4 id="JDBC-Statement"><a href="#JDBC-Statement" class="headerlink" title="JDBC Statement"></a>JDBC Statement</h4><p>  我们知道，最终的SQL执行是通过JDBC的Statement完成的，因此我们可以直接在JDBC的Statement执行SQL的地方上报监控指标。我们可以自定义Statement来执行SQL，并同时上报SQL的监控指标。以下是类关系图示例：<br>   <img src="/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/ShardingSphere-JDBC-SQL-Metrics-class.png"></p>
+<p>   在<code>DalStatement</code>和<code>PreparedStatement</code> 重载<code>executeQuery</code>和<code>executeUpdate</code> 方法增加相关监控指标，具体代码可参考<a href="https://github.com/yinghuzhu/ydal-spring-boot-starter">ydal-spring-boot-starter</a></p>
+<p>   这样可以输出类似如下的metrics上报到prometheus<br>   <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">sql_execute_time_seconds_count&#123;route=&quot;slave&quot;,datasource=&quot;order&quot;,type=&quot;select&quot;,&#125; 82.0</span><br><span class="line">sql_execute_time_seconds_sum&#123;route=&quot;slave&quot;,datasource=&quot;order&quot;,type=&quot;select&quot;,&#125; 12.373654891</span><br><span class="line">sql_execute_time_seconds_count&#123;route=&quot;master&quot;,datasource=&quot;order&quot;,type=&quot;select&quot;,&#125; 14.0</span><br><span class="line">sql_execute_time_seconds_sum&#123;route=&quot;master&quot;,datasource=&quot;order&quot;,type=&quot;select&quot;,&#125; 167.934782891</span><br><span class="line">sql_execute_time_seconds_count&#123;route=&quot;master&quot;,datasource=&quot;order&quot;,type=&quot;update&quot;,&#125; 1.0</span><br><span class="line">sql_execute_time_seconds_sum&#123;route=&quot;master&quot;,datasource=&quot;order&quot;,type=&quot;update&quot;,&#125; 0.493257718</span><br></pre></td></tr></table></figure><br>   通过这种方式，我们可以在现有的监控指标页面中查看采集到的SQL监控指标，并区分主库和备库的SQL。 详细代码：<a href="https://github.com/yinghuzhu/ydal-spring-boot-starter">https://github.com/yinghuzhu/ydal-spring-boot-starter</a> </p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>通过本次SQL监控的实践，我们成功地集成了SQL监控功能到我们的应用程序中，并将其与现有的指标集成在一起。这使得我们能够更好地了解应用程序对数据库的访问情况，并及时发现潜在的性能问题和瓶颈。我们选择了自定义的JDBC Statement来实现SQL监控，并通过上报监控指标的方式将其集成到现有的监控系统中。这种方案简单且有效，使我们能够对SQL执行进行精确监控，并根据需要进行进一步的优化和调整。尽管我们在本次实践中取得了成功，但我们也意识到SQL监控仅仅是性能优化和数据库访问管理的一部分。在未来的项目中，我们将继续探索更多的数据库访问优化技术，并进一步提高应用程序的性能和可伸缩性。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E7%9B%91%E6%8E%A7/" rel="tag"># 监控</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/09/09/Data-Memcached-To-Redis/" rel="prev" title="Data Memcached集群迁移至Redis集群">
+      <i class="fa fa-chevron-left"></i> Data Memcached集群迁移至Redis集群
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/12/10/User-Tag/" rel="next" title="跨境电商用户标签系统架构设计">
+      跨境电商用户标签系统架构设计 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%9C%80%E6%B1%82%E5%88%86%E6%9E%90"><span class="nav-number">1.</span> <span class="nav-text">需求分析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%96%B9%E6%A1%88%E8%AE%BE%E8%AE%A1"><span class="nav-number">2.</span> <span class="nav-text">方案设计</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#ShardingSphere%E7%9A%84metrics"><span class="nav-number">2.1.</span> <span class="nav-text">ShardingSphere的metrics</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Mybaties%E7%9A%84%E6%8B%A6%E6%88%AA%E5%99%A8"><span class="nav-number">2.2.</span> <span class="nav-text">Mybaties的拦截器</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#JDBC-Statement"><span class="nav-number">2.3.</span> <span class="nav-text">JDBC Statement</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">3.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

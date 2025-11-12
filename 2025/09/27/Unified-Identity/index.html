@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="通过建立共享服务层，实现系统间的统一登录、集中授权和用户数据同步，从而避免功能重复并确保数据一致性">
+<meta property="og:type" content="article">
+<meta property="og:title" content="统一身份管理与授权">
+<meta property="og:url" content="https://www.yzhu.name/2025/09/27/Unified-Identity/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="通过建立共享服务层，实现系统间的统一登录、集中授权和用户数据同步，从而避免功能重复并确保数据一致性">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2025-09-27T02:25:45.000Z">
+<meta property="article:modified_time" content="2025-11-11T03:53:15.776Z">
+<meta property="article:author" content="yhzhu">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2025/09/27/Unified-Identity/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>统一身份管理与授权 | yhzhu的随手记</title><meta name="robots" content="noindex">
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2025/09/27/Unified-Identity/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          统一身份管理与授权
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2025-09-27 10:25:45" itemprop="dateCreated datePublished" datetime="2025-09-27T10:25:45+08:00">2025-09-27</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>通过建立共享服务层，实现系统间的统一登录、集中授权和用户数据同步，从而避免功能重复并确保数据一致性<span id="more"></span>。</p>
+<hr>
+<h2 id="一、-整合目标与功能说明"><a href="#一、-整合目标与功能说明" class="headerlink" title="一、 整合目标与功能说明"></a>一、 整合目标与功能说明</h2><table>
+<thead>
+<tr>
+<th align="left">目标层级</th>
+<th align="left">解决的问题</th>
+<th align="left">核心功能</th>
+<th align="left">价值体现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>第一步：身份认证</strong></td>
+<td align="left">用户需要重复登录多个系统。</td>
+<td align="left"><strong>统一登录 (SSO)</strong></td>
+<td align="left">提高员工效率和用户体验，消除重复登录的痛点。</td>
+</tr>
+<tr>
+<td align="left"><strong>第二步：授权管理</strong></td>
+<td align="left">权限分散、复杂，调岗或新员工入职需要手动开通。</td>
+<td align="left"><strong>统一授权</strong></td>
+<td align="left">权限变更（调岗、离职）自动化，通过身份属性（如“3C品类运营”）驱动权限。</td>
+</tr>
+<tr>
+<td align="left"><strong>第三步：数据打通</strong></td>
+<td align="left">各系统用户数据不一致，无法进行交叉分析。</td>
+<td align="left"><strong>统一用户属性</strong></td>
+<td align="left">确保所有系统使用唯一的员工 ID 和组织架构数据，为未来数据分析和业务流程打通奠定基础。</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="二、-核心架构设计"><a href="#二、-核心架构设计" class="headerlink" title="二、 核心架构设计"></a>二、 核心架构设计</h2><p>为了避免应用系统功能重复，我们采用<strong>四层架构</strong>，将身份认证、用户管理和授权逻辑集中化。</p>
+<table>
+<thead>
+<tr>
+<th align="left">架构层级</th>
+<th align="left">核心系统名称</th>
+<th align="left">核心职责</th>
+<th align="left">技术实现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>1. 身份权威源</strong></td>
+<td align="left"><strong>HRIS &#x2F; 用户目录</strong></td>
+<td align="left">存储所有员工最权威、最完整的身份数据（包括组织架构、品类归属等）。</td>
+<td align="left">数据源</td>
+</tr>
+<tr>
+<td align="left"><strong>2. 身份管理中枢</strong></td>
+<td align="left"><strong>中央身份认证服务 (IdP)</strong></td>
+<td align="left">统一登录入口，颁发 Token，是所有身份数据的同步目标和唯一认证出口。</td>
+<td align="left"><strong>OIDC &#x2F; OAuth 2.0</strong></td>
+</tr>
+<tr>
+<td align="left"><strong>3. 共享服务层</strong></td>
+<td align="left"><strong>统一授权与用户服务</strong></td>
+<td align="left">集中处理所有应用系统的授权查询和用户列表查询，维护用户属性的实时缓存。</td>
+<td align="left"><strong>SCIM 协议</strong> (对外同步) &#x2F; <strong>内部 API</strong> (对应用提供查询服务)</td>
+</tr>
+<tr>
+<td align="left"><strong>4. 应用层</strong></td>
+<td align="left"><strong>CRM, EDM, WMS, etc.</strong></td>
+<td align="left">专注于自身的业务功能，不存储密码，不进行复杂的授权规则匹配。</td>
+<td align="left"><strong>OIDC 客户端 &#x2F; 调用共享服务 API</strong></td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="三、-数据交互流程（三大关键场景）"><a href="#三、-数据交互流程（三大关键场景）" class="headerlink" title="三、 数据交互流程（三大关键场景）"></a>三、 数据交互流程（三大关键场景）</h2><h3 id="场景-1：统一登录-SSO-与属性传递（OIDC）"><a href="#场景-1：统一登录-SSO-与属性传递（OIDC）" class="headerlink" title="场景 1：统一登录 (SSO) 与属性传递（OIDC）"></a>场景 1：统一登录 (SSO) 与属性传递（OIDC）</h3><table>
+<thead>
+<tr>
+<th align="left">步骤</th>
+<th align="left">流程描述</th>
+<th align="left">关键数据&#x2F;动作</th>
+<th align="left">涉及系统</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>1. 认证请求</strong></td>
+<td align="left">用户访问 CRM，被重定向到 IdP 登录。</td>
+<td align="left"><code>client_id</code>, <code>redirect_uri</code></td>
+<td align="left">CRM → IdP</td>
+</tr>
+<tr>
+<td align="left"><strong>2. 身份验证</strong></td>
+<td align="left">用户在 IdP 成功输入账号密码。</td>
+<td align="left">用户凭证验证</td>
+<td align="left">IdP</td>
+</tr>
+<tr>
+<td align="left"><strong>3. 令牌颁发</strong></td>
+<td align="left">IdP 颁发包含用户属性的 <strong>ID Token</strong>。</td>
+<td align="left">ID Token 包含 <code>user_id</code>, <code>product_category: 3C</code> 等 Claim</td>
+<td align="left">IdP → CRM</td>
+</tr>
+<tr>
+<td align="left"><strong>4. 权限执行</strong></td>
+<td align="left">CRM 解析 Token，根据属性动态开通本地权限。</td>
+<td align="left">会话创建</td>
+<td align="left">CRM</td>
+</tr>
+</tbody></table>
+<h3 id="场景-2：员工调岗与用户属性同步（SCIM）"><a href="#场景-2：员工调岗与用户属性同步（SCIM）" class="headerlink" title="场景 2：员工调岗与用户属性同步（SCIM）"></a>场景 2：员工调岗与用户属性同步（SCIM）</h3><table>
+<thead>
+<tr>
+<th align="left">步骤</th>
+<th align="left">流程描述</th>
+<th align="left">关键数据&#x2F;动作</th>
+<th align="left">涉及系统</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>1. 数据变更</strong></td>
+<td align="left">员工品类归属在 HRIS 发生变化。</td>
+<td align="left">用户属性更新</td>
+<td align="left">HRIS → IdP</td>
+</tr>
+<tr>
+<td align="left"><strong>2. SCIM 同步</strong></td>
+<td align="left">IdP 通过 SCIM 协议将最新用户属性同步到统一授权服务。</td>
+<td align="left">SCIM Update&#x2F;Patch Request</td>
+<td align="left">IdP → AuthService</td>
+</tr>
+<tr>
+<td align="left"><strong>3. 数据缓存</strong></td>
+<td align="left">统一授权服务更新本地缓存的瘦用户表。</td>
+<td align="left">用户缓存刷新</td>
+<td align="left">AuthService</td>
+</tr>
+</tbody></table>
+<h3 id="场景-3：管理员查询用户和设置精细权限（共享服务-API）"><a href="#场景-3：管理员查询用户和设置精细权限（共享服务-API）" class="headerlink" title="场景 3：管理员查询用户和设置精细权限（共享服务 API）"></a>场景 3：管理员查询用户和设置精细权限（共享服务 API）</h3><table>
+<thead>
+<tr>
+<th align="left">步骤</th>
+<th align="left">流程描述</th>
+<th align="left">关键数据&#x2F;动作</th>
+<th align="left">涉及系统</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>1. 查询请求</strong></td>
+<td align="left">CRM 管理员搜索用户。</td>
+<td align="left">API Call: <code>/api/user_info?name=Tom</code></td>
+<td align="left">CRM → AuthService</td>
+</tr>
+<tr>
+<td align="left"><strong>2. 结果返回</strong></td>
+<td align="left">AuthService 从缓存查找并返回用户信息。</td>
+<td align="left">JSON: <code>{user_id: U123, name: Tom}</code></td>
+<td align="left">AuthService → CRM</td>
+</tr>
+<tr>
+<td align="left"><strong>3. 权限分配</strong></td>
+<td align="left">管理员选中 U123，在 CRM 本地设置权限规则。</td>
+<td align="left">本地权限规则创建</td>
+<td align="left">CRM</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="四、-系统部署图"><a href="#四、-系统部署图" class="headerlink" title="四、 系统部署图"></a>四、 系统部署图</h2><pre class="mermaid">graph TD
+    subgraph A[Source of Truth]
+        HRIS[HRIS]
+    end
+
+    subgraph B[Identity Management]
+        IdP[IdP]
+    end
+
+    subgraph C[Shared Services]
+        AuthService[Authorization Service]
+        UserCache[User Cache]
+    end
+
+    subgraph D[Applications]
+        CRM[CRM]
+        EDM[EDM]
+        WMS[WMS/OMS/Other]
+    end
+
+    User[User]
+    
+    User --> IdP
+    IdP --> HRIS
+    HRIS --> IdP
+    IdP --> AuthService
+    AuthService --> UserCache
+    
+    IdP --> CRM
+    IdP --> EDM
+    IdP --> WMS
+    
+    CRM --> AuthService
+    EDM --> AuthService
+    WMS --> AuthService
+    AuthService --> UserCache
+    AuthService --> CRM</pre>
+
+<hr>
+<h2 id="五、-核心功能时序图"><a href="#五、-核心功能时序图" class="headerlink" title="五、 核心功能时序图"></a>五、 核心功能时序图</h2><h3 id="统一登录-SSO-与动态授权时序图"><a href="#统一登录-SSO-与动态授权时序图" class="headerlink" title="统一登录 (SSO) 与动态授权时序图"></a>统一登录 (SSO) 与动态授权时序图</h3><pre class="mermaid">sequenceDiagram
+    participant User
+    participant Browser
+    participant CRM
+    participant IdP
+    participant AuthService
+    participant Cache
+
+    User->>Browser: Access CRM
+    Browser->>CRM: GET /
+    CRM->>IdP: Redirect (OIDC)
+    
+    User->>IdP: Enter credentials
+    IdP-->>Browser: Return Code
+
+    Browser->>CRM: Send Code
+    CRM->>IdP: Exchange Code
+    IdP-->>CRM: ID Token
+
+    CRM->>AuthService: Query Permission
+    AuthService->>Cache: Lookup
+    Cache-->>AuthService: Attributes
+    AuthService-->>CRM: Permission List
+    CRM-->>User: Login Success</pre>
+
+<h3 id="管理员用户搜索与精细权限分配时序图"><a href="#管理员用户搜索与精细权限分配时序图" class="headerlink" title="管理员用户搜索与精细权限分配时序图"></a>管理员用户搜索与精细权限分配时序图</h3><pre class="mermaid">sequenceDiagram
+    participant Admin
+    participant CRM
+    participant AuthService
+    participant Cache
+
+    Admin->>CRM: Open Permission Page
+    CRM->>AuthService: Search User (Tom)
+    AuthService->>Cache: Query
+    Cache-->>AuthService: User Info
+    AuthService-->>CRM: User List
+    CRM-->>Admin: Show Result
+
+    Admin->>CRM: Select U123
+    CRM->>CRM: Save Local Rule</pre>
+
+<hr>
+<h2 id="六、-总结"><a href="#六、-总结" class="headerlink" title="六、 总结"></a>六、 总结</h2><p>通过统一身份管理与授权方案，可以实现：</p>
+<ol>
+<li><strong>效率提升</strong>：单点登录减少重复操作。</li>
+<li><strong>安全增强</strong>：调岗、离职权限自动回收，防止越权。</li>
+<li><strong>数据一致</strong>：所有系统基于同一用户 ID 与属性。</li>
+<li><strong>架构简化</strong>：业务系统聚焦自身功能，身份逻辑由共享层统一处理。</li>
+</ol>
+<p>未来可以扩展到 <strong>多因子认证 (MFA)</strong>、<strong>零信任访问</strong> 以及 <strong>审计与合规</strong>，进一步提升企业安全性和合规性。</p>
+<h1 id="统一身份管理方案（两层架构）"><a href="#统一身份管理方案（两层架构）" class="headerlink" title="统一身份管理方案（两层架构）"></a>统一身份管理方案（两层架构）</h1><p>通过建立身份管理层，实现系统间的统一登录（SSO）、集中授权和用户数据同步，避免功能重复并确保数据一致性，适合初创企业快速迭代和未来上市合规需求。</p>
+<h2 id="一、整合目标与功能说明"><a href="#一、整合目标与功能说明" class="headerlink" title="一、整合目标与功能说明"></a>一、整合目标与功能说明</h2><table>
+<thead>
+<tr>
+<th>目标层级</th>
+<th>解决的问题</th>
+<th>核心功能</th>
+<th>价值体现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>第一步：身份认证</strong></td>
+<td>用户需重复登录多个系统。</td>
+<td><strong>统一登录 (SSO)</strong></td>
+<td>提高员工效率和用户体验，消除重复登录痛点。</td>
+</tr>
+<tr>
+<td><strong>第二步：授权管理</strong></td>
+<td>权限分散，调岗&#x2F;新员工需手动开通。</td>
+<td><strong>统一授权</strong></td>
+<td>权限变更（如调岗、离职）半自动化，基于身份属性驱动权限。</td>
+</tr>
+<tr>
+<td><strong>第三步：数据打通</strong></td>
+<td>系统用户数据不一致，无法交叉分析。</td>
+<td><strong>统一用户属性</strong></td>
+<td>确保系统使用唯一员工ID和组织架构数据，支持业务流程优化。</td>
+</tr>
+</tbody></table>
+<h2 id="二、核心架构设计"><a href="#二、核心架构设计" class="headerlink" title="二、核心架构设计"></a>二、核心架构设计</h2><p>采用<strong>两层架构</strong>，将身份认证、用户管理和授权逻辑集中到身份管理层，应用层聚焦业务功能，降低初创企业实施成本。</p>
+<table>
+<thead>
+<tr>
+<th>架构层级</th>
+<th>核心系统名称</th>
+<th>核心职责</th>
+<th>技术实现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>身份管理层</strong></td>
+<td><strong>IAM（HRIS + IdP）</strong></td>
+<td>存储权威身份数据，提供统一认证、权限映射和用户数据API。</td>
+<td>OIDC&#x2F;OAuth 2.0（认证），REST API（查询&#x2F;同步）。</td>
+</tr>
+<tr>
+<td><strong>应用层</strong></td>
+<td><strong>CRM, EDM, WMS, etc.</strong></td>
+<td>聚焦业务功能，解析Token，维护精简用户表和本地权限规则。</td>
+<td>OIDC客户端，调用IAM API。</td>
+</tr>
+</tbody></table>
+<h2 id="三、数据交互流程（三大关键场景）"><a href="#三、数据交互流程（三大关键场景）" class="headerlink" title="三、数据交互流程（三大关键场景）"></a>三、数据交互流程（三大关键场景）</h2><h3 id="场景1：统一登录-SSO-与属性传递（OIDC）"><a href="#场景1：统一登录-SSO-与属性传递（OIDC）" class="headerlink" title="场景1：统一登录 (SSO) 与属性传递（OIDC）"></a>场景1：统一登录 (SSO) 与属性传递（OIDC）</h3><table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>流程描述</th>
+<th>关键数据&#x2F;动作</th>
+<th>涉及系统</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>1. 认证请求</strong></td>
+<td>用户访问CRM，被重定向到IAM登录。</td>
+<td><code>client_id</code>, <code>redirect_uri</code></td>
+<td>CRM → IAM</td>
+</tr>
+<tr>
+<td><strong>2. 身份验证</strong></td>
+<td>用户在IAM输入账号密码。</td>
+<td>用户凭证验证</td>
+<td>IAM</td>
+</tr>
+<tr>
+<td><strong>3. 令牌颁发</strong></td>
+<td>IAM颁发包含用户属性的ID Token。</td>
+<td>ID Token包含<code>user_id</code>, <code>product_category: 3C</code>等Claim</td>
+<td>IAM → CRM</td>
+</tr>
+<tr>
+<td><strong>4. 权限执行</strong></td>
+<td>CRM解析Token，动态开通本地权限。</td>
+<td>会话创建</td>
+<td>CRM</td>
+</tr>
+</tbody></table>
+<h3 id="场景2：员工调岗与用户属性同步（API-Webhook）"><a href="#场景2：员工调岗与用户属性同步（API-Webhook）" class="headerlink" title="场景2：员工调岗与用户属性同步（API&#x2F;Webhook）"></a>场景2：员工调岗与用户属性同步（API&#x2F;Webhook）</h3><table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>流程描述</th>
+<th>关键数据&#x2F;动作</th>
+<th>涉及系统</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>1. 数据变更</strong></td>
+<td>员工品类归属在IAM发生变化。</td>
+<td>用户属性更新</td>
+<td>IAM</td>
+</tr>
+<tr>
+<td><strong>2. 数据同步</strong></td>
+<td>IAM通过API&#x2F;Webhook通知应用更新属性。</td>
+<td>REST API或Webhook推送（如<code>user_id</code>, <code>product_category</code>）</td>
+<td>IAM → CRM&#x2F;EDM&#x2F;WMS</td>
+</tr>
+<tr>
+<td><strong>3. 本地更新</strong></td>
+<td>应用更新本地精简用户表。</td>
+<td>用户表刷新</td>
+<td>CRM&#x2F;EDM&#x2F;WMS</td>
+</tr>
+</tbody></table>
+<h3 id="场景3：管理员查询用户和设置精细权限（API）"><a href="#场景3：管理员查询用户和设置精细权限（API）" class="headerlink" title="场景3：管理员查询用户和设置精细权限（API）"></a>场景3：管理员查询用户和设置精细权限（API）</h3><table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>流程描述</th>
+<th>关键数据&#x2F;动作</th>
+<th>涉及系统</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>1. 查询请求</strong></td>
+<td>CRM管理员搜索用户。</td>
+<td>API Call: <code>/api/user_info?name=Tom</code></td>
+<td>CRM → IAM</td>
+</tr>
+<tr>
+<td><strong>2. 结果返回</strong></td>
+<td>IAM返回用户信息。</td>
+<td>JSON: <code>{user_id: U123, name: Tom}</code></td>
+<td>IAM → CRM</td>
+</tr>
+<tr>
+<td><strong>3. 权限分配</strong></td>
+<td>管理员在CRM本地设置权限规则。</td>
+<td>本地权限规则创建</td>
+<td>CRM</td>
+</tr>
+</tbody></table>
+<h2 id="四、系统部署图"><a href="#四、系统部署图" class="headerlink" title="四、系统部署图"></a>四、系统部署图</h2><pre class="mermaid">graph TD
+    subgraph Identity_Management_Layer
+        IAM[Identity Management]
+    end
+
+    subgraph Application_Layer
+        CRM[CRM]
+        EDM[EDM]
+        WMS[WMS]
+    end
+
+    User[User]
+
+    User --> IAM
+    IAM --> CRM
+    IAM --> EDM
+    IAM --> WMS
+    CRM --> IAM
+    EDM --> IAM
+    WMS --> IAM</pre>
+
+<h2 id="五、核心功能时序图"><a href="#五、核心功能时序图" class="headerlink" title="五、核心功能时序图"></a>五、核心功能时序图</h2><h3 id="统一登录-SSO-与动态授权时序图-1"><a href="#统一登录-SSO-与动态授权时序图-1" class="headerlink" title="统一登录 (SSO) 与动态授权时序图"></a>统一登录 (SSO) 与动态授权时序图</h3><pre class="mermaid">sequenceDiagram
+    participant User
+    participant Browser
+    participant CRM
+    participant IAM
+
+    User->>Browser: Access CRM
+    Browser->>CRM: GET /
+    CRM->>IAM: Redirect (OIDC)
+
+    User->>IAM: Enter credentials
+    IAM-->>Browser: Return Code
+    Browser->>CRM: Send Code
+    CRM->>IAM: Exchange Code
+    IAM-->>CRM: ID Token
+    CRM-->>User: Login Success</pre>
+
+<h3 id="管理员用户搜索与精细权限分配时序图-1"><a href="#管理员用户搜索与精细权限分配时序图-1" class="headerlink" title="管理员用户搜索与精细权限分配时序图"></a>管理员用户搜索与精细权限分配时序图</h3><pre class="mermaid">sequenceDiagram
+    participant Admin
+    participant CRM
+    participant IAM
+
+    Admin->>CRM: Open Permission Page
+    CRM->>IAM: Search User (Tom)
+    IAM-->>CRM: User Info (user_id: U123, name: Tom)
+    CRM-->>Admin: Show Result
+    Admin->>CRM: Select U123
+    CRM->>IAM: Query Permissions
+    IAM-->>CRM: Permission List
+    CRM->>CRM: Save Local Rule</pre>
+
+<h2 id="六、总结"><a href="#六、总结" class="headerlink" title="六、总结"></a>六、总结</h2><p>通过两层统一身份管理方案，实现：</p>
+<ol>
+<li><strong>效率提升</strong>：SSO减少重复登录操作。</li>
+<li><strong>安全增强</strong>：权限变更通过API&#x2F;Webhook半自动化，防止越权。</li>
+<li><strong>数据一致</strong>：所有系统基于统一用户ID和属性，应用层维护精简用户表。</li>
+<li><strong>架构简化</strong>：合并HRIS和IdP，移除共享服务层，降低初创实施成本。</li>
+</ol>
+<h3 id="合规支持（3年内上市）"><a href="#合规支持（3年内上市）" class="headerlink" title="合规支持（3年内上市）"></a>合规支持（3年内上市）</h3><ul>
+<li><strong>SOX&#x2F;GDPR</strong>：IAM集中认证和API日志支持审计追踪，精简用户表符合数据最小化原则。</li>
+<li><strong>建议</strong>：集成支持SOC 2&#x2F;ISO 27001的IdP（如Okta），记录同步和权限操作日志，计划上市前扩展MFA和审计功能。</li>
+</ul>
+<h3 id="未来扩展"><a href="#未来扩展" class="headerlink" title="未来扩展"></a>未来扩展</h3><ul>
+<li><strong>多因子认证 (MFA)</strong>：在IAM层添加TOTP或短信验证。</li>
+<li><strong>零信任访问</strong>：基于Token动态验证，增强安全。</li>
+<li><strong>共享服务层</strong>：规模扩大后引入统一授权服务和缓存，消除应用层精简用户表的重复存储。</li>
+</ul>
+<!-- flag of hidden posts -->
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%80%E3%80%81-%E6%95%B4%E5%90%88%E7%9B%AE%E6%A0%87%E4%B8%8E%E5%8A%9F%E8%83%BD%E8%AF%B4%E6%98%8E"><span class="nav-number">1.</span> <span class="nav-text">一、 整合目标与功能说明</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%8C%E3%80%81-%E6%A0%B8%E5%BF%83%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1"><span class="nav-number">2.</span> <span class="nav-text">二、 核心架构设计</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%89%E3%80%81-%E6%95%B0%E6%8D%AE%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B%EF%BC%88%E4%B8%89%E5%A4%A7%E5%85%B3%E9%94%AE%E5%9C%BA%E6%99%AF%EF%BC%89"><span class="nav-number">3.</span> <span class="nav-text">三、 数据交互流程（三大关键场景）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%BA%E6%99%AF-1%EF%BC%9A%E7%BB%9F%E4%B8%80%E7%99%BB%E5%BD%95-SSO-%E4%B8%8E%E5%B1%9E%E6%80%A7%E4%BC%A0%E9%80%92%EF%BC%88OIDC%EF%BC%89"><span class="nav-number">3.1.</span> <span class="nav-text">场景 1：统一登录 (SSO) 与属性传递（OIDC）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%BA%E6%99%AF-2%EF%BC%9A%E5%91%98%E5%B7%A5%E8%B0%83%E5%B2%97%E4%B8%8E%E7%94%A8%E6%88%B7%E5%B1%9E%E6%80%A7%E5%90%8C%E6%AD%A5%EF%BC%88SCIM%EF%BC%89"><span class="nav-number">3.2.</span> <span class="nav-text">场景 2：员工调岗与用户属性同步（SCIM）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%BA%E6%99%AF-3%EF%BC%9A%E7%AE%A1%E7%90%86%E5%91%98%E6%9F%A5%E8%AF%A2%E7%94%A8%E6%88%B7%E5%92%8C%E8%AE%BE%E7%BD%AE%E7%B2%BE%E7%BB%86%E6%9D%83%E9%99%90%EF%BC%88%E5%85%B1%E4%BA%AB%E6%9C%8D%E5%8A%A1-API%EF%BC%89"><span class="nav-number">3.3.</span> <span class="nav-text">场景 3：管理员查询用户和设置精细权限（共享服务 API）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9B%9B%E3%80%81-%E7%B3%BB%E7%BB%9F%E9%83%A8%E7%BD%B2%E5%9B%BE"><span class="nav-number">4.</span> <span class="nav-text">四、 系统部署图</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%94%E3%80%81-%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD%E6%97%B6%E5%BA%8F%E5%9B%BE"><span class="nav-number">5.</span> <span class="nav-text">五、 核心功能时序图</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%9F%E4%B8%80%E7%99%BB%E5%BD%95-SSO-%E4%B8%8E%E5%8A%A8%E6%80%81%E6%8E%88%E6%9D%83%E6%97%B6%E5%BA%8F%E5%9B%BE"><span class="nav-number">5.1.</span> <span class="nav-text">统一登录 (SSO) 与动态授权时序图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%A1%E7%90%86%E5%91%98%E7%94%A8%E6%88%B7%E6%90%9C%E7%B4%A2%E4%B8%8E%E7%B2%BE%E7%BB%86%E6%9D%83%E9%99%90%E5%88%86%E9%85%8D%E6%97%B6%E5%BA%8F%E5%9B%BE"><span class="nav-number">5.2.</span> <span class="nav-text">管理员用户搜索与精细权限分配时序图</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%AD%E3%80%81-%E6%80%BB%E7%BB%93"><span class="nav-number">6.</span> <span class="nav-text">六、 总结</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BB%9F%E4%B8%80%E8%BA%AB%E4%BB%BD%E7%AE%A1%E7%90%86%E6%96%B9%E6%A1%88%EF%BC%88%E4%B8%A4%E5%B1%82%E6%9E%B6%E6%9E%84%EF%BC%89"><span class="nav-number">7.</span> <span class="nav-text">统一身份管理方案（两层架构）</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%80%E3%80%81%E6%95%B4%E5%90%88%E7%9B%AE%E6%A0%87%E4%B8%8E%E5%8A%9F%E8%83%BD%E8%AF%B4%E6%98%8E"><span class="nav-number">7.1.</span> <span class="nav-text">一、整合目标与功能说明</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%8C%E3%80%81%E6%A0%B8%E5%BF%83%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1"><span class="nav-number">7.2.</span> <span class="nav-text">二、核心架构设计</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%89%E3%80%81%E6%95%B0%E6%8D%AE%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B%EF%BC%88%E4%B8%89%E5%A4%A7%E5%85%B3%E9%94%AE%E5%9C%BA%E6%99%AF%EF%BC%89"><span class="nav-number">7.3.</span> <span class="nav-text">三、数据交互流程（三大关键场景）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%BA%E6%99%AF1%EF%BC%9A%E7%BB%9F%E4%B8%80%E7%99%BB%E5%BD%95-SSO-%E4%B8%8E%E5%B1%9E%E6%80%A7%E4%BC%A0%E9%80%92%EF%BC%88OIDC%EF%BC%89"><span class="nav-number">7.3.1.</span> <span class="nav-text">场景1：统一登录 (SSO) 与属性传递（OIDC）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%BA%E6%99%AF2%EF%BC%9A%E5%91%98%E5%B7%A5%E8%B0%83%E5%B2%97%E4%B8%8E%E7%94%A8%E6%88%B7%E5%B1%9E%E6%80%A7%E5%90%8C%E6%AD%A5%EF%BC%88API-Webhook%EF%BC%89"><span class="nav-number">7.3.2.</span> <span class="nav-text">场景2：员工调岗与用户属性同步（API&#x2F;Webhook）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%BA%E6%99%AF3%EF%BC%9A%E7%AE%A1%E7%90%86%E5%91%98%E6%9F%A5%E8%AF%A2%E7%94%A8%E6%88%B7%E5%92%8C%E8%AE%BE%E7%BD%AE%E7%B2%BE%E7%BB%86%E6%9D%83%E9%99%90%EF%BC%88API%EF%BC%89"><span class="nav-number">7.3.3.</span> <span class="nav-text">场景3：管理员查询用户和设置精细权限（API）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9B%9B%E3%80%81%E7%B3%BB%E7%BB%9F%E9%83%A8%E7%BD%B2%E5%9B%BE"><span class="nav-number">7.4.</span> <span class="nav-text">四、系统部署图</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%94%E3%80%81%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD%E6%97%B6%E5%BA%8F%E5%9B%BE"><span class="nav-number">7.5.</span> <span class="nav-text">五、核心功能时序图</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%9F%E4%B8%80%E7%99%BB%E5%BD%95-SSO-%E4%B8%8E%E5%8A%A8%E6%80%81%E6%8E%88%E6%9D%83%E6%97%B6%E5%BA%8F%E5%9B%BE-1"><span class="nav-number">7.5.1.</span> <span class="nav-text">统一登录 (SSO) 与动态授权时序图</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AE%A1%E7%90%86%E5%91%98%E7%94%A8%E6%88%B7%E6%90%9C%E7%B4%A2%E4%B8%8E%E7%B2%BE%E7%BB%86%E6%9D%83%E9%99%90%E5%88%86%E9%85%8D%E6%97%B6%E5%BA%8F%E5%9B%BE-1"><span class="nav-number">7.5.2.</span> <span class="nav-text">管理员用户搜索与精细权限分配时序图</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93"><span class="nav-number">7.6.</span> <span class="nav-text">六、总结</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%90%88%E8%A7%84%E6%94%AF%E6%8C%81%EF%BC%883%E5%B9%B4%E5%86%85%E4%B8%8A%E5%B8%82%EF%BC%89"><span class="nav-number">7.6.1.</span> <span class="nav-text">合规支持（3年内上市）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%AA%E6%9D%A5%E6%89%A9%E5%B1%95"><span class="nav-number">7.6.2.</span> <span class="nav-text">未来扩展</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

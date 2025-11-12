@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="项目背景随着业务的快速发展，我们原有的 session 存储方案  Memcached  逐渐显露出一些瓶颈，主要体现在以下几个方面。：  扩展性受限：Memcached 集群不支持分片，要分片需要在客户端实现分片逻辑，扩容和缩容操作繁琐，运维成本较高，难以满足业务快速增长的需求">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Session Memcached集群迁移至Redis集群">
+<meta property="og:url" content="https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="项目背景随着业务的快速发展，我们原有的 session 存储方案  Memcached  逐渐显露出一些瓶颈，主要体现在以下几个方面。：  扩展性受限：Memcached 集群不支持分片，要分片需要在客户端实现分片逻辑，扩容和缩容操作繁琐，运维成本较高，难以满足业务快速增长的需求">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-10-22T14:51:20.000Z">
+<meta property="article:modified_time" content="2025-11-11T03:53:15.775Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="分布式">
+<meta property="article:tag" content="微服务">
+<meta property="article:tag" content="技术方案">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Session Memcached集群迁移至Redis集群 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Session Memcached集群迁移至Redis集群
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-10-22 22:51:20" itemprop="dateCreated datePublished" datetime="2022-10-22T22:51:20+08:00">2022-10-22</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h3 id="项目背景"><a href="#项目背景" class="headerlink" title="项目背景"></a>项目背景</h3><p>随着业务的快速发展，我们原有的 <code>session</code> 存储方案  <code>Memcached</code>  逐渐显露出一些瓶颈，主要体现在以下几个方面。：</p>
+<ul>
+<li><strong>扩展性受限</strong>：<code>Memcached</code> 集群不支持分片，要分片需要在客户端实现分片逻辑，<strong>扩容和缩容操作繁琐</strong>，运维成本较高，难以满足业务快速增长的需求<span id="more"></span>。</li>
+<li><strong>监控能力薄弱</strong>：<code>Memcached</code>  提供的<strong>监控指标有限</strong>，难以全面掌握集群运行状态，<strong>故障排查和告警</strong>不够便捷。</li>
+<li><strong>缺少持久化</strong>：<code>Memcached</code>  作为纯内存缓存，<strong>数据无法持久化</strong>，存在数据丢失风险，虽然 <code>session</code> 数据对持久化要求不高，但在某些极端情况下，数据丢失仍可能影响用户体验。</li>
+</ul>
+<p>为了解决  <code>Memcached</code>  的上述问题，并提升  <code>session</code>  存储的<strong>扩展性、可维护性和监控能力</strong>，我们决定将  <code>session</code>  存储方案迁移至  <strong>Redis 集群</strong>。<code>Redis</code>  集群在<strong>集群化、监控告警、数据持久化</strong>等方面都具备显著优势，能够更好地满足我们业务发展的需求。</p>
+<h3 id="迁移方案与实施阶段"><a href="#迁移方案与实施阶段" class="headerlink" title="迁移方案与实施阶段"></a>迁移方案与实施阶段</h3><p>本次  <code>session</code>  迁移项目，我们采取了<strong>分阶段、平滑迁移</strong>的策略，最大程度降低迁移风险，保障业务的连续性和稳定性。整个迁移过程分为三个阶段：</p>
+<pre class="mermaid">graph TD
+    subgraph "第一阶段"
+        A1[应用服务] --> |写| B1[Memcached]
+        A1 --> |写| C1[Redis]
+        B1 --> |读| A1
+    end
+    
+    subgraph "第二阶段"
+        A2[应用服务] --> |写| B2[Memcached]
+        A2 --> |写| C2[Redis]
+        C2 --> |读| A2
+    end
+    
+    subgraph "第三阶段"
+        A3[应用服务] --> |写| C3[Redis]
+        C3 --> |读| A3
+        B3[Memcached] -.-> |停止写入| A3
+    end</pre>
+
+
+<ul>
+<li><p><strong>第一阶段：双写 Memcached 和 Redis，读 Memcached</strong></p>
+<ul>
+<li><strong>目标</strong>：验证  <code>Redis</code>  集群的稳定性和性能，为后续切换读取流量做好数据准备。</li>
+<li><strong>策略</strong>：应用系统同时向  <code>Memcached</code>  和  <code>Redis</code>  集群写入  <code>session</code>  数据，但<strong>只从  <code>Memcached</code>  读取  <code>session</code>  数据</strong>。</li>
+<li><strong>数据一致性保障</strong>：<strong>双写成功才算成功</strong>，确保  <code>Memcached</code>  和  <code>Redis</code>  数据一致性。任何写入失败都会记录详细日志并触发告警，方便后续数据补偿。</li>
+<li><strong>持续时间</strong>：为了保证  <code>Redis</code>  集群中  <code>session</code>  数据的完整性，双写阶段持续 <strong>30 天</strong>，覆盖  <code>session</code>  的最长过期时间，确保  <code>Redis</code>  集群拥有全量  <code>session</code>  数据。</li>
+</ul>
+</li>
+<li><p><strong>第二阶段：双写 Memcached 和 Redis，读 Redis</strong></p>
+<ul>
+<li><strong>目标</strong>：将读取流量平滑切换到  <code>Redis</code>  集群，验证  <code>Redis</code>  集群在高并发读取场景下的性能表现。</li>
+<li><strong>策略</strong>：应用系统仍然同时向  <code>Memcached</code>  和  <code>Redis</code>  集群写入  <code>session</code>  数据，但<strong>读取操作切换至  <code>Redis</code>  集群</strong>。</li>
+<li><strong>平滑切换</strong>：采用<strong>灰度发布</strong>策略，逐步将读取流量从  <code>Memcached</code>  切换到  <code>Redis</code>  集群，降低切换风险。</li>
+<li><strong>回滚准备</strong>：<strong>保留  <code>Memcached</code>  的写入</strong>，为后续可能的回滚操作预留数据基础。</li>
+</ul>
+</li>
+<li><p><strong>第三阶段：停止 Memcached 写入，读 Redis</strong></p>
+<ul>
+<li><strong>目标</strong>：完全切换到  <code>Redis</code>  集群，停用  <code>Memcached</code>。</li>
+<li><strong>策略</strong>：<strong>停止向  <code>Memcached</code>  写入  <code>session</code>  数据</strong>，所有读写操作均转向  <code>Redis</code>  集群。</li>
+<li><strong>风险评估</strong>：在进入第三阶段前，进行全面的<strong>风险评估</strong>，确认系统运行稳定，各项监控指标正常。由于第二阶段已经验证了  <code>Redis</code>  集群的读取能力，且  <code>Memcached</code>  写入持续运行，因此第三阶段的风险较低。</li>
+</ul>
+</li>
+</ul>
+<h3 id="关键技术挑战与解决方案"><a href="#关键技术挑战与解决方案" class="headerlink" title="关键技术挑战与解决方案"></a>关键技术挑战与解决方案</h3><p>在  <code>session</code>  迁移过程中，我们主要面临以下技术挑战：</p>
+<ul>
+<li><strong>数据一致性</strong>：在双写阶段，如何保证  <code>Memcached</code>  和  <code>Redis</code>  的数据一致性至关重要。我们通过<strong>双写强一致性策略</strong>和完善的<strong>异常监控告警机制</strong>来解决这个问题。</li>
+<li><strong>平滑切换</strong>：如何平滑地将读取流量从  <code>Memcached</code>  切换到  <code>Redis</code>  集群，避免对用户体验造成影响。我们采用<strong>灰度发布</strong>策略，逐步切换流量，并密切监控系统运行状态。</li>
+<li><strong>性能保障</strong>：<code>Redis</code>  集群在高并发场景下的性能是否能够满足需求，需要进行充分的验证。我们在第二阶段通过<strong>全量流量读取  <code>Redis</code>  集群</strong>，验证了  <code>Redis</code>  集群的性能表现。</li>
+<li><strong>监控与回滚</strong>：如何全面监控迁移过程，及时发现和处理异常，并制定完善的回滚方案，保障迁移过程的安全可控。利用我们<strong>完善的监控体系</strong>，针对每个阶段制定了详细的<strong>回滚计划</strong>。</li>
+</ul>
+<h3 id="性能监控与回滚方案"><a href="#性能监控与回滚方案" class="headerlink" title="性能监控与回滚方案"></a>性能监控与回滚方案</h3><p>为了保障  <code>session</code>  迁移项目的平稳落地，我们建立了完善的性能监控和回滚方案：</p>
+<h4 id="1-性能监控"><a href="#1-性能监控" class="headerlink" title="1. 性能监控"></a>1. 性能监控</h4><p>在整个迁移过程中，我们重点监控以下关键指标：</p>
+<ul>
+<li><strong>Redis 集群性能指标</strong>：<ul>
+<li><strong>CPU 使用率、内存使用率</strong>：监控  <code>Redis</code>  集群资源使用情况，判断集群是否过载。</li>
+<li><strong>请求延迟</strong>：监控  <code>Redis</code>  请求响应时间，评估  <code>Redis</code>  集群性能是否满足需求。</li>
+<li><strong>错误率</strong>：监控  <code>Redis</code>  请求错误率，及时发现  <code>Redis</code>  集群异常。</li>
+<li><strong>大key和热key</strong>：关注  <code>Redis</code>  的流量和CPU变化是否出现<strong>大key和热key</strong>。</li>
+</ul>
+</li>
+<li><strong>Session 读写成功率</strong>：<ul>
+<li><strong>Redis  <code>session</code>  读取成功率</strong>：监控从  <code>Redis</code>  集群读取  <code>session</code>  的成功率，确保读取操作正常。</li>
+<li><strong>Redis  <code>session</code>  写入成功率</strong>：监控向  <code>Redis</code>  集群写入  <code>session</code>  的成功率，确保写入操作正常。</li>
+<li><strong>Memcached  <code>session</code>  写入成功率</strong>：在双写阶段，监控向  <code>Memcached</code>  写入  <code>session</code>  的成功率，确保双写操作正常。</li>
+</ul>
+</li>
+<li><strong>应用系统业务指标</strong>：<ul>
+<li><strong>接口响应时间</strong>：监控应用系统接口响应时间，评估迁移对应用系统性能的影响。</li>
+<li><strong>错误率</strong>：监控应用系统错误率，评估迁移是否引入新的错误。</li>
+<li><strong>登录用户指标</strong>：监控登录用户数量变化，判断迁移是否影响用户登录。</li>
+<li><strong>各阶段转化率</strong> (加购，生单，支付)：监控用户在各个关键业务流程的转化率，评估迁移是否对业务指标造成负面影响。</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-回滚方案"><a href="#2-回滚方案" class="headerlink" title="2. 回滚方案"></a>2. 回滚方案</h4><ul>
+<li><strong>回滚触发</strong>：当监控指标出现异常，例如：应用系统接口响应时间显著增加、业务指标出现明显波动等情况时，立即触发回滚。</li>
+<li><strong>回滚步骤</strong>：<ol>
+<li><strong>流量切换</strong>：立即将  <code>session</code>  读取流量<strong>回退到  <code>Memcached</code></strong>。由于第二阶段持续保持  <code>Memcached</code>  写入，<code>Memcached</code>  中仍然保有全量  <code>session</code>  数据，可以快速切换回读。</li>
+<li><strong>问题排查</strong>：回滚后，立即排查  <code>Redis</code>  集群异常原因，修复问题。</li>
+<li><strong>重新迁移</strong>：待问题解决后，重新评估并选择合适的时机再次进行迁移。</li>
+</ol>
+</li>
+</ul>
+<p>由于我们在第二阶段已经进行了充分的  <code>Redis</code>  集群读取验证，并且在第三阶段前进行了全面的风险评估，因此实际上<strong>并未触发回滚</strong>。  <strong>第二阶段保留  <code>Memcached</code>  写入的主要目的就是为了应对可能的回滚场景</strong>，为系统提供一层额外的安全保障。</p>
+<h3 id="项目总结与收益"><a href="#项目总结与收益" class="headerlink" title="项目总结与收益"></a>项目总结与收益</h3><p><code>session</code> 从 <code>Memcached</code> 平滑迁移至 <code>Redis</code> 集群项目，历时数月，整个迁移过程较为顺利，最终<strong>平稳落地，达到预期目标</strong>。通过本次迁移，我们成功解决了 <code>Memcached</code> 在<strong>扩展性、监控能力</strong>等方面的瓶颈，为业务发展提供了更可靠、更高效的 <code>session</code> 存储方案。</p>
+<p><strong>项目收益总结</strong>：</p>
+<ul>
+<li><strong>提升扩展性</strong>：<code>Redis</code> 集群具备良好的<strong>水平扩展能力</strong>，可以轻松应对未来 <code>session</code> 数据量的增长。相比原来需要在客户端实现分片的 <code>Memcached</code> 方案，<code>Redis</code> 集群的扩容和缩容操作更加简单直观，极大降低了运维成本。</li>
+<li><strong>增强监控能力</strong>：<code>Redis</code> 集群提供<strong>更丰富的监控指标</strong>，并能与 <code>Prometheus</code> 等监控系统方便集成，提升运维效率。</li>
+<li><strong>性能稳定</strong>：迁移后系统性能与原 <code>Memcached</code> 方案基本持平，但在运维性和可扩展性方面获得了显著提升，为未来业务增长预留了充足的扩展空间。</li>
+<li><strong>为未来优化奠定基础</strong>：迁移至 <code>Redis</code> 集群，为后续 <code>session</code> 存储的<strong>性能优化、功能增强</strong>（例如，利用 <code>Redis</code> 更丰富的数据结构实现更复杂的 <code>session</code> 管理功能）奠定了基础。</li>
+</ul>
+<p>本次  <code>session</code>  迁移项目，  <strong>分阶段平滑迁移策略、完善的监控回滚方案、以及对数据一致性的高度重视</strong>，是项目成功的关键因素。  这些经验也为我们后续进行类似的大型系统迁移项目提供了宝贵的参考.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/" rel="tag"># 技术方案</a>
+              <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag"># 分布式</a>
+              <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag"># 微服务</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/" rel="prev" title="RestTemplate使用Apache HttpClinet连接池默认大小引发耗时瞬间升高">
+      <i class="fa fa-chevron-left"></i> RestTemplate使用Apache HttpClinet连接池默认大小引发耗时瞬间升高
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/" rel="next" title="灰度发布过程中缓存数据一致性问题">
+      灰度发布过程中缓存数据一致性问题 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%A1%B9%E7%9B%AE%E8%83%8C%E6%99%AF"><span class="nav-number">1.</span> <span class="nav-text">项目背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BF%81%E7%A7%BB%E6%96%B9%E6%A1%88%E4%B8%8E%E5%AE%9E%E6%96%BD%E9%98%B6%E6%AE%B5"><span class="nav-number">2.</span> <span class="nav-text">迁移方案与实施阶段</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%B3%E9%94%AE%E6%8A%80%E6%9C%AF%E6%8C%91%E6%88%98%E4%B8%8E%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-number">3.</span> <span class="nav-text">关键技术挑战与解决方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7%E4%B8%8E%E5%9B%9E%E6%BB%9A%E6%96%B9%E6%A1%88"><span class="nav-number">4.</span> <span class="nav-text">性能监控与回滚方案</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E6%80%A7%E8%83%BD%E7%9B%91%E6%8E%A7"><span class="nav-number">4.1.</span> <span class="nav-text">1. 性能监控</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E5%9B%9E%E6%BB%9A%E6%96%B9%E6%A1%88"><span class="nav-number">4.2.</span> <span class="nav-text">2. 回滚方案</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%A1%B9%E7%9B%AE%E6%80%BB%E7%BB%93%E4%B8%8E%E6%94%B6%E7%9B%8A"><span class="nav-number">5.</span> <span class="nav-text">项目总结与收益</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

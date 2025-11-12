@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="在分布式系统中，同时满足“CAP定律”中的“一致性”、“可用性”和“分区容错性”三者是不可能的。在互联网领域的绝大多数的场景，都需要牺牲强一致性来换取系统的高可用性，系统往往只需要保证“最终一致性”，只要这个最终时间是在用户可以接受的范围内即可。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="分布式事务实现">
+<meta property="og:url" content="https://www.yzhu.name/2018/05/22/distributed-transaction/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="在分布式系统中，同时满足“CAP定律”中的“一致性”、“可用性”和“分区容错性”三者是不可能的。在互联网领域的绝大多数的场景，都需要牺牲强一致性来换取系统的高可用性，系统往往只需要保证“最终一致性”，只要这个最终时间是在用户可以接受的范围内即可。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2018-05-22T07:17:36.000Z">
+<meta property="article:modified_time" content="2025-11-11T03:53:15.776Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="一致性">
+<meta property="article:tag" content="分布式">
+<meta property="article:tag" content="微服务">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2018/05/22/distributed-transaction/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>分布式事务实现 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2018/05/22/distributed-transaction/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          分布式事务实现
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2018-05-22 15:17:36" itemprop="dateCreated datePublished" datetime="2018-05-22T15:17:36+08:00">2018-05-22</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在分布式系统中，同时满足“CAP定律”中的“一致性”、“可用性”和“分区容错性”三者是不可能的。在互联网领域的绝大多数的场景，都需要牺牲强一致性来换取系统的高可用性，系统往往只需要保证“最终一致性”，只要这个最终时间是在用户可以接受的范围内即可。<span id="more"></span></p>
+<h3 id="XA"><a href="#XA" class="headerlink" title="XA"></a>XA</h3><p>XA规范主要定义了事务管理器(Transaction Manager)和资源管理器(Resource Manager)之间的接口. XA引入事务管理器是因为在分布式系统中，从理论上讲两台机器上无法达到一致的状态，需要引入一个外部点进行协调。事务管理器控制着全局事务，管理事务生命周期，并协调资源, 资源管理器负责控制和管理实际资源 。XA是一个两阶段提交协议，该协议分为以下两个阶段：</p>
+<ol>
+<li>事务协调器要求每个涉及到事务的数据库预提交，并反映是否可以提交 。</li>
+<li>事务协调器要求每个数据库提交数据 。</li>
+</ol>
+<p>如果有任何一个数据库否决此次提交，那么所有数据库都会被要求回滚它们在此事务中的那部分信息 。</p>
+<h3 id="JTA"><a href="#JTA" class="headerlink" title="JTA"></a>JTA</h3><p>JTA作为JAVA平台上的事务规范，同时定义了对XA事务的支持；在JTA中，事务管理器抽象为javax.transaction.TransactionManager接口，通过底层事务服务（即JTS）实现,JTA仅仅定义了接口，具体的实现则是由供应商(如J2EE厂商)负责提供，目前JTA的实现主要由J2EE容器所提供的JTA实现(如JBOSS)和独立的JTA实现(如JOTM，Atomikos)。</p>
+<blockquote>
+<p>JTA本质上是两阶段提交，实现复杂，牺牲了可用性，对性能影响较大, 适合对数据强一致(<strong>其实也不能100%保证强一致</strong>)要求很高的关键领域; 大部分互联网业务都不会采用两阶段提交的方式 。</p>
+</blockquote>
+<h3 id="链式事务管理"><a href="#链式事务管理" class="headerlink" title="链式事务管理"></a>链式事务管理</h3><p>这种方式也Spring提供的，可以将两个或多个数据库资源的事务串联到一起，公用一个TransactionManager来实现对多个资源的事务。配置方式如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">  &lt;bean id=&quot;transactionManager&quot; class=&quot;org.springframework.data.transaction.ChainedTransactionManager&quot;&gt;</span><br><span class="line">  &lt;property name=&quot;transactionManagers&quot;&gt;</span><br><span class="line">    &lt;list&gt;</span><br><span class="line">      &lt;bean</span><br><span class="line">        class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;</span><br><span class="line">        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource1&quot; /&gt;</span><br><span class="line">      &lt;/bean&gt;</span><br><span class="line">      &lt;bean</span><br><span class="line">        class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;</span><br><span class="line">        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource2&quot; /&gt;</span><br><span class="line">      &lt;/bean&gt;</span><br><span class="line">    &lt;/list&gt;</span><br><span class="line">  &lt;/property&gt;</span><br><span class="line">&lt;/bean&gt;</span><br><span class="line"> &lt;/code&gt;</span><br></pre></td></tr></table></figure>
+<p>针对多个数据库实现事务。使用这种方式时，在Spring事务提交的时候，它会依次调用里面的多个dataSource的commit()方法，如果业务方法出错，就会按照相反的顺序调用rollback()方法。这种方法可能会出现先前的提交成功，之后的提交失败，所以还是会有事务失败的可能。</p>
+<blockquote>
+<p>实现简单，但可能会出现先前的提交成功，之后的提交失败，所以还是会有事务失败的可能</p>
+</blockquote>
+<h3 id="最大努力一次提交-Best-Efforts-1PC"><a href="#最大努力一次提交-Best-Efforts-1PC" class="headerlink" title="最大努力一次提交(Best Efforts 1PC)"></a>最大努力一次提交(Best Efforts 1PC)</h3><p>在一个系统中使用数据库和带事务功能的消息中间件，业务流程如下</p>
+<ol>
+<li>开始消息事务</li>
+<li>发送消息</li>
+<li>开始数据库事务</li>
+<li>更新数据库</li>
+<li>提交数据库事务</li>
+<li>提交消息事务</li>
+</ol>
+<p>有两个事务，分别是DB的和JMS的事务，事务的开启和提交都是相互独立的。依次提交这两个事务，只要第二个事务顺利提交，整个方法就能够保证数据的一致性。实际上，在绝大多数情况下，只要数据库和MQ能够正常访问，这也确实能够保证。所以，这种方式就叫’最大努力’一次提交。</p>
+<p>使用这种方式，事物提交的顺序是非常重要的。假设在提交messaging transaction的时候发生错误，这时数据库的事务已经提交，无法回滚，但是消息的事务被回滚，那么这一条消息会被重新放回队列中，该业务方法会被再次触发，再次在一个新的事务中处理。但是，这时数据的处理已经完成，只是最后JMS的事物提交出错，那么就需要通过防止重复提交的方式，来避免数据库的再次处理。</p>
+<h3 id="事务补偿型-TCC型事务–Try-Confirm-Cancel"><a href="#事务补偿型-TCC型事务–Try-Confirm-Cancel" class="headerlink" title="事务补偿型(TCC型事务–Try&#x2F;Confirm&#x2F;Cancel)"></a>事务补偿型(TCC型事务–Try&#x2F;Confirm&#x2F;Cancel)</h3><p>其核心思想是：针对每个操作，都要注册一个与其对应的确认和补偿（撤销）操作。它分为三个阶段：</p>
+<ul>
+<li>Try 阶段主要是对业务系统做检测及资源预留</li>
+<li>Confirm 阶段主要是对业务系统做确认提交，Try阶段执行成功并开始执行 Confirm阶段时，默认 Confirm阶段是不会出错的, 即：只要Try成功，Confirm一定成功</li>
+<li>Cancel 阶段主要是在业务执行错误，需要回滚的状态下执行的业务取消，预留资源释放</li>
+</ul>
+<p>在一个长事务，一个由两台服务器一起参与的事务，服务器A发起事务，服务器B参与事务，B所处理时间可能比较长。如果按照ACID的原则，要保持事务的隔离性、一致性，服务器A中发起的事务中使用到的事务资源将会被锁定，不允许其他应用访问到事务过程中的中间结果，直到整个事务被提交或者回滚。这就造成事务A中的资源被长时间锁定，系统的可用性将不可接受。服务器A的事务如果执行顺利，那么事务A就先行提交，如果事务B也执行顺利，则事务B也提交，整个事务就算完成。但是如果事务B执行失败，事务B本身回滚，这时事务A已经被提交，所以需要执行一个<strong>补偿</strong>操作，将已经提交的事务A执行的操作作反操作，恢复到未执行前事务A的状态。这样的事务模型，是牺牲了一定的隔离性和一致性的，但是提高了事务的可用性。</p>
+<blockquote>
+<p>与两阶段提交相比实现及流程相对简单，但应用层要写很多补偿代码(而且补偿也不能保证一定成功)</p>
+</blockquote>
+<h3 id="本地流水表实现最终一致性"><a href="#本地流水表实现最终一致性" class="headerlink" title="本地流水表实现最终一致性"></a>本地流水表实现最终一致性</h3><p>以电商下单场景为例，主要涉及到两个操作，<strong>扣减库存</strong>和<strong>生成订单</strong>,因为两个操作在不同的数据库，无法保证强一致性,可以通过本地流水表来实现最终一致性 ， 具体流程如下:</p>
+<ul>
+<li>生成交易操作唯一标示token</li>
+<li>事务一(库存系统): <ul>
+<li>冻结库存</li>
+<li>根据下单流水号生成商品的库存冻结记录,冻结记录主要包括<strong>skuId</strong>,<strong>token</strong>,<strong>冻结数量</strong>,<strong>状态</strong> .状态有3种状态: <strong>已冻结</strong>，<strong>下单成功扣减</strong>，<strong>下单失败释放</strong>,初始状态为已冻结</li>
+</ul>
+</li>
+<li>如果事务一失败，直接返回；如果成功进入事务二 </li>
+<li>事务二(订单系统, 本地事务)：根据token生成订单,订单的状态主要包括：<strong>未支付</strong>,<strong>已支付</strong>,<strong>超时未支付</strong>,订单的初始状态为<strong>未支付</strong></li>
+<li>事务二如果成功，则进行后续的流程,</li>
+<li>事务二如果失败，调用库存系统的回滚接口，返回下单失败;</li>
+<li>定时任务: 因为存在<strong>事务一成功</strong>而<strong>事务二</strong>失败的情况，这样会冻结商品的部分库存，所以可以捞取出创建超过一定时间状态为<strong>已冻结</strong>的所有冻结记录，根据每个冻结记录的token去订单表查询，若不存在对应的订单，则将冻结记录的状态更新为<strong>下单失败释放</strong>，并回滚商品库存数量</li>
+</ul>
+<h3 id="异步确保型"><a href="#异步确保型" class="headerlink" title="异步确保型"></a>异步确保型</h3><p>将一些有同步的事务操作变为异步操作，避免对数据库事务的争用；继续以以电商下单场景为例，支付成功后增加用户积分；</p>
+<ul>
+<li>事务一(订单系统)，订单状态修改为支付成功，发送支付成功消息</li>
+<li>事务二(用户系统)，用户系统接到支付成功消息后，增加用户积分</li>
+</ul>
+<h3 id="MQ事务消息"><a href="#MQ事务消息" class="headerlink" title="MQ事务消息"></a>MQ事务消息</h3><p>一些第支持事务消息MQ，比如RocketMQ，他们支持事务消息的方式也是类似于采用的二阶段提交，其思路大致为：</p>
+<ul>
+<li>第一阶段Prepared消息，会拿到消息的地址。</li>
+<li>第二阶段执行本地事务，第三阶段通过第一阶段拿到的地址去访问消息，并修改状态。</li>
+</ul>
+<p>在业务方法内要想消息队列提交两次请求，一次发送消息和一次确认消息。如果确认消息发送失败了RocketMQ会定期扫描消息集群中的事务消息，这时候发现了Prepared消息，它会向消息发送者确认，是回滚还是继续发送确认消息。这样就保证了消息发送保证与本地事务同时成功或同时失败 </p>
+<h3 id="分布式事务实现的原则"><a href="#分布式事务实现的原则" class="headerlink" title="分布式事务实现的原则"></a>分布式事务实现的原则</h3><ul>
+<li>大事务拆成小事务，每个小事务都是单机上的事务</li>
+<li>补偿 + 重试， 业务上设计补偿机制，而且保证补偿失败后有重试机制</li>
+<li>幂等, 保证每次事务操作是幂等的，保证幂等的方式可以采用：<ul>
+<li>状态值，每次写操作的时候检查状态值</li>
+<li>唯一标示，每次写操作都带入业务唯一标示</li>
+</ul>
+</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag"># 分布式</a>
+              <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag"># 微服务</a>
+              <a href="/tags/%E4%B8%80%E8%87%B4%E6%80%A7/" rel="tag"># 一致性</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/" rel="prev" title="微服务框架选型之 Dubbo VS. Spring Cloud">
+      <i class="fa fa-chevron-left"></i> 微服务框架选型之 Dubbo VS. Spring Cloud
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/06/18/Parepare-Service/" rel="next" title="服务化准备工作">
+      服务化准备工作 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#XA"><span class="nav-number">1.</span> <span class="nav-text">XA</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JTA"><span class="nav-number">2.</span> <span class="nav-text">JTA</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%93%BE%E5%BC%8F%E4%BA%8B%E5%8A%A1%E7%AE%A1%E7%90%86"><span class="nav-number">3.</span> <span class="nav-text">链式事务管理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%80%E5%A4%A7%E5%8A%AA%E5%8A%9B%E4%B8%80%E6%AC%A1%E6%8F%90%E4%BA%A4-Best-Efforts-1PC"><span class="nav-number">4.</span> <span class="nav-text">最大努力一次提交(Best Efforts 1PC)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BA%8B%E5%8A%A1%E8%A1%A5%E5%81%BF%E5%9E%8B-TCC%E5%9E%8B%E4%BA%8B%E5%8A%A1%E2%80%93Try-Confirm-Cancel"><span class="nav-number">5.</span> <span class="nav-text">事务补偿型(TCC型事务–Try&#x2F;Confirm&#x2F;Cancel)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%AC%E5%9C%B0%E6%B5%81%E6%B0%B4%E8%A1%A8%E5%AE%9E%E7%8E%B0%E6%9C%80%E7%BB%88%E4%B8%80%E8%87%B4%E6%80%A7"><span class="nav-number">6.</span> <span class="nav-text">本地流水表实现最终一致性</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BC%82%E6%AD%A5%E7%A1%AE%E4%BF%9D%E5%9E%8B"><span class="nav-number">7.</span> <span class="nav-text">异步确保型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#MQ%E4%BA%8B%E5%8A%A1%E6%B6%88%E6%81%AF"><span class="nav-number">8.</span> <span class="nav-text">MQ事务消息</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%86%E5%B8%83%E5%BC%8F%E4%BA%8B%E5%8A%A1%E5%AE%9E%E7%8E%B0%E7%9A%84%E5%8E%9F%E5%88%99"><span class="nav-number">9.</span> <span class="nav-text">分布式事务实现的原则</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

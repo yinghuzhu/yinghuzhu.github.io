@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="1. 引言1.1. 背景随着电商业务的快速发展，灵活多样的促销活动成为提升销售额、吸引用户、清理库存、推广新品等关键运营手段。为了支持运营团队快速、高效地配置和管理各类促销规则，并保证促销活动的准确性、稳定性和高性能，特制定本电商促销规则系统技术方案">
+<meta property="og:type" content="article">
+<meta property="og:title" content="电商促销规则系统技术方案">
+<meta property="og:url" content="https://www.yzhu.name/2023/05/20/E-commerce-Promotion-Design/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="1. 引言1.1. 背景随着电商业务的快速发展，灵活多样的促销活动成为提升销售额、吸引用户、清理库存、推广新品等关键运营手段。为了支持运营团队快速、高效地配置和管理各类促销规则，并保证促销活动的准确性、稳定性和高性能，特制定本电商促销规则系统技术方案">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yzhu.name/2023/05/20/E-commerce-Promotion-Design/placeholder_for_architecture_diagram.png">
+<meta property="article:published_time" content="2023-05-20T02:05:09.000Z">
+<meta property="article:modified_time" content="2025-11-11T03:53:15.768Z">
+<meta property="article:author" content="yhzhu">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yzhu.name/2023/05/20/E-commerce-Promotion-Design/placeholder_for_architecture_diagram.png">
+
+<link rel="canonical" href="https://www.yzhu.name/2023/05/20/E-commerce-Promotion-Design/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>电商促销规则系统技术方案 | yhzhu的随手记</title><meta name="robots" content="noindex">
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2023/05/20/E-commerce-Promotion-Design/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          电商促销规则系统技术方案
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-05-20 10:05:09" itemprop="dateCreated datePublished" datetime="2023-05-20T10:05:09+08:00">2023-05-20</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="1-引言"><a href="#1-引言" class="headerlink" title="1. 引言"></a>1. 引言</h2><h3 id="1-1-背景"><a href="#1-1-背景" class="headerlink" title="1.1. 背景"></a>1.1. 背景</h3><p>随着电商业务的快速发展，灵活多样的促销活动成为提升销售额、吸引用户、清理库存、推广新品等关键运营手段。为了支持运营团队快速、高效地配置和管理各类促销规则，并保证促销活动的准确性、稳定性和高性能，特制定本电商促销规则系统技术方案 <span id="more"></span>。</p>
+<h3 id="1-2-目标"><a href="#1-2-目标" class="headerlink" title="1.2. 目标"></a>1.2. 目标</h3><p>本方案旨在设计并实现一个通用、可扩展、高性能的电商促销引擎及其配套管理系统，实现以下核心目标：</p>
+<ul>
+<li><strong>灵活性与可配置性：</strong> 支持运营人员通过可视化界面配置常见的促销规则（如满减、满折、打折、买赠、优惠券等）及其组合，无需代码开发。</li>
+<li><strong>准确性：</strong> 保证促销优惠计算的精确无误，包括优惠叠加、互斥、分摊等复杂场景。</li>
+<li><strong>高性能与高并发：</strong> 能够应对大促期间的高并发访问，保证促销计算不成为系统瓶颈。</li>
+<li><strong>可扩展性：</strong> 系统架构易于扩展，能够快速支持未来新的促销类型和业务需求。</li>
+<li><strong>可观测性与易管理性：</strong> 提供完善的活动管理、监控告警、效果分析等功能。</li>
+</ul>
+<h3 id="1-3-范围"><a href="#1-3-范围" class="headerlink" title="1.3. 范围"></a>1.3. 范围</h3><p>本方案主要涵盖促销规则引擎的核心设计、数据模型、系统架构、技术选型以及关键模块的实现思路。</p>
+<h2 id="2-系统概述"><a href="#2-系统概述" class="headerlink" title="2. 系统概述"></a>2. 系统概述</h2><p>电商促销规则系统主要由以下几个部分组成：</p>
+<ol>
+<li><strong>促销管理后台 (Promotion Admin Console):</strong> 供运营人员创建、配置、管理和监控促销活动。</li>
+<li><strong>促销引擎 (Promotion Engine):</strong> 核心模块，负责接收促销计算请求，根据配置的规则匹配并计算优惠。</li>
+<li><strong>规则库 (Rule Repository):</strong> 存储促销活动、规则、条件、动作等配置信息。</li>
+<li><strong>上下文构建器 (Context Builder):</strong> 负责收集和构建促销引擎所需的上下文信息（如购物车、用户信息）。</li>
+<li><strong>接口层 (API Layer):</strong> 提供对外接口，供购物车、订单结算、商品详情等业务系统调用。</li>
+</ol>
+<p><img src="/2023/05/20/E-commerce-Promotion-Design/placeholder_for_architecture_diagram.png" alt="系统架构图"><br><em>（注：此处应有一张系统架构图，暂时用文字占位）</em></p>
+<h2 id="3-核心设计要点"><a href="#3-核心设计要点" class="headerlink" title="3. 核心设计要点"></a>3. 核心设计要点</h2><h3 id="3-1-规则的抽象与配置化"><a href="#3-1-规则的抽象与配置化" class="headerlink" title="3.1. 规则的抽象与配置化"></a>3.1. 规则的抽象与配置化</h3><ul>
+<li><strong>原子化条件 (Atomic Conditions):</strong> 将判断条件拆解为最小单元。<ul>
+<li>例如：订单金额、商品数量、商品ID&#x2F;品类&#x2F;品牌、用户等级、用户标签、是否新用户、当前时间等。</li>
+</ul>
+</li>
+<li><strong>原子化动作 (Atomic Actions):</strong> 将优惠行为拆解为最小单元。<ul>
+<li>例如：订单金额固定减、订单金额百分比折扣、商品固定减、商品百分比折扣、赠送指定商品、免运费、发放优惠券等。</li>
+</ul>
+</li>
+<li><strong>规则组合器 (Rule Composer):</strong> 允许将原子条件通过逻辑运算符（AND, OR, NOT）组合，并将满足条件的规则与一个或多个原子动作关联。</li>
+</ul>
+<h3 id="3-2-上下文与事实-Context-Facts"><a href="#3-2-上下文与事实-Context-Facts" class="headerlink" title="3.2. 上下文与事实 (Context &amp; Facts)"></a>3.2. 上下文与事实 (Context &amp; Facts)</h3><p>促销引擎的输入是一个包含所有相关信息的“上下文”对象：</p>
+<ul>
+<li><strong>购物车上下文 (CartContext):</strong><ul>
+<li>商品列表 (items): 每个商品包含 <code>sku_id</code>, <code>quantity</code>, <code>original_price</code>, <code>category_id</code>, <code>brand_id</code>, <code>tags</code> 等。</li>
+<li>当前购物车总金额 (total_amount)。</li>
+<li>当前购物车总件数 (total_quantity)。</li>
+<li>已选优惠券 (selected_coupons)。</li>
+</ul>
+</li>
+<li><strong>用户上下文 (UserContext):</strong><ul>
+<li>用户ID (user_id)。</li>
+<li>用户等级 (user_level)。</li>
+<li>用户标签 (user_tags)。</li>
+<li>是否新用户 (is_new_user)。</li>
+</ul>
+</li>
+<li><strong>环境上下文 (EnvironmentContext):</strong><ul>
+<li>当前时间 (current_time)。</li>
+<li>访问渠道 (channel: ‘APP’, ‘WEB’, ‘MINI_PROGRAM’)。</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-3-规则匹配与执行"><a href="#3-3-规则匹配与执行" class="headerlink" title="3.3. 规则匹配与执行"></a>3.3. 规则匹配与执行</h3><ol>
+<li><strong>规则预加载与筛选：</strong><ul>
+<li>系统启动或活动变更时，预加载有效的促销活动和规则到内存缓存中。</li>
+<li>根据当前上下文（如时间、渠道、用户分群）初步筛选可能适用的活动。</li>
+</ul>
+</li>
+<li><strong>条件评估：</strong><ul>
+<li>对于每个筛选出的活动规则，使用其定义的条件组（ConditionGroup）对当前上下文进行匹配。</li>
+<li>支持高效的条件匹配算法（可考虑使用轻量级规则引擎库或自研匹配逻辑）。</li>
+</ul>
+</li>
+<li><strong>动作执行与优惠生成：</strong><ul>
+<li>对于匹配成功的规则，执行其关联的促销动作（PromotionAction）。</li>
+<li>生成优惠结果对象，包含优惠类型、优惠金额&#x2F;描述、适用商品范围等。</li>
+</ul>
+</li>
+</ol>
+<h3 id="3-4-优先级、互斥与叠加"><a href="#3-4-优先级、互斥与叠加" class="headerlink" title="3.4. 优先级、互斥与叠加"></a>3.4. 优先级、互斥与叠加</h3><ul>
+<li><strong>优先级 (Priority):</strong> 为每个促销活动设置优先级，数字越大（或越小，需统一约定）优先级越高。高优先级规则先匹配和应用。</li>
+<li><strong>互斥规则 (Exclusivity Rules):</strong><ul>
+<li><strong>活动级别互斥：</strong> 设置某些活动（如秒杀）与其他所有或特定类型的活动互斥。</li>
+<li><strong>互斥组 (Exclusive Group):</strong> 定义互斥组，同组内的促销活动仅能生效一个（通常是优先级最高的或优惠力度最大的）。</li>
+</ul>
+</li>
+<li><strong>叠加策略 (Stacking Strategy):</strong><ul>
+<li>明确定义优惠计算的顺序，例如：<ol>
+<li>单品级优惠（如商品直降、特定商品折扣）</li>
+<li>商品组合优惠（如第二件半价，买M送N）</li>
+<li>店铺级&#x2F;订单级满减&#x2F;满折</li>
+<li>优惠券抵扣</li>
+<li>运费计算与优惠</li>
+</ol>
+</li>
+<li>系统需支持配置不同类型优惠是否可叠加。</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-5-优惠计算与分摊"><a href="#3-5-优惠计算与分摊" class="headerlink" title="3.5. 优惠计算与分摊"></a>3.5. 优惠计算与分摊</h3><ul>
+<li><strong>精确计算：</strong> 金额计算使用高精度类型（如 <code>Decimal</code> 或以分为单位的整数）避免浮点数精度问题。</li>
+<li><strong>优惠分摊 (Discount Allocation):</strong><ul>
+<li>订单级优惠（如满减、优惠券）需要按规则（如商品金额比例）分摊到订单内的各个商品上。</li>
+<li>分摊结果用于财务核算、退款处理、商家结算等。</li>
+<li>分摊记录需随订单信息持久化。</li>
+</ul>
+</li>
+</ul>
+<h2 id="4-数据结构定义"><a href="#4-数据结构定义" class="headerlink" title="4. 数据结构定义"></a>4. 数据结构定义</h2><p>以下为核心数据结构的简化定义，实际实现中会更详细。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1. PromotionActivity (促销活动)</span></span><br><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;activity_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string (PK)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;description&quot;</span><span class="punctuation">:</span> <span class="string">&quot;text&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;activity_type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;enum (&#x27;FULL_DISCOUNT&#x27;, &#x27;PERCENTAGE_OFF&#x27;, &#x27;BUY_X_GET_Y&#x27;, &#x27;GIFT_WITH_PURCHASE&#x27;, &#x27;COUPON_ACTIVITY&#x27;, ...)&quot;</span><span class="punctuation">,</span> <span class="comment">// 活动类型，便于管理和预筛选</span></span><br><span class="line">  <span class="attr">&quot;start_time&quot;</span><span class="punctuation">:</span> <span class="string">&quot;datetime&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;end_time&quot;</span><span class="punctuation">:</span> <span class="string">&quot;datetime&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;enum (&#x27;DRAFT&#x27;, &#x27;ACTIVE&#x27;, &#x27;INACTIVE&#x27;, &#x27;EXPIRED&#x27;)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;priority&quot;</span><span class="punctuation">:</span> <span class="string">&quot;integer&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;is_exclusive&quot;</span><span class="punctuation">:</span> <span class="string">&quot;boolean&quot;</span><span class="punctuation">,</span> <span class="comment">// 是否为独占活动</span></span><br><span class="line">  <span class="attr">&quot;exclusive_scope&quot;</span><span class="punctuation">:</span> <span class="string">&quot;array&lt;string (activity_type or activity_id)&gt;&quot;</span><span class="punctuation">,</span> <span class="comment">// 与哪些类型的活动或具体活动互斥</span></span><br><span class="line">  <span class="attr">&quot;stackable_with_coupon&quot;</span><span class="punctuation">:</span> <span class="string">&quot;boolean&quot;</span><span class="punctuation">,</span> <span class="comment">// 是否可与优惠券叠加</span></span><br><span class="line">  <span class="attr">&quot;applicable_user_segments&quot;</span><span class="punctuation">:</span> <span class="string">&quot;array&lt;string&gt;&quot;</span><span class="punctuation">,</span> <span class="comment">// 目标用户群</span></span><br><span class="line">  <span class="attr">&quot;applicable_channels&quot;</span><span class="punctuation">:</span> <span class="string">&quot;array&lt;string&gt;&quot;</span><span class="punctuation">,</span> <span class="comment">// 适用渠道</span></span><br><span class="line">  <span class="attr">&quot;rules&quot;</span><span class="punctuation">:</span> <span class="string">&quot;array&lt;PromotionRule_ID&gt;&quot;</span><span class="punctuation">,</span> <span class="comment">// 关联的规则ID列表</span></span><br><span class="line">  <span class="attr">&quot;created_by&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;updated_at&quot;</span><span class="punctuation">:</span> <span class="string">&quot;datetime&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 2. PromotionRule (促销规则 - 一个活动可能包含多个规则，如阶梯满减)</span></span><br><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;rule_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string (PK)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;activity_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string (FK to PromotionActivity)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;condition_tree_root_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string (FK to ConditionNode)&quot;</span><span class="punctuation">,</span> <span class="comment">// 条件树根节点ID</span></span><br><span class="line">  <span class="attr">&quot;actions&quot;</span><span class="punctuation">:</span> <span class="string">&quot;array&lt;PromotionAction_Object&gt;&quot;</span><span class="punctuation">,</span> <span class="comment">// 关联的动作列表</span></span><br><span class="line">  <span class="attr">&quot;is_active&quot;</span><span class="punctuation">:</span> <span class="string">&quot;boolean&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;metadata&quot;</span><span class="punctuation">:</span> <span class="string">&quot;jsonb&quot;</span> <span class="comment">// 如阶梯规则的档位信息</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 3. ConditionNode (条件节点 - 构成条件树)</span></span><br><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;node_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string (PK)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;enum (&#x27;LOGICAL_OPERATOR&#x27;, &#x27;ATOMIC_CONDITION&#x27;)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="comment">// 如果 type is &#x27;LOGICAL_OPERATOR&#x27;</span></span><br><span class="line">  <span class="attr">&quot;logical_operator&quot;</span><span class="punctuation">:</span> <span class="string">&quot;enum (&#x27;AND&#x27;, &#x27;OR&#x27;, &#x27;NOT&#x27;)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;children_nodes&quot;</span><span class="punctuation">:</span> <span class="string">&quot;array&lt;ConditionNode_ID&gt;&quot;</span><span class="punctuation">,</span> <span class="comment">// 子条件节点ID</span></span><br><span class="line">  <span class="comment">// 如果 type is &#x27;ATOMIC_CONDITION&#x27;</span></span><br><span class="line">  <span class="attr">&quot;fact_source&quot;</span><span class="punctuation">:</span> <span class="string">&quot;enum (&#x27;CART_TOTAL&#x27;, &#x27;CART_ITEM_SUBTOTAL&#x27;, &#x27;CART_ITEM_QUANTITY&#x27;, &#x27;USER_PROPERTY&#x27;, &#x27;ITEM_PROPERTY&#x27;)&quot;</span><span class="punctuation">,</span> <span class="comment">// 事实来源</span></span><br><span class="line">  <span class="attr">&quot;attribute&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">,</span> <span class="comment">// 如 &#x27;amount&#x27;, &#x27;sku_id&#x27;, &#x27;category_id&#x27;, &#x27;user_level&#x27;</span></span><br><span class="line">  <span class="attr">&quot;operator&quot;</span><span class="punctuation">:</span> <span class="string">&quot;enum (&#x27;GREATER_THAN_EQUAL&#x27;, &#x27;LESS_THAN&#x27;, &#x27;EQUALS&#x27;, &#x27;IN&#x27;, &#x27;CONTAINS&#x27;, &#x27;MATCHES_REGEX&#x27;)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;value&quot;</span><span class="punctuation">:</span> <span class="string">&quot;any&quot;</span><span class="punctuation">,</span> <span class="comment">// 目标值</span></span><br><span class="line">  <span class="attr">&quot;item_selector&quot;</span><span class="punctuation">:</span> <span class="string">&quot;jsonb&quot;</span> <span class="comment">// (可选) 用于指定条件作用的商品范围, e.g., &#123;type: &#x27;SKU_LIST&#x27;, skus: [&#x27;A&#x27;, &#x27;B&#x27;]&#125; or &#123;type: &#x27;CATEGORY&#x27;, ids: [10, 20]&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 4. PromotionAction (促销动作)</span></span><br><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;action_type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;enum (&#x27;ORDER_FIXED_DISCOUNT&#x27;, &#x27;ORDER_PERCENTAGE_DISCOUNT&#x27;, &#x27;ITEM_PRICE_OVERRIDE&#x27;, &#x27;ITEM_PERCENTAGE_DISCOUNT&#x27;, &#x27;ADD_GIFT&#x27;, &#x27;FREE_SHIPPING&#x27;, ...)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;parameters&quot;</span><span class="punctuation">:</span> <span class="string">&quot;jsonb&quot;</span><span class="punctuation">,</span> <span class="comment">// 动作参数</span></span><br><span class="line">  <span class="comment">// 示例 (ORDER_FIXED_DISCOUNT): &#123;&quot;discount_amount&quot;: 50.00&#125;</span></span><br><span class="line">  <span class="comment">// 示例 (ITEM_PERCENTAGE_DISCOUNT): &#123;&quot;percentage&quot;: 0.20, &quot;item_selector&quot;: &quot;&#123;type: &#x27;MATCHING_ITEMS&#x27;&#125;&quot; &#125; (对满足条件的商品打8折)</span></span><br><span class="line">  <span class="comment">// 示例 (ADD_GIFT): &#123;&quot;gift_sku_id&quot;: &quot;GIFT001&quot;, &quot;quantity&quot;: 1&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 5. Coupon (优惠券) - 可以看作一种特殊的促销实例，或与活动规则关联</span></span><br><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;coupon_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string (PK)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;coupon_code&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string (Unique)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;template_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string (FK, optional, for coupon templates)&quot;</span><span class="punctuation">,</span> <span class="comment">// 优惠券模板ID</span></span><br><span class="line">  <span class="attr">&quot;user_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string (Optional, if user-specific)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;enum (&#x27;UNUSED&#x27;, &#x27;USED&#x27;, &#x27;EXPIRED&#x27;, &#x27;LOCKED&#x27;)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;value_type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;enum (&#x27;FIXED_AMOUNT&#x27;, &#x27;PERCENTAGE&#x27;)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;value&quot;</span><span class="punctuation">:</span> <span class="string">&quot;decimal&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;max_discount_amount&quot;</span><span class="punctuation">:</span> <span class="string">&quot;decimal (for percentage coupons)&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;min_spend_amount&quot;</span><span class="punctuation">:</span> <span class="string">&quot;decimal&quot;</span><span class="punctuation">,</span> <span class="comment">// 使用门槛</span></span><br><span class="line">  <span class="attr">&quot;valid_from&quot;</span><span class="punctuation">:</span> <span class="string">&quot;datetime&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;valid_to&quot;</span><span class="punctuation">:</span> <span class="string">&quot;datetime&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;applicable_items_selector&quot;</span><span class="punctuation">:</span> <span class="string">&quot;jsonb&quot;</span><span class="punctuation">,</span> <span class="comment">// 适用商品范围</span></span><br><span class="line">  <span class="attr">&quot;is_stackable_with_activity&quot;</span><span class="punctuation">:</span> <span class="string">&quot;boolean&quot;</span> <span class="comment">// 是否可与活动叠加</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 6. AppliedPromotion (订单中应用的促销信息 - 用于订单快照)</span></span><br><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;order_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;applied_rule_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;activity_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;description&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">,</span> <span class="comment">// 优惠描述，如 &quot;满200减50&quot;</span></span><br><span class="line">  <span class="attr">&quot;discount_amount&quot;</span><span class="punctuation">:</span> <span class="string">&quot;decimal&quot;</span><span class="punctuation">,</span> <span class="comment">// 此规则带来的总优惠金额</span></span><br><span class="line">  <span class="attr">&quot;applied_to_items&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span> <span class="comment">// 优惠分摊到具体商品的信息</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;sku_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;original_price&quot;</span><span class="punctuation">:</span> <span class="string">&quot;decimal&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;discount_share&quot;</span><span class="punctuation">:</span> <span class="string">&quot;decimal&quot;</span> <span class="comment">// 此商品分摊到的优惠金额</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;gift_items&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span> <span class="comment">// 如果是赠品</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;sku_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;quantity&quot;</span><span class="punctuation">:</span> <span class="string">&quot;integer&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="5-系统架构"><a href="#5-系统架构" class="headerlink" title="5. 系统架构"></a>5. 系统架构</h2><h3 id="5-1-模块划分"><a href="#5-1-模块划分" class="headerlink" title="5.1. 模块划分"></a>5.1. 模块划分</h3><ul>
+<li><strong>API层 (Gateway &#x2F; BFF):</strong><ul>
+<li>接收前端（购物车、结算页）的促销计算请求。</li>
+<li>调用上下文构建器和促销引擎。</li>
+<li>返回优惠计算结果。</li>
+</ul>
+</li>
+<li><strong>促销管理后台 (Admin UI + Backend Service):</strong><ul>
+<li>提供促销活动、规则、优惠券等的CRUD操作界面。</li>
+<li>管理活动生命周期（上线、下线、暂停）。</li>
+<li>提供活动数据监控和报表。</li>
+</ul>
+</li>
+<li><strong>上下文构建器 (Context Builder Service):</strong><ul>
+<li>聚合来自商品服务、用户服务、购物车服务等的数据，构建促销引擎所需的完整上下文。</li>
+</ul>
+</li>
+<li><strong>促销引擎核心 (Promotion Engine Core Service):</strong><ul>
+<li>无状态服务，接收上下文和待匹配规则列表（或活动ID）。</li>
+<li>执行规则匹配、优先级处理、互斥判断、优惠计算。</li>
+<li>返回优惠结果列表。</li>
+</ul>
+</li>
+<li><strong>规则存储 (Rule Repository - Database):</strong><ul>
+<li>使用关系型数据库（如PostgreSQL, MySQL）或NoSQL数据库（如MongoDB，如果规则结构非常灵活）存储促销配置。</li>
+<li>关键表：<code>PromotionActivity</code>, <code>PromotionRule</code>, <code>ConditionNode</code>, <code>PromotionAction</code>, <code>CouponTemplate</code>, <code>CouponInstance</code>。</li>
+</ul>
+</li>
+<li><strong>规则缓存 (Rule Cache - In-memory Cache):</strong><ul>
+<li>使用Redis或Memcached等缓存已解析和预处理的活动规则，加速匹配。</li>
+<li>通过消息队列（如Kafka, RabbitMQ）订阅规则变更事件，实现缓存的近实时更新。</li>
+</ul>
+</li>
+</ul>
+<h3 id="5-2-技术选型建议"><a href="#5-2-技术选型建议" class="headerlink" title="5.2. 技术选型建议"></a>5.2. 技术选型建议</h3><ul>
+<li><strong>后端语言框架：</strong> Java (Spring Boot), Go, Python (Django&#x2F;Flask) - 根据团队熟悉度和性能要求选择。</li>
+<li><strong>数据库：</strong> PostgreSQL (JSONB支持良好), MySQL。</li>
+<li><strong>缓存：</strong> Redis。</li>
+<li><strong>消息队列：</strong> Kafka, RabbitMQ (用于规则变更通知，异步任务等)。</li>
+<li><strong>规则引擎 (可选):</strong> Drools (Java), 或者自研基于配置的轻量级匹配逻辑。对于特别复杂的场景，可考虑引入专用规则引擎。</li>
+<li><strong>前端框架：</strong> React, Vue, Angular。</li>
+<li><strong>服务间通信：</strong> gRPC, RESTful API。</li>
+</ul>
+<h3 id="5-3-部署架构"><a href="#5-3-部署架构" class="headerlink" title="5.3. 部署架构"></a>5.3. 部署架构</h3><ul>
+<li>微服务化部署，每个核心模块作为独立服务。</li>
+<li>使用容器化技术（Docker, Kubernetes）进行部署和管理，便于伸缩。</li>
+<li>配置负载均衡器应对高并发。</li>
+</ul>
+<h2 id="6-关键流程"><a href="#6-关键流程" class="headerlink" title="6. 关键流程"></a>6. 关键流程</h2><h3 id="6-1-促销活动创建与配置流程"><a href="#6-1-促销活动创建与配置流程" class="headerlink" title="6.1. 促销活动创建与配置流程"></a>6.1. 促销活动创建与配置流程</h3><ol>
+<li>运营人员在管理后台选择促销类型（如满减）。</li>
+<li>填写活动基本信息（名称、时间、优先级、互斥规则等）。</li>
+<li>配置触发条件（如“购物车中指定分类商品满200元”）：<ul>
+<li>选择条件类型（如“商品小计”）。</li>
+<li>设置条件参数（如“品类ID列表”，金额“200”）。</li>
+<li>组合多个条件（AND&#x2F;OR）。</li>
+</ul>
+</li>
+<li>配置优惠动作（如“订单金额减50元”）：<ul>
+<li>选择动作类型（如“订单固定金额减免”）。</li>
+<li>设置动作参数（如金额“50”）。</li>
+</ul>
+</li>
+<li>保存活动，系统校验规则配置的合法性。</li>
+<li>活动状态变更为“草稿”或“待上线”。</li>
+<li>运营人员可预览或测试活动效果。</li>
+<li>活动到期或手动上线后，状态变为“已激活”，规则数据同步到缓存。</li>
+</ol>
+<h3 id="6-2-购物车-结算页促销计算流程"><a href="#6-2-购物车-结算页促销计算流程" class="headerlink" title="6.2. 购物车&#x2F;结算页促销计算流程"></a>6.2. 购物车&#x2F;结算页促销计算流程</h3><ol>
+<li>用户在购物车或结算页操作（增删商品、选择优惠券）。</li>
+<li>前端应用调用API层，传递当前购物车快照和用户信息。</li>
+<li>API层调用上下文构建器，生成完整的 <code>PromotionContext</code>。</li>
+<li>API层（或促销引擎网关）从规则缓存中获取当前有效的、可能适用于该用户的 <code>PromotionActivity</code> 列表。</li>
+<li>API层将 <code>PromotionContext</code> 和筛选后的活动规则列表传递给促销引擎核心。</li>
+<li>促销引擎核心：<ul>
+<li><strong>遍历活动规则：</strong> 按优先级处理。</li>
+<li><strong>条件匹配：</strong> 对每个规则的条件树进行评估。</li>
+<li><strong>互斥与叠加处理：</strong> 根据配置决定哪些规则可以同时生效。</li>
+<li><strong>优惠计算：</strong> 执行匹配成功的规则的动作，计算优惠金额或生成赠品信息。</li>
+<li><strong>优惠券处理：</strong> 如果用户选择了优惠券，验证其可用性并计算抵扣。</li>
+<li><strong>构建优惠结果：</strong> 生成包含所有适用优惠的列表。</li>
+</ul>
+</li>
+<li>促销引擎核心返回优惠结果列表给API层。</li>
+<li>API层将优惠结果返回给前端展示。</li>
+<li>用户提交订单时，选定的优惠信息（AppliedPromotion）随订单一同保存。</li>
+</ol>
+<h3 id="6-3-规则变更与缓存更新"><a href="#6-3-规则变更与缓存更新" class="headerlink" title="6.3. 规则变更与缓存更新"></a>6.3. 规则变更与缓存更新</h3><ol>
+<li>运营人员在后台修改或上下线促销活动。</li>
+<li>促销管理后台服务更新数据库中的规则。</li>
+<li>通过消息队列（如Kafka）发布规则变更事件。</li>
+<li>促销引擎实例订阅该事件，从数据库重新加载变更的规则，并更新本地缓存。<ul>
+<li>或者，缓存设置较短的过期时间，定期从数据库拉取最新规则。</li>
+</ul>
+</li>
+</ol>
+<h2 id="7-性能与扩展性考虑"><a href="#7-性能与扩展性考虑" class="headerlink" title="7. 性能与扩展性考虑"></a>7. 性能与扩展性考虑</h2><ul>
+<li><strong>缓存策略：</strong> 大量使用缓存（规则配置、热点商品属性、用户标签等）。</li>
+<li><strong>异步处理：</strong> 对于非核心路径的优惠计算（如“猜你喜欢”处的优惠提示）可考虑异步。</li>
+<li><strong>规则预编译&#x2F;解析：</strong> 将配置化的规则在加载时转换为更易执行的内部表示。</li>
+<li><strong>水平扩展：</strong> 促销引擎核心服务设计为无状态，便于水平扩展实例数。</li>
+<li><strong>数据库优化：</strong> 对规则查询进行索引优化。</li>
+<li><strong>代码层面优化：</strong> 避免在规则匹配循环中进行昂贵的I&#x2F;O操作或复杂计算。</li>
+</ul>
+<h2 id="8-安全与风控"><a href="#8-安全与风控" class="headerlink" title="8. 安全与风控"></a>8. 安全与风控</h2><ul>
+<li><strong>输入校验：</strong> 对所有来自前端和管理后台的输入进行严格校验。</li>
+<li><strong>权限控制：</strong> 管理后台操作需进行身份认证和权限校验。</li>
+<li><strong>防刷单机制：</strong><ul>
+<li>限制单用户参与活动的次数&#x2F;频率。</li>
+<li>监控异常IP、设备。</li>
+<li>对高价值优惠活动增加验证码等手段。</li>
+</ul>
+</li>
+<li><strong>数据安全：</strong> 敏感数据加密存储。</li>
+</ul>
+<h2 id="9-监控与告警"><a href="#9-监控与告警" class="headerlink" title="9. 监控与告警"></a>9. 监控与告警</h2><ul>
+<li><strong>业务指标监控：</strong> 活动参与率、优惠券核销率、促销带来的GMV提升等。</li>
+<li><strong>系统指标监控：</strong><ul>
+<li>促销引擎接口QPS、平均响应时间、错误率。</li>
+<li>规则缓存命中率。</li>
+<li>数据库连接池、CPU、内存使用率。</li>
+</ul>
+</li>
+<li><strong>告警机制：</strong> 关键指标超过阈值时，通过邮件、短信等方式及时告警。</li>
+<li><strong>日志记录：</strong> 详细记录规则匹配过程、优惠计算步骤、错误信息，便于问题排查。</li>
+</ul>
+<h2 id="10-迭代计划-示例"><a href="#10-迭代计划-示例" class="headerlink" title="10. 迭代计划 (示例)"></a>10. 迭代计划 (示例)</h2><ul>
+<li><strong>Phase 1 (MVP):</strong><ul>
+<li>支持核心促销类型：满减、满折、单品直降、优惠券（固定金额、满减）。</li>
+<li>基础的规则配置后台。</li>
+<li>核心促销引擎实现，支持优先级和简单互斥。</li>
+<li>基础的缓存机制。</li>
+</ul>
+</li>
+<li><strong>Phase 2:</strong><ul>
+<li>支持更多促销类型：买赠、第N件优惠、打包价、预售。</li>
+<li>完善的优惠叠加和互斥逻辑配置。</li>
+<li>优惠券模板化管理。</li>
+<li>初步的活动效果数据统计。</li>
+</ul>
+</li>
+<li><strong>Phase 3:</strong><ul>
+<li>引入DSL或可视化规则编排器，提升规则配置灵活性。</li>
+<li>精细化用户分群与定向促销。</li>
+<li>与风控系统集成。</li>
+<li>完善的监控告警和性能优化。</li>
+</ul>
+</li>
+<li><strong>后续：</strong> A&#x2F;B测试平台集成、智能推荐促销等。</li>
+</ul>
+<h2 id="11-总结"><a href="#11-总结" class="headerlink" title="11. 总结"></a>11. 总结</h2><p>本方案提供了一个相对全面的电商促销规则系统设计思路。在实际建设过程中，需要根据具体业务需求、团队能力和现有技术栈进行调整和细化。核心在于构建一个<strong>灵活配置、准确计算、高性能、易扩展</strong>的促销引擎，以支撑电商业务的持续增长和创新。<br>&#96;&#96;&#96;</p>
+<!-- flag of hidden posts -->
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E5%BC%95%E8%A8%80"><span class="nav-number">1.</span> <span class="nav-text">1. 引言</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-%E8%83%8C%E6%99%AF"><span class="nav-number">1.1.</span> <span class="nav-text">1.1. 背景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-%E7%9B%AE%E6%A0%87"><span class="nav-number">1.2.</span> <span class="nav-text">1.2. 目标</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-3-%E8%8C%83%E5%9B%B4"><span class="nav-number">1.3.</span> <span class="nav-text">1.3. 范围</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E7%B3%BB%E7%BB%9F%E6%A6%82%E8%BF%B0"><span class="nav-number">2.</span> <span class="nav-text">2. 系统概述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E6%A0%B8%E5%BF%83%E8%AE%BE%E8%AE%A1%E8%A6%81%E7%82%B9"><span class="nav-number">3.</span> <span class="nav-text">3. 核心设计要点</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-%E8%A7%84%E5%88%99%E7%9A%84%E6%8A%BD%E8%B1%A1%E4%B8%8E%E9%85%8D%E7%BD%AE%E5%8C%96"><span class="nav-number">3.1.</span> <span class="nav-text">3.1. 规则的抽象与配置化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-%E4%B8%8A%E4%B8%8B%E6%96%87%E4%B8%8E%E4%BA%8B%E5%AE%9E-Context-Facts"><span class="nav-number">3.2.</span> <span class="nav-text">3.2. 上下文与事实 (Context &amp; Facts)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-%E8%A7%84%E5%88%99%E5%8C%B9%E9%85%8D%E4%B8%8E%E6%89%A7%E8%A1%8C"><span class="nav-number">3.3.</span> <span class="nav-text">3.3. 规则匹配与执行</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-%E4%BC%98%E5%85%88%E7%BA%A7%E3%80%81%E4%BA%92%E6%96%A5%E4%B8%8E%E5%8F%A0%E5%8A%A0"><span class="nav-number">3.4.</span> <span class="nav-text">3.4. 优先级、互斥与叠加</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-5-%E4%BC%98%E6%83%A0%E8%AE%A1%E7%AE%97%E4%B8%8E%E5%88%86%E6%91%8A"><span class="nav-number">3.5.</span> <span class="nav-text">3.5. 优惠计算与分摊</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E5%AE%9A%E4%B9%89"><span class="nav-number">4.</span> <span class="nav-text">4. 数据结构定义</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84"><span class="nav-number">5.</span> <span class="nav-text">5. 系统架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-%E6%A8%A1%E5%9D%97%E5%88%92%E5%88%86"><span class="nav-number">5.1.</span> <span class="nav-text">5.1. 模块划分</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-%E6%8A%80%E6%9C%AF%E9%80%89%E5%9E%8B%E5%BB%BA%E8%AE%AE"><span class="nav-number">5.2.</span> <span class="nav-text">5.2. 技术选型建议</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-%E9%83%A8%E7%BD%B2%E6%9E%B6%E6%9E%84"><span class="nav-number">5.3.</span> <span class="nav-text">5.3. 部署架构</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E5%85%B3%E9%94%AE%E6%B5%81%E7%A8%8B"><span class="nav-number">6.</span> <span class="nav-text">6. 关键流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-%E4%BF%83%E9%94%80%E6%B4%BB%E5%8A%A8%E5%88%9B%E5%BB%BA%E4%B8%8E%E9%85%8D%E7%BD%AE%E6%B5%81%E7%A8%8B"><span class="nav-number">6.1.</span> <span class="nav-text">6.1. 促销活动创建与配置流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-%E8%B4%AD%E7%89%A9%E8%BD%A6-%E7%BB%93%E7%AE%97%E9%A1%B5%E4%BF%83%E9%94%80%E8%AE%A1%E7%AE%97%E6%B5%81%E7%A8%8B"><span class="nav-number">6.2.</span> <span class="nav-text">6.2. 购物车&#x2F;结算页促销计算流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-%E8%A7%84%E5%88%99%E5%8F%98%E6%9B%B4%E4%B8%8E%E7%BC%93%E5%AD%98%E6%9B%B4%E6%96%B0"><span class="nav-number">6.3.</span> <span class="nav-text">6.3. 规则变更与缓存更新</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E6%80%A7%E8%83%BD%E4%B8%8E%E6%89%A9%E5%B1%95%E6%80%A7%E8%80%83%E8%99%91"><span class="nav-number">7.</span> <span class="nav-text">7. 性能与扩展性考虑</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-%E5%AE%89%E5%85%A8%E4%B8%8E%E9%A3%8E%E6%8E%A7"><span class="nav-number">8.</span> <span class="nav-text">8. 安全与风控</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#9-%E7%9B%91%E6%8E%A7%E4%B8%8E%E5%91%8A%E8%AD%A6"><span class="nav-number">9.</span> <span class="nav-text">9. 监控与告警</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#10-%E8%BF%AD%E4%BB%A3%E8%AE%A1%E5%88%92-%E7%A4%BA%E4%BE%8B"><span class="nav-number">10.</span> <span class="nav-text">10. 迭代计划 (示例)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#11-%E6%80%BB%E7%BB%93"><span class="nav-number">11.</span> <span class="nav-text">11. 总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

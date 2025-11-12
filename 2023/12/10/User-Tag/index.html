@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="一、项目背景与业务价值在竞争激烈的跨境电商领域，用户体验和精细化运营至关重要。为了实现精准营销、动态定价和运营分析等关键业务场景，我们需要更及时、更准确地理解用户行为">
+<meta property="og:type" content="article">
+<meta property="og:title" content="跨境电商用户标签系统架构设计">
+<meta property="og:url" content="https://www.yzhu.name/2023/12/10/User-Tag/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="一、项目背景与业务价值在竞争激烈的跨境电商领域，用户体验和精细化运营至关重要。为了实现精准营销、动态定价和运营分析等关键业务场景，我们需要更及时、更准确地理解用户行为">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-12-10T10:25:21.000Z">
+<meta property="article:modified_time" content="2025-11-11T03:53:15.776Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="分布式">
+<meta property="article:tag" content="微服务">
+<meta property="article:tag" content="技术方案">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2023/12/10/User-Tag/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>跨境电商用户标签系统架构设计 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2023/12/10/User-Tag/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          跨境电商用户标签系统架构设计
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-12-10 18:25:21" itemprop="dateCreated datePublished" datetime="2023-12-10T18:25:21+08:00">2023-12-10</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h3 id="一、项目背景与业务价值"><a href="#一、项目背景与业务价值" class="headerlink" title="一、项目背景与业务价值"></a>一、项目背景与业务价值</h3><p>在竞争激烈的跨境电商领域，用户体验和精细化运营至关重要。为了实现<strong>精准营销、动态定价和运营分析</strong>等关键业务场景，我们需要更及时、更准确地理解用户行为<span id="more"></span>。</p>
+<p>然而，传统用户标签系统依赖离线计算，数据更新频率为<strong>每日一次</strong>，实时性不足，无法满足业务快速响应用户行为变化的需求。例如，<strong>新用户下单后无法立即享受老用户折扣</strong>，<strong>个性化推荐也存在滞后性</strong>。</p>
+<p>为了解决这些痛点，我们启动了<strong>实时用户标签系统</strong>项目，旨在构建一套<strong>高性能、低延迟、可扩展</strong>的用户标签基础设施，实现用户行为的<strong>实时采集、计算和应用</strong>，为业务增长提供有力的数据支撑。</p>
+<p>系统上线后，成功支撑<strong>日均三千万级</strong>用户行为数据处理，<strong>标签更新延迟控制在500ms内</strong>，为以下关键业务场景提供了有力支持：</p>
+<ul>
+<li><strong>精准营销</strong>：基于用户标签实现<strong>千人千面</strong>的商品推荐，提升点击率和转化率。</li>
+<li><strong>动态定价</strong>：根据用户标签（如新老用户）实施<strong>差异化价格策略</strong>，提升用户粘性和复购率。</li>
+<li><strong>运营分析</strong>：通过用户行为标签进行<strong>用户行为洞察和转化率优化</strong>，指导运营策略调整。</li>
+</ul>
+<h3 id="二、架构设计全景图"><a href="#二、架构设计全景图" class="headerlink" title="二、架构设计全景图"></a>二、架构设计全景图</h3><h4 id="1-整体架构"><a href="#1-整体架构" class="headerlink" title="1. 整体架构"></a>1. 整体架构</h4><pre class="mermaid">graph TD
+    AAW[App/Web] -->|HTTP上报| A[区域A数据采集系统]
+    ABK[后端系统] -->|SDK上报| A
+    BAW[App/Web] -->|HTT上报| B[区域B数据采集系统]
+    BBK[后端系统] -->|SDK上报| B
+    A -->|MQ| C[标签计算系统]
+    B -->|MQ| C
+    C --> Da[区域A数据库集群: MongoDB+MySQL+Redis]
+    C --> Db[区域B数据库集群: MySQL+Redis]
+    Ea[标签查询] --> Da
+    Fa[用户系统]-->Ea
+    Ga[订单系统]-->Ea
+    Ia[营销系统]-->Ea
+    Ha[其它...系统]-->Ea
+    Eb[标签查询] --> Db
+    Fb[用户系统]-->Eb
+    Gb[订单系统]-->Eb
+    Ib[营销系统]-->Eb
+    Hb[其它...系统]-->Eb</pre>
+
+
+<p><strong>数据流:</strong>  <code>App/Web/后端系统</code> → <code>HTTP/SDK上报</code> → <code>区域采集系统</code> → <code>RabbitMQ</code> → <code>标签计算系统</code> → <code>MongoDB/MySQL/Redis</code></p>
+<p><strong>分层架构:</strong></p>
+<ul>
+<li><strong>数据采集层</strong>：采用 <strong>Nginx+SpringCloud</strong> 技术栈，<strong>双区域独立部署</strong> (区域A和区域B数据采集系统)，支持 <strong>App&#x2F;Web&#x2F;API 多端统一接入</strong>。具备 <strong>高并发 HTTP 接入</strong> 能力和 <strong>区域路由</strong> 功能，确保数据就近接入，降低网络延迟。</li>
+<li><strong>消息中间件</strong>：复用现有 <strong>RabbitMQ 集群</strong>，降低运维成本。RabbitMQ 承担 <strong>数据缓冲和异步解耦</strong> 的作用，保障数据采集层和计算层之间的稳定通信。</li>
+<li><strong>计算存储层</strong>：<ul>
+<li><strong>标签计算系统</strong>：基于 <strong>Spring</strong> 构建，采用 <strong>轻量级规则引擎</strong> 框架，易于扩展和维护。</li>
+<li><strong>规则管理</strong>：<strong>MySQL</strong> 存储标签规则，实现 <strong>规则版本控制和回滚</strong>，方便规则迭代和管理。</li>
+<li><strong>标签存储</strong>：采用 <strong>MySQL+Redis</strong> 组合，<strong>MySQL</strong> 持久化存储标签规则与计算结果，<strong>Redis</strong> 提供 <strong>实时查询能力</strong>，支撑高并发的标签查询请求。</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-核心组件设计"><a href="#2-核心组件设计" class="headerlink" title="2. 核心组件设计"></a>2. 核心组件设计</h4><table>
+<thead>
+<tr>
+<th>模块</th>
+<th>技术选型</th>
+<th>设计要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>数据采集</td>
+<td>Nginx+SpringCloud</td>
+<td>高并发HTTP接入，区域路由</td>
+</tr>
+<tr>
+<td>消息队列</td>
+<td>RabbitMQ集群</td>
+<td>消息持久化，自动故障转移</td>
+</tr>
+<tr>
+<td>标签计算</td>
+<td>Spring</td>
+<td>轻量级规则引擎，易于扩展</td>
+</tr>
+<tr>
+<td>规则管理</td>
+<td>MySQL</td>
+<td>规则版本控制，支持回滚</td>
+</tr>
+<tr>
+<td>标签存储</td>
+<td>MySQL+Redis</td>
+<td>冷热数据分离存储策略</td>
+</tr>
+<tr>
+<td>用户行为存储</td>
+<td>MongoDB</td>
+<td>用户行为持久化</td>
+</tr>
+</tbody></table>
+<h3 id="三、核心设计决策"><a href="#三、核心设计决策" class="headerlink" title="三、核心设计决策"></a>三、核心设计决策</h3><h4 id="1-数据采集方案"><a href="#1-数据采集方案" class="headerlink" title="1. 数据采集方案"></a>1. 数据采集方案</h4><ul>
+<li><strong>多端统一接入</strong>：定义标准 <strong>HTTP 上报协议</strong>，统一 <code>App/Web/API</code> 多端数据接入方式，降低接入成本。</li>
+<li><strong>区域路由策略</strong>：基于 <strong>用户标识自动路由</strong> 到相应区域采集节点，提升数据上报效率，降低网络延迟。</li>
+<li><strong>数据校验机制</strong>：<ul>
+<li><strong>上报数据格式校验</strong>：在采集层进行数据格式校验，过滤无效数据。</li>
+<li><strong>去重处理</strong>：对重复上报数据进行 <strong>去重处理</strong>，保障数据质量，避免重复计算。</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-消息中间件选型"><a href="#2-消息中间件选型" class="headerlink" title="2. 消息中间件选型"></a>2. 消息中间件选型</h4><table>
+<thead>
+<tr>
+<th>对比维度</th>
+<th>RabbitMQ优势</th>
+<th>设计考量点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>运维成本</td>
+<td>复用现有集群</td>
+<td><strong>无需额外运维投入</strong></td>
+</tr>
+<tr>
+<td>可靠性</td>
+<td>消息持久化+ACK机制</td>
+<td><strong>数据零丢失保障</strong></td>
+</tr>
+<tr>
+<td>扩展性</td>
+<td>集群模式支持水平扩展</td>
+<td><strong>满足未来增长需求</strong></td>
+</tr>
+</tbody></table>
+<p><strong>选型分析:</strong>  综合考虑 <strong>运维成本、可靠性和扩展性</strong> 等因素，<strong>复用现有 RabbitMQ 集群</strong> 是最优选择。RabbitMQ 集群具备良好的 <strong>消息持久化、ACK 机制和水平扩展能力</strong>，能够满足实时用户标签系统对消息队列的需求。</p>
+<h4 id="3-计算存储架构"><a href="#3-计算存储架构" class="headerlink" title="3. 计算存储架构"></a>3. 计算存储架构</h4><table>
+<thead>
+<tr>
+<th>数据类型</th>
+<th>存储方案</th>
+<th>设计考量点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>上报日志</td>
+<td>MongoDB分片集群</td>
+<td><strong>高吞吐写入，灵活 Schema</strong>，支持海量用户行为日志存储</td>
+</tr>
+<tr>
+<td>标签规则</td>
+<td>MySQL</td>
+<td><strong>事务支持，版本管理</strong>，保障规则数据一致性和可维护性</td>
+</tr>
+<tr>
+<td>标签结果</td>
+<td>MySQL+Redis</td>
+<td><strong>实时查询与持久化存储</strong>，兼顾实时查询性能和数据可靠性</td>
+</tr>
+</tbody></table>
+<p><strong>存储选型:</strong></p>
+<ul>
+<li><strong>MongoDB 分片集群</strong>：适用于存储 <strong>海量、Schema 灵活</strong> 的用户行为日志数据，满足高吞吐写入需求。</li>
+<li><strong>MySQL</strong>：适用于存储 <strong>结构化</strong> 的标签规则和标签结果数据，提供 <strong>事务支持和数据一致性</strong> 保障。</li>
+<li><strong>Redis</strong>：适用于缓存 <strong>热点标签数据</strong>，利用其 <strong>高性能内存数据库</strong> 特性，提升标签查询效率。</li>
+</ul>
+<h3 id="四、性能优化实践"><a href="#四、性能优化实践" class="headerlink" title="四、性能优化实践"></a>四、性能优化实践</h3><h4 id="1-采集层优化"><a href="#1-采集层优化" class="headerlink" title="1. 采集层优化"></a>1. 采集层优化</h4><ul>
+<li><strong>负载均衡</strong>：采用 <strong>Nginx 轮询 + 权重分配</strong> 策略，实现采集层负载均衡，<strong>单节点支持 10k QPS</strong> 高并发接入。</li>
+<li><strong>异步处理</strong>：数据上报请求 <strong>异步化处理</strong>，降低请求响应时间，<strong>响应时间 &lt;50ms</strong>。</li>
+<li><strong>数据压缩</strong>：采用 <strong>Gzip 压缩</strong> 技术，对上报数据进行压缩，<strong>降低 70% 网络传输量</strong>，提升传输效率。</li>
+</ul>
+<h4 id="2-容灾方案设计"><a href="#2-容灾方案设计" class="headerlink" title="2. 容灾方案设计"></a>2. 容灾方案设计</h4><ul>
+<li><strong>消息重试</strong>：RabbitMQ 启用 <strong>死信队列</strong>，处理标签计算失败消息，保障数据可靠性。</li>
+<li><strong>数据备份</strong>：MySQL 数据库进行 <strong>每日全量备份 + 增量备份</strong>，防止数据丢失。</li>
+<li><strong>故障切换</strong>：Redis 采用 <strong>主从模式</strong> 部署，实现 <strong>主从自动切换</strong>，<strong>切换时间 &lt;30s</strong>，保障缓存服务高可用。</li>
+</ul>
+<h3 id="五、标签体系设计"><a href="#五、标签体系设计" class="headerlink" title="五、标签体系设计"></a>五、标签体系设计</h3><h4 id="1-标签分类模型"><a href="#1-标签分类模型" class="headerlink" title="1. 标签分类模型"></a>1. 标签分类模型</h4><pre class="mermaid">graph TD
+    A[用户标签] --> B(基础标签)
+    A --> C(行为标签)
+    B --> D[用户属性]
+    B --> E[设备信息]
+    C --> F[购买行为]
+    C --> G[浏览偏好]</pre>
+
+<ul>
+<li><strong>基础标签</strong>：描述用户的<strong>静态属性</strong>，例如：用户属性（年龄、地域）、设备信息（设备类型、操作系统）。<strong>更新机制为批量每日更新</strong>。</li>
+<li><strong>行为标签</strong>：描述用户的<strong>动态行为</strong>，例如：购买行为（购买商品、订单金额）、浏览偏好（浏览商品类目、浏览时长）。<strong>更新机制为事件驱动实时更新</strong>。</li>
+</ul>
+<h4 id="2-典型场景实现：新用户转老用户逻辑"><a href="#2-典型场景实现：新用户转老用户逻辑" class="headerlink" title="2. 典型场景实现：新用户转老用户逻辑"></a>2. 典型场景实现：新用户转老用户逻辑</h4><p>以 <strong>新用户转老用户</strong> 标签更新场景为例，说明实时标签系统的应用流程：</p>
+<ol>
+<li><strong>监听下单事件</strong>：系统 <strong>实时监听</strong> 订单系统产生的下单事件。</li>
+<li><strong>校验历史订单数</strong>：标签计算系统接收到下单事件后，<strong>校验用户近一年内历史订单数是否为 1</strong>。</li>
+<li><strong>触发标签状态变更</strong>：若校验通过，则 <strong>触发用户标签状态变更</strong>，将用户标签从 “新用户” 更新为 “老用户”。</li>
+<li><strong>推送价格策略</strong>：标签计算系统将 <strong>新的用户标签推送至商品服务</strong>。商品服务 <strong>实时更新价格策略</strong>，使用户在 <strong>&lt;500ms 内</strong> 看到商品价格折扣。</li>
+</ol>
+<h3 id="六、总结与展望"><a href="#六、总结与展望" class="headerlink" title="六、总结与展望"></a>六、总结与展望</h3><p>实时用户标签系统的成功上线，显著提升了用户标签的<strong>实时性</strong>和<strong>应用效率</strong>，为业务的<strong>精细化运营</strong>提供了强有力的数据支撑。项目在<strong>高性能、高可靠、可扩展</strong>等方面做了深入设计和优化，为后续的迭代升级奠定了坚实基础。</p>
+<p>未来，我们将继续在以下方面进行探索和优化：</p>
+<ul>
+<li><strong>更智能的告警</strong>：引入 <strong>异常检测</strong> 等智能告警策略，提升问题发现和处理效率。</li>
+<li><strong>更丰富的标签类型</strong>：扩展 <strong>用户兴趣标签、用户偏好标签</strong> 等，构建更全面的用户画像。</li>
+<li><strong>更灵活的规则引擎</strong>：实现更负载的标签计算逻辑，提升系统灵活性。</li>
+</ul>
+<p>随着实时用户标签系统的不断完善，将为业务带来更大的价值，持续驱动业务增长。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/" rel="tag"># 技术方案</a>
+              <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag"># 分布式</a>
+              <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag"># 微服务</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/" rel="prev" title="Sharding-JDBC(ShardingSphere)SQL监控实践">
+      <i class="fa fa-chevron-left"></i> Sharding-JDBC(ShardingSphere)SQL监控实践
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2024/11/15/First-Efficiency-Lab/" rel="next" title="在线工具集合网站">
+      在线工具集合网站 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%80%E3%80%81%E9%A1%B9%E7%9B%AE%E8%83%8C%E6%99%AF%E4%B8%8E%E4%B8%9A%E5%8A%A1%E4%BB%B7%E5%80%BC"><span class="nav-number">1.</span> <span class="nav-text">一、项目背景与业务价值</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BA%8C%E3%80%81%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E5%85%A8%E6%99%AF%E5%9B%BE"><span class="nav-number">2.</span> <span class="nav-text">二、架构设计全景图</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="nav-number">2.1.</span> <span class="nav-text">1. 整体架构</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E6%A0%B8%E5%BF%83%E7%BB%84%E4%BB%B6%E8%AE%BE%E8%AE%A1"><span class="nav-number">2.2.</span> <span class="nav-text">2. 核心组件设计</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%89%E3%80%81%E6%A0%B8%E5%BF%83%E8%AE%BE%E8%AE%A1%E5%86%B3%E7%AD%96"><span class="nav-number">3.</span> <span class="nav-text">三、核心设计决策</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E6%95%B0%E6%8D%AE%E9%87%87%E9%9B%86%E6%96%B9%E6%A1%88"><span class="nav-number">3.1.</span> <span class="nav-text">1. 数据采集方案</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E6%B6%88%E6%81%AF%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%80%89%E5%9E%8B"><span class="nav-number">3.2.</span> <span class="nav-text">2. 消息中间件选型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-%E8%AE%A1%E7%AE%97%E5%AD%98%E5%82%A8%E6%9E%B6%E6%9E%84"><span class="nav-number">3.3.</span> <span class="nav-text">3. 计算存储架构</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9B%9B%E3%80%81%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%AE%9E%E8%B7%B5"><span class="nav-number">4.</span> <span class="nav-text">四、性能优化实践</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E9%87%87%E9%9B%86%E5%B1%82%E4%BC%98%E5%8C%96"><span class="nav-number">4.1.</span> <span class="nav-text">1. 采集层优化</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E5%AE%B9%E7%81%BE%E6%96%B9%E6%A1%88%E8%AE%BE%E8%AE%A1"><span class="nav-number">4.2.</span> <span class="nav-text">2. 容灾方案设计</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BA%94%E3%80%81%E6%A0%87%E7%AD%BE%E4%BD%93%E7%B3%BB%E8%AE%BE%E8%AE%A1"><span class="nav-number">5.</span> <span class="nav-text">五、标签体系设计</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E6%A0%87%E7%AD%BE%E5%88%86%E7%B1%BB%E6%A8%A1%E5%9E%8B"><span class="nav-number">5.1.</span> <span class="nav-text">1. 标签分类模型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E5%85%B8%E5%9E%8B%E5%9C%BA%E6%99%AF%E5%AE%9E%E7%8E%B0%EF%BC%9A%E6%96%B0%E7%94%A8%E6%88%B7%E8%BD%AC%E8%80%81%E7%94%A8%E6%88%B7%E9%80%BB%E8%BE%91"><span class="nav-number">5.2.</span> <span class="nav-text">2. 典型场景实现：新用户转老用户逻辑</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%AD%E3%80%81%E6%80%BB%E7%BB%93%E4%B8%8E%E5%B1%95%E6%9C%9B"><span class="nav-number">6.</span> <span class="nav-text">六、总结与展望</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

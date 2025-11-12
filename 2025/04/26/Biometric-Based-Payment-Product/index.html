@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="前一段时间完成了一个基于生物识别技术的支付产品方案设计。该方案旨在通过生物特征识别（如掌静脉扫描）实现无需手机的便捷支付体验，为用户和商户提供更加安全、高效的支付解决方案。经过对敏感信息的脱敏处理，我将这个方案的核心设计理念、系统架构和关键流程记录下来，希望能为对类似技术感兴趣的读者提供一些参考和启发。本文将详细介绍该支付产品的目标、核心功能、系统架构以及交互流程，展示如何将生物识别技术与支付系统">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Biometric-Based Payment Product">
+<meta property="og:url" content="https://www.yzhu.name/2025/04/26/Biometric-Based-Payment-Product/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="前一段时间完成了一个基于生物识别技术的支付产品方案设计。该方案旨在通过生物特征识别（如掌静脉扫描）实现无需手机的便捷支付体验，为用户和商户提供更加安全、高效的支付解决方案。经过对敏感信息的脱敏处理，我将这个方案的核心设计理念、系统架构和关键流程记录下来，希望能为对类似技术感兴趣的读者提供一些参考和启发。本文将详细介绍该支付产品的目标、核心功能、系统架构以及交互流程，展示如何将生物识别技术与支付系统">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2025-04-26T11:55:19.000Z">
+<meta property="article:modified_time" content="2025-11-11T03:53:15.766Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="分布式">
+<meta property="article:tag" content="技术方案">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2025/04/26/Biometric-Based-Payment-Product/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Biometric-Based Payment Product | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2025/04/26/Biometric-Based-Payment-Product/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Biometric-Based Payment Product
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2025-04-26 19:55:19" itemprop="dateCreated datePublished" datetime="2025-04-26T19:55:19+08:00">2025-04-26</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>前一段时间完成了一个基于生物识别技术的支付产品方案设计。该方案旨在通过生物特征识别（如掌静脉扫描）实现无需手机的便捷支付体验，为用户和商户提供更加安全、高效的支付解决方案。经过对敏感信息的脱敏处理，我将这个方案的核心设计理念、系统架构和关键流程记录下来，希望能为对类似技术感兴趣的读者提供一些参考和启发。本文将详细介绍该支付产品的目标、核心功能、系统架构以及交互流程，展示如何将生物识别技术与支付系统有机结合，打造一个既安全又便捷的支付生态系统。<span id="more"></span></p>
+<p>在技术快速迭代的今天，生物识别支付代表了未来支付方式的重要发展方向之一。通过这篇文章，我希望能分享这一领域的一些思考和实践经验。</p>
+<h1 id="Biometric-Based-Payment-Product"><a href="#Biometric-Based-Payment-Product" class="headerlink" title="Biometric-Based Payment Product"></a>Biometric-Based Payment Product</h1><h2 id="1-Project-Overview"><a href="#1-Project-Overview" class="headerlink" title="1. Project Overview"></a>1. Project Overview</h2><p>This project aims to provide an innovative, convenient, and secure payment solution for users, allowing them to make payments without a phone using biometric features (such as palm vein scanning). The product will integrate payment API and biometric capture technology from a partner vendor to deliver a new payment experience for users and an efficient and secure method of receiving payments for merchants. </p>
+<h2 id="2-Project-Goals"><a href="#2-Project-Goals" class="headerlink" title="2. Project Goals"></a>2. Project Goals</h2><ul>
+<li>To provide users with a convenient way to make payments without a phone</li>
+<li>To enhance payment security and reduce the risk of fraud through multi-factor authentication</li>
+<li>To simplify the payment process and improve transaction efficiency</li>
+<li>To offer merchants a modern method of receiving payments with real-time settlement</li>
+<li>To comply with local payment regulatory requirements and data protection standards</li>
+<li>To ensure system scalability and high availability</li>
+</ul>
+<h2 id="3-Product-Core-Feature-List"><a href="#3-Product-Core-Feature-List" class="headerlink" title="3. Product Core Feature List"></a>3. Product Core Feature List</h2><h4 id="3-1-User-Features"><a href="#3-1-User-Features" class="headerlink" title="3.1 User Features:"></a>3.1 User Features:</h4><ul>
+<li>User account registration with multi-factor authentication</li>
+<li>Biometric feature (e.g., palm vein) capture and secure encryption</li>
+<li>Initiating payments by scanning biometric features at participating merchants</li>
+<li>Real-time payment notifications (via biometric capture device, APP, SMS, Email, WhatsApp Message)</li>
+<li>Detailed transaction history with advanced filtering (via App)</li>
+<li>Comprehensive user account management (card binding, password change, security settings)</li>
+<li>Emergency account freeze functionality</li>
+</ul>
+<h4 id="3-2-Merchant-Features"><a href="#3-2-Merchant-Features" class="headerlink" title="3.2 Merchant Features:"></a>3.2 Merchant Features:</h4><ul>
+<li>Real-time payment processing and confirmation</li>
+<li>Automated refund processing with approval workflow</li>
+<li>Flexible settlement cycles (T+0, T+1) with detailed reporting</li>
+<li>Advanced transaction search and export capabilities</li>
+<li>Detailed settlement reports and reconciliation tools</li>
+<li>Merchant profile and branch management</li>
+<li>Custom payment limit settings</li>
+<li>Integration with existing POS systems</li>
+</ul>
+<h4 id="3-3-System-Management-Features"><a href="#3-3-System-Management-Features" class="headerlink" title="3.3 System Management Features:"></a>3.3 System Management Features:</h4><ul>
+<li>Centralized user account management with audit trails</li>
+<li>Real-time transaction monitoring and fraud detection</li>
+<li>Device health monitoring and remote management</li>
+<li>Configurable system parameters and business rules</li>
+<li>Comprehensive reporting with data visualization</li>
+<li>System performance monitoring and alerts</li>
+<li>Audit logging for all critical operations</li>
+<li>Automated backup and disaster recovery</li>
+</ul>
+<h2 id="4-System-Architecture"><a href="#4-System-Architecture" class="headerlink" title="4 System Architecture"></a>4 System Architecture</h2><p>To serve 500k users with room for growth, this system involves the following enhanced components:</p>
+<ul>
+<li><strong>Biometric Capture Device:</strong> Secure biometric capture with encryption and matching capabilities</li>
+<li><strong>User App:</strong> The main entry point for user registration, account management, transaction viewing, etc.</li>
+<li><strong>User Backend System:</strong> core business logic processing center, responsible for user management, biometric data management, interaction with Tap API, transaction processing, security control, etc.</li>
+<li><strong>Payment API:</strong> Used to process actual payment transactions, including fund deduction and settlement.</li>
+<li><strong>Merchant Backend (Web):</strong> The main entry point for merchants to receive payments, view transaction records, etc.</li>
+<li><strong>Admin Backend (Web):</strong> Used by system administrators to manage system, generate reports, etc.</li>
+<li><strong>Job Service:</strong> Used for scheduled tasks, such as payment reconciliation，data compensation, etc.</li>
+<li><strong>Database:</strong> Used to store user information, transaction records, etc.(maybe master-slave architecture)</li>
+<li><strong>Message Queue:</strong> Used for asynchronous message processing, such as payment notification, etc.</li>
+<li><strong>Cache Layer:</strong> Distributed caching for performance optimization</li>
+<li><strong>Monitoring System:</strong> Real-time system monitoring and alerting</li>
+</ul>
+<p>In order to ensure the system’s scalability and high availability, the system deployment is implemented as described below:</p>
+<pre class="mermaid">flowchart TB
+    subgraph payment gateway
+        Payment-Gateway[third-payment-gateway] 
+    end
+
+    subgraph Storage
+        MySQL[RDS-MySQL] 
+        Redis[Redis]
+    end
+    
+    subgraph MessageQueue
+        MQ[RabbitMQ]
+    end
+
+    subgraph backend
+        BackendService[backend-service] -->|JDBC| MySQL
+        BackendService -->|Redis API| Redis
+        BackendService -->|API| Payment-Gateway
+        BackendService -->|send| MQ
+        Payment-Gateway -.->|async| BackendService
+    end
+
+    subgraph user
+        App[App] -->|REST API| BackendService
+        BiometricDevice[biometric-device] --> BackendService
+    end
+
+    subgraph merchant
+        WebMerchant[Merchant-UI] -->Merchant-Service
+        Merchant-Service-->|JDBC| MySQL
+        Merchant-Service-->|Redis API| Redis
+    end
+
+    subgraph operation admin
+        WebAdmin[Admin-UI] -->Admin-Service
+        Admin-Service-->|JDBC| MySQL
+        Admin-Service-->|Redis API| Redis
+    end
+    
+    subgraph job
+        Job-Service -->|JDBC| MySQL
+        Job-Service -->|Redis API| Redis
+        Job-Service -.->|consume| MQ
+    end</pre>
+
+<h2 id="5-Core-Interactive-Process"><a href="#5-Core-Interactive-Process" class="headerlink" title="5. Core Interactive Process"></a>5. Core Interactive Process</h2><h4 id="5-1-Registration"><a href="#5-1-Registration" class="headerlink" title="5.1 Registration"></a>5.1 Registration</h4><pre class="mermaid">sequenceDiagram
+    participant User
+    participant App
+    participant BackendService
+    participant BiometricDevice
+
+    User->>App: Initiate Registration Request
+    App->>BackendService: Send Registration Request (User Information)
+    BackendService->>BiometricDevice: Request Biometric Capture
+    BiometricDevice->>User: Prompt User for Biometric Capture
+    User->>BiometricDevice: Complete Biometric Capture
+    BiometricDevice->>BackendService: Send Biometric Data
+    BackendService->>Database: Store User Information and Biometric Information
+    Database-->>BackendService: Return Storage Result
+    BackendService-->>App: Return Registration Success Information
+    App->>User: Display Registration Success</pre>
+
+<h4 id="5-2-Link-Bank-Card"><a href="#5-2-Link-Bank-Card" class="headerlink" title="5.2 Link Bank Card"></a>5.2 Link Bank Card</h4><pre class="mermaid">sequenceDiagram
+    participant User
+    participant App
+    participant BackendService
+    participant Tap as Payment API
+
+    User->>App: Initiate Card Linking
+    App->>BackendService: Request Card Linking Initiation (User ID)
+    BackendService->>App: Instruct App to Present Payment's Secure Form
+    App->>User: Display Payment's Secure Card Input Form
+    User->>App: Enter Bank Card Details
+    App->>Tap: Send Card Details Securely (via SDK or Payment Page)
+    Tap-->>App: Return Card Token
+    App->>BackendService: Send Card Token and User ID
+    BackendService->>Database: Associate Card Token with User Account
+    Database-->>BackendService: Return Association Result
+    BackendService-->>App: Return Card Linking Success Confirmation
+    App->>User: Display "Card Linked Successfully"</pre>
+
+<h4 id="5-3-Payment"><a href="#5-3-Payment" class="headerlink" title="5.3 Payment"></a>5.3 Payment</h4><pre class="mermaid">sequenceDiagram
+    participant User
+    participant BiometricDevice
+    participant BackendService
+    participant Tap as Payment API
+
+    User->>BiometricDevice: Initiate Payment Request
+    BiometricDevice->>BackendService: Send Payment Request (Device ID, May Contain Initial User Identification)
+    BackendService->>BiometricDevice: Request Biometric Verification
+    BiometricDevice->>User: Prompt User for Biometric Verification
+    User->>BiometricDevice: Complete Biometric Verification
+    BiometricDevice->>BackendService: Send Biometric Data
+    BackendService->>Database: Query User Biometric Information
+    Database-->>BackendService: Return User Biometric Information
+    alt Verification Successful
+        BackendService->>Database: Retrieve User's Card Token
+        Database-->>BackendService: Return Card Token
+        BackendService->>Tap: Initiate Payment Request (Amount, Card Token, Merchant ID, etc.)
+        Tap-->>BackendService: Return Payment Result
+        BackendService->>BiometricDevice: Return Payment Success Information
+        BiometricDevice->>User: Display Payment Success
+    else Verification Failed
+        BackendService->>BiometricDevice: Return Payment Failure Information
+        BiometricDevice->>User: Display Payment Failure
+    end</pre>
+
+<h2 id="6-Security-and-Compliance-Considerations"><a href="#6-Security-and-Compliance-Considerations" class="headerlink" title="6. Security and Compliance Considerations"></a>6. Security and Compliance Considerations</h2><h4 id="6-1-Data-Security"><a href="#6-1-Data-Security" class="headerlink" title="6.1 Data Security"></a>6.1 Data Security</h4><ul>
+<li>End-to-end encryption for biometric data storage and transmission</li>
+<li>Strict access control mechanisms for sensitive data</li>
+<li>Separation of biometric data from user identity information</li>
+<li>Regular security audits and penetration testing</li>
+<li>Multi-layered security architecture with defense-in-depth approach</li>
+</ul>
+<h4 id="6-2-Compliance"><a href="#6-2-Compliance" class="headerlink" title="6.2 Compliance"></a>6.2 Compliance</h4><ul>
+<li>Adherence to payment industry regulations and standards (PCI DSS)</li>
+<li>Compliance with data protection regulations (GDPR or local equivalents)</li>
+<li>Implementation of comprehensive user privacy protection mechanisms</li>
+<li>Complete compliance audit trail to meet regulatory requirements</li>
+<li>Regular compliance reviews and updates</li>
+</ul>
+<h2 id="7-Performance-and-Scalability"><a href="#7-Performance-and-Scalability" class="headerlink" title="7. Performance and Scalability"></a>7. Performance and Scalability</h2><h4 id="7-1-Performance-Metrics"><a href="#7-1-Performance-Metrics" class="headerlink" title="7.1 Performance Metrics"></a>7.1 Performance Metrics</h4><ul>
+<li>Transaction response time: Average &lt;1 second, 99% of transactions &lt;3 seconds</li>
+<li>System throughput: Peak capacity of 100+ transaction requests per second</li>
+<li>System availability: 99.99% uptime (less than 1 hour of unplanned downtime annually)</li>
+<li>Data consistency: Ensuring integrity and consistency of all transaction data</li>
+<li>Biometric matching accuracy: False acceptance rate &lt;0.001%, false rejection rate &lt;1%</li>
+</ul>
+<h4 id="7-2-Scalability-Strategy"><a href="#7-2-Scalability-Strategy" class="headerlink" title="7.2 Scalability Strategy"></a>7.2 Scalability Strategy</h4><ul>
+<li>Automated elastic scaling based on load patterns</li>
+<li>Capacity planning for 300% growth over the next 2 years</li>
+</ul>
+<h2 id="8-Implementation-and-Operations"><a href="#8-Implementation-and-Operations" class="headerlink" title="8. Implementation and Operations"></a>8. Implementation and Operations</h2><h4 id="8-1-Implementation-Roadmap"><a href="#8-1-Implementation-Roadmap" class="headerlink" title="8.1 Implementation Roadmap"></a>8.1 Implementation Roadmap</h4><ul>
+<li>Phase 1: Core payment functionality development and testing (2 months)</li>
+<li>Phase 2: Merchant management system and settlement functionality (1 months)</li>
+<li>Phase 3: Pilot deployment and optimization (1 months)</li>
+<li>Phase 4: Full-scale rollout and continuous improvement (ongoing)</li>
+</ul>
+<h4 id="8-2-Operational-Strategy"><a href="#8-2-Operational-Strategy" class="headerlink" title="8.2 Operational Strategy"></a>8.2 Operational Strategy</h4><ul>
+<li>24&#x2F;7 monitoring system with real-time alerts</li>
+<li>Automated deployment and rollback mechanisms</li>
+<li>Comprehensive logging and analytics system</li>
+<li>Detailed disaster recovery plan with regular testing</li>
+<li>Continuous performance optimization and capacity planning</li>
+</ul>
+<h2 id="写到最后"><a href="#写到最后" class="headerlink" title="写到最后"></a>写到最后</h2><p>以上是这个项目的完整方案，该方案通过整合生物识别技术与支付API，为用户提供了一种无需手机即可完成支付的便捷方式。系统架构设计充分考虑了安全性、可扩展性和高可用性，能够支持大规模用户群体的使用需求。</p>
+<p>通过实施这一支付解决方案，我们期望能够：</p>
+<ul>
+<li>为用户提供更加便捷、安全的支付体验</li>
+<li>为商户提供更加高效、可靠的收款方式</li>
+</ul>
+<p>未来，我们计划进一步优化系统性能，扩展更多场景应用，如将生物识别支付技术应用于多个领域。同时，我们也将持续关注生物识别技术的发展，探索更多创新的支付解决方案，为用户和商户创造更大的价值。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/" rel="tag"># 技术方案</a>
+              <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag"># 分布式</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2024/11/15/First-Efficiency-Lab/" rel="prev" title="在线工具集合网站">
+      <i class="fa fa-chevron-left"></i> 在线工具集合网站
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/07/08/Nacos-Consul-Zk-Etcd/" rel="next" title="分布式系统核心组件对比：Nacos、Consul、ZooKeeper与etcd">
+      分布式系统核心组件对比：Nacos、Consul、ZooKeeper与etcd <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Biometric-Based-Payment-Product"><span class="nav-number">1.</span> <span class="nav-text">Biometric-Based Payment Product</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-Project-Overview"><span class="nav-number">1.1.</span> <span class="nav-text">1. Project Overview</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-Project-Goals"><span class="nav-number">1.2.</span> <span class="nav-text">2. Project Goals</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-Product-Core-Feature-List"><span class="nav-number">1.3.</span> <span class="nav-text">3. Product Core Feature List</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#3-1-User-Features"><span class="nav-number">1.3.1.</span> <span class="nav-text">3.1 User Features:</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-2-Merchant-Features"><span class="nav-number">1.3.2.</span> <span class="nav-text">3.2 Merchant Features:</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#3-3-System-Management-Features"><span class="nav-number">1.3.3.</span> <span class="nav-text">3.3 System Management Features:</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-System-Architecture"><span class="nav-number">1.4.</span> <span class="nav-text">4 System Architecture</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-Core-Interactive-Process"><span class="nav-number">1.5.</span> <span class="nav-text">5. Core Interactive Process</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#5-1-Registration"><span class="nav-number">1.5.1.</span> <span class="nav-text">5.1 Registration</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#5-2-Link-Bank-Card"><span class="nav-number">1.5.2.</span> <span class="nav-text">5.2 Link Bank Card</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#5-3-Payment"><span class="nav-number">1.5.3.</span> <span class="nav-text">5.3 Payment</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-Security-and-Compliance-Considerations"><span class="nav-number">1.6.</span> <span class="nav-text">6. Security and Compliance Considerations</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#6-1-Data-Security"><span class="nav-number">1.6.1.</span> <span class="nav-text">6.1 Data Security</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#6-2-Compliance"><span class="nav-number">1.6.2.</span> <span class="nav-text">6.2 Compliance</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-Performance-and-Scalability"><span class="nav-number">1.7.</span> <span class="nav-text">7. Performance and Scalability</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#7-1-Performance-Metrics"><span class="nav-number">1.7.1.</span> <span class="nav-text">7.1 Performance Metrics</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#7-2-Scalability-Strategy"><span class="nav-number">1.7.2.</span> <span class="nav-text">7.2 Scalability Strategy</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-Implementation-and-Operations"><span class="nav-number">1.8.</span> <span class="nav-text">8. Implementation and Operations</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#8-1-Implementation-Roadmap"><span class="nav-number">1.8.1.</span> <span class="nav-text">8.1 Implementation Roadmap</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#8-2-Operational-Strategy"><span class="nav-number">1.8.2.</span> <span class="nav-text">8.2 Operational Strategy</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%99%E5%88%B0%E6%9C%80%E5%90%8E"><span class="nav-number">1.9.</span> <span class="nav-text">写到最后</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

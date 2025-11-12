@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="1. 背景与挑战电商促销活动（如秒杀）期间，系统会面临瞬时的高并发请求，对商品库存进行扣减。核心挑战包括：">
+<meta property="og:type" content="article">
+<meta property="og:title" content="电商高并发库存超卖及用户限购解决方案">
+<meta property="og:url" content="https://www.yzhu.name/2022/12/18/E-commerce-High-Concurrent-Inventory/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="1. 背景与挑战电商促销活动（如秒杀）期间，系统会面临瞬时的高并发请求，对商品库存进行扣减。核心挑战包括：">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-12-17T17:00:49.000Z">
+<meta property="article:modified_time" content="2025-11-11T03:53:15.768Z">
+<meta property="article:author" content="yhzhu">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2022/12/18/E-commerce-High-Concurrent-Inventory/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>电商高并发库存超卖及用户限购解决方案 | yhzhu的随手记</title><meta name="robots" content="noindex">
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2022/12/18/E-commerce-High-Concurrent-Inventory/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          电商高并发库存超卖及用户限购解决方案
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-12-18 01:00:49" itemprop="dateCreated datePublished" datetime="2022-12-18T01:00:49+08:00">2022-12-18</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id><a href="#" class="headerlink" title></a></h1><h2 id="1-背景与挑战"><a href="#1-背景与挑战" class="headerlink" title="1. 背景与挑战"></a>1. 背景与挑战</h2><p>电商促销活动（如秒杀）期间，系统会面临瞬时的高并发请求，对商品库存进行扣减。核心挑战包括：<span id="more"></span>；</p>
+<ul>
+<li><strong>库存超卖：</strong> 多个请求在极短时间内并发读取和修改库存，导致实际售出数量超过真实库存。</li>
+<li><strong>用户限购：</strong> 确保特定活动下，每个用户对同一商品只能购买限定数量（例如1件）。</li>
+<li><strong>高QPS：</strong> 需处理极高的并发请求（例如10万QPS）。</li>
+<li><strong>数据一致性：</strong> Redis缓存与DB数据库之间的数据一致性问题。</li>
+<li><strong>用户体验：</strong> 在高压下仍能提供快速响应和明确的反馈。</li>
+</ul>
+<h2 id="2-核心设计原则"><a href="#2-核心设计原则" class="headerlink" title="2. 核心设计原则"></a>2. 核心设计原则</h2><ul>
+<li><strong>层层过滤：</strong> 在请求到达核心逻辑前，尽可能过滤无效和恶意请求。</li>
+<li><strong>异步削峰：</strong> 利用消息队列将核心写操作异步化，缓解DB压力。</li>
+<li><strong>原子操作：</strong> 利用Redis Lua脚本保证关键操作（库存检查、限购判断、库存扣减、购买标记）的原子性。</li>
+<li><strong>最终一致性：</strong> 接受缓存与DB在短时间内的不一致，通过补偿和对账机制保证最终一致。</li>
+<li><strong>快速失败与反馈：</strong> 对不满足条件的请求快速拒绝，并给出明确提示。</li>
+</ul>
+<h2 id="3-整体架构方案"><a href="#3-整体架构方案" class="headerlink" title="3. 整体架构方案"></a>3. 整体架构方案</h2><pre class="mermaid">graph LR
+    User[用户] --> NginxLua[Nginx+Lua / API Gateway]
+    NginxLua --> AppServer[应用服务集群]
+    AppServer --> RedisCluster[Redis Cluster (Lua脚本)]
+    AppServer --> MQ[消息队列 (Kafka/RocketMQ)]
+    MQ --> OrderConsumer[订单处理服务 (消费者)]
+    OrderConsumer --> DB[数据库 (MySQL/PostgreSQL)]
+
+    subgraph "1. 流量接入与过滤"
+        NginxLua
+    end
+
+    subgraph "2. 应用服务层"
+        AppServer
+    end
+
+    subgraph "3. 核心库存与限购处理 (原子操作)"
+        RedisCluster
+    end
+
+    subgraph "4. 异步持久化"
+        MQ
+        OrderConsumer
+        DB
+    end
+
+    %% 辅助服务
+    Scheduler[定时任务/对账服务] -.-> RedisCluster
+    Scheduler -.-> DB
+    Monitor[监控告警系统] --> NginxLua
+    Monitor --> AppServer
+    Monitor --> RedisCluster
+    Monitor --> MQ
+    Monitor --> OrderConsumer
+    Monitor --> DB</pre>
+
+<h2 id="4-详细设计"><a href="#4-详细设计" class="headerlink" title="4. 详细设计"></a>4. 详细设计</h2><h3 id="4-1-前端优化"><a href="#4-1-前端优化" class="headerlink" title="4.1 前端优化"></a>4.1 前端优化</h3><ul>
+<li><strong>按钮状态：</strong> 活动开始前按钮置灰；快速判断无库存或用户已购后，前端按钮置灰或提示。</li>
+<li><strong>页面静态化：</strong> 商品详情页使用CDN加速，减少动态请求。</li>
+<li><strong>验证码&#x2F;答题（可选）：</strong> 增加简单门槛，过滤机器流量。</li>
+</ul>
+<h3 id="4-2-流量接入与过滤-Nginx-Lua-API-Gateway"><a href="#4-2-流量接入与过滤-Nginx-Lua-API-Gateway" class="headerlink" title="4.2 流量接入与过滤 (Nginx+Lua &#x2F; API Gateway)"></a>4.2 流量接入与过滤 (Nginx+Lua &#x2F; API Gateway)</h3><ul>
+<li><strong>IP&#x2F;UID限流：</strong> 基础限流，防止单一来源攻击。</li>
+<li><strong>WAF防护：</strong> 防DDoS、SQL注入、刷单等。</li>
+<li><strong>“售罄”快速拦截：</strong><ul>
+<li>在Redis中设置全局售罄标记：<code>product_sold_out_flag:{product_id}</code>。</li>
+<li>网关层可读取此标记，若已售罄，直接返回错误，避免请求进入后端。</li>
+</ul>
+</li>
+</ul>
+<h3 id="4-3-应用服务层"><a href="#4-3-应用服务层" class="headerlink" title="4.3 应用服务层"></a>4.3 应用服务层</h3><ul>
+<li><strong>用户身份与活动资格校验：</strong><ul>
+<li>确保用户登录。</li>
+<li><strong>快速判断用户是否已购买 (限购核心)：</strong><ul>
+<li>查询Redis Set：<code>SISMEMBER user_purchase_set:{product_id} &lt;user_id&gt;</code> (使用Hash Tag确保与库存key同slot)。</li>
+<li>如果已购买，直接拒绝。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>调用Redis Lua脚本处理核心逻辑。</strong></li>
+</ul>
+<h3 id="4-4-核心库存与限购处理-Redis-Cluster-Lua"><a href="#4-4-核心库存与限购处理-Redis-Cluster-Lua" class="headerlink" title="4.4 核心库存与限购处理 (Redis Cluster + Lua)"></a>4.4 核心库存与限购处理 (Redis Cluster + Lua)</h3><h4 id="4-4-1-Redis-Key设计-使用Hash-Tag确保同Slot"><a href="#4-4-1-Redis-Key设计-使用Hash-Tag确保同Slot" class="headerlink" title="4.4.1 Redis Key设计 (使用Hash Tag确保同Slot)"></a>4.4.1 Redis Key设计 (使用Hash Tag确保同Slot)</h4><ul>
+<li><strong>商品库存Key：</strong> <code>product_stock:{&lt;product_id&gt;}</code> (String类型, 存储库存数)</li>
+<li><strong>用户购买记录Key (限购)：</strong> <code>user_purchase_set:{&lt;product_id&gt;}</code> (Set类型, 存储已购买该商品的用户ID)</li>
+<li><strong>全局售罄标志Key：</strong> <code>product_sold_out_flag:{&lt;product_id&gt;}</code> (String, 值为1表示售罄)</li>
+</ul>
+<h4 id="4-4-2-Lua脚本-原子操作"><a href="#4-4-2-Lua脚本-原子操作" class="headerlink" title="4.4.2 Lua脚本 (原子操作)"></a>4.4.2 Lua脚本 (原子操作)</h4><figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- KEYS[1]: product_stock_key (e.g., product_stock:&#123;123&#125;)</span></span><br><span class="line"><span class="comment">-- KEYS[2]: user_purchase_set_key (e.g., user_purchase_set:&#123;123&#125;)</span></span><br><span class="line"><span class="comment">-- KEYS[3]: product_sold_out_flag_key (e.g., product_sold_out_flag:&#123;123&#125;)</span></span><br><span class="line"><span class="comment">-- ARGV[1]: user_id</span></span><br><span class="line"><span class="comment">-- ARGV[2]: quantity_to_buy (固定为1)</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">local</span> stock_key = KEYS[<span class="number">1</span>]</span><br><span class="line"><span class="keyword">local</span> user_set_key = KEYS[<span class="number">2</span>]</span><br><span class="line"><span class="keyword">local</span> sold_out_flag_key = KEYS[<span class="number">3</span>]</span><br><span class="line"><span class="keyword">local</span> user_id = ARGV[<span class="number">1</span>]</span><br><span class="line"><span class="keyword">local</span> quantity = <span class="built_in">tonumber</span>(ARGV[<span class="number">2</span>])</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 0. 检查全局售罄标志 (可选，网关层可能已做，这里作为兜底)</span></span><br><span class="line"><span class="keyword">if</span> redis.call(<span class="string">&#x27;GET&#x27;</span>, sold_out_flag_key) == <span class="string">&quot;1&quot;</span> <span class="keyword">then</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">-4</span> <span class="comment">-- 已售罄 (通过全局标志)</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 1. 检查用户是否已购买 (限购1件)</span></span><br><span class="line"><span class="keyword">if</span> redis.call(<span class="string">&#x27;SISMEMBER&#x27;</span>, user_set_key, user_id) == <span class="number">1</span> <span class="keyword">then</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">-1</span> <span class="comment">-- 用户已购买</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 2. 检查库存</span></span><br><span class="line"><span class="keyword">local</span> current_stock = <span class="built_in">tonumber</span>(redis.call(<span class="string">&#x27;GET&#x27;</span>, stock_key))</span><br><span class="line"><span class="keyword">if</span> current_stock == <span class="literal">nil</span> <span class="keyword">then</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">-3</span> <span class="comment">-- 商品库存未初始化或不存在</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"><span class="keyword">if</span> current_stock &lt; quantity <span class="keyword">then</span></span><br><span class="line">    <span class="comment">-- 如果库存不足，可以考虑在这里设置全局售罄标志</span></span><br><span class="line">    <span class="comment">-- redis.call(&#x27;SET&#x27;, sold_out_flag_key, &quot;1&quot;, &quot;EX&quot;, 3600) -- 设置1小时过期，防止永久售罄</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">-2</span> <span class="comment">-- 库存不足</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 3. 扣减库存</span></span><br><span class="line"><span class="keyword">local</span> after_decrement_stock = redis.call(<span class="string">&#x27;DECRBY&#x27;</span>, stock_key, quantity)</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 4. 记录用户已购买</span></span><br><span class="line">redis.call(<span class="string">&#x27;SADD&#x27;</span>, user_set_key, user_id)</span><br><span class="line"><span class="comment">-- 可给 SADD 的记录设置一个活动相关的有效期，或依赖DB持久化</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 5. 如果扣减后库存为0，设置全局售罄标志</span></span><br><span class="line"><span class="keyword">if</span> after_decrement_stock &lt;= <span class="number">0</span> <span class="keyword">then</span></span><br><span class="line">    redis.call(<span class="string">&#x27;SET&#x27;</span>, sold_out_flag_key, <span class="string">&quot;1&quot;</span>, <span class="string">&quot;EX&quot;</span>, <span class="number">3600</span>) <span class="comment">-- EX 3600: 设置1小时过期，以防万一</span></span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">return</span> after_decrement_stock <span class="comment">-- 返回扣减后的库存 (或0表示成功, &gt;0 表示成功并剩余库存, &lt;0表示错误码)</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="4-4-3-应用层调用Lua脚本逻辑"><a href="#4-4-3-应用层调用Lua脚本逻辑" class="headerlink" title="4.4.3 应用层调用Lua脚本逻辑"></a>4.4.3 应用层调用Lua脚本逻辑</h4><ol>
+<li>应用服务调用<code>EVAL</code>执行Lua脚本。</li>
+<li><strong>根据返回值处理：</strong><ul>
+<li><strong>成功 (返回值 &gt;&#x3D; 0)：</strong><ol>
+<li><strong>立即生成一个“待处理”订单，并记录一个操作令牌&#x2F;预订单ID到Redis（带TTL）。</strong> 例如：<code>HSET pending_orders:&lt;order_id&gt; user_id &lt;user_id&gt; product_id &lt;product_id&gt; timestamp &lt;ts&gt;</code>，并 <code>EXPIRE pending_orders:&lt;order_id&gt; 300</code> (5分钟)。</li>
+<li>将订单信息（订单ID、商品ID、用户ID等）发送到消息队列 (MQ)。</li>
+<li>快速响应用户“下单成功，处理中”或“排队中”。</li>
+</ol>
+</li>
+<li><strong>失败 (返回值 &lt; 0)：</strong> 直接返回用户对应错误提示（已购买、库存不足、商品问题、已售罄）。</li>
+</ul>
+</li>
+</ol>
+<h3 id="4-5-异步持久化-消息队列-订单处理服务"><a href="#4-5-异步持久化-消息队列-订单处理服务" class="headerlink" title="4.5 异步持久化 (消息队列 + 订单处理服务)"></a>4.5 异步持久化 (消息队列 + 订单处理服务)</h3><ul>
+<li><strong>消息队列 (MQ)：</strong> Kafka, RocketMQ等。缓冲Redis处理成功的下单请求。</li>
+<li><strong>订单处理服务 (消费者)：</strong><ol>
+<li>从MQ拉取消息。</li>
+<li><strong>幂等性处理：</strong> 基于订单ID或消息中的唯一业务ID，防止重复消费（可在Redis中记录已处理ID）。</li>
+<li><strong>数据库事务操作：</strong><ul>
+<li><strong>再次校验用户购买记录 (DB兜底)：</strong> 查询 <code>user_purchase_log</code> 表。若已存在，则为重复消息或异常，记录并忽略&#x2F;标记。</li>
+<li><strong>扣减数据库库存：</strong> <code>UPDATE product_inventory SET stock = stock - 1 WHERE product_id = ? AND stock &gt;= 1;</code> 检查影响行数。</li>
+<li><strong>持久化用户购买记录：</strong> <code>INSERT INTO user_purchase_log (user_id, product_id, activity_id, order_id, ...) VALUES (...);</code> (需有 <code>UNIQ(user_id, product_id, activity_id)</code> 唯一约束)。</li>
+<li>创建&#x2F;更新订单状态为“已支付&#x2F;待发货”等。</li>
+</ul>
+</li>
+<li><strong>处理结果：</strong><ul>
+<li><strong>事务成功：</strong> 提交事务。从Redis中删除之前步骤 4.4.3.1 中记录的 <code>pending_orders:&lt;order_id&gt;</code> 令牌。</li>
+<li><strong>事务失败 (DB库存不足、唯一键冲突等)：</strong><ul>
+<li>回滚事务。</li>
+<li><strong>执行补偿逻辑：</strong><ul>
+<li>Redis库存回滚：<code>INCRBY product_stock:{&lt;product_id&gt;} 1</code></li>
+<li>Redis用户购买标记移除：<code>SREM user_purchase_set:{&lt;product_id&gt;} &lt;user_id&gt;</code></li>
+<li>清除可能已设置的全局售罄标志 (如果是因为此订单失败导致库存不为0了)：检查DB库存，如果不为0，则 <code>DEL product_sold_out_flag:{&lt;product_id&gt;}</code></li>
+</ul>
+</li>
+<li>标记订单为失败，记录错误日志。</li>
+<li>(可选) 通知用户订单创建失败。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+</li>
+</ul>
+<h3 id="4-6-异常处理与数据一致性保障"><a href="#4-6-异常处理与数据一致性保障" class="headerlink" title="4.6 异常处理与数据一致性保障"></a>4.6 异常处理与数据一致性保障</h3><h4 id="4-6-1-Redis-Lua成功，后续应用崩溃-生单-发MQ前"><a href="#4-6-1-Redis-Lua成功，后续应用崩溃-生单-发MQ前" class="headerlink" title="4.6.1 Redis Lua成功，后续应用崩溃 (生单&#x2F;发MQ前)"></a>4.6.1 Redis Lua成功，后续应用崩溃 (生单&#x2F;发MQ前)</h4><ul>
+<li><strong>超时未处理订单回库存机制：</strong><ul>
+<li>一个定时任务&#x2F;延迟队列扫描Redis中的 <code>pending_orders:*</code> (或其他“待处理”标记)。</li>
+<li>如果一个“待处理”标记（如 <code>pending_orders:&lt;order_id&gt;</code>）存在时间超过预设阈值（例如5-10分钟），且在DB中未找到对应成功创建的订单。</li>
+<li>则认为后续DB操作失败，执行补偿：回滚Redis库存 (<code>INCRBY</code>)，移除用户购买标记 (<code>SREM</code>)，删除 <code>pending_orders:&lt;order_id&gt;</code> 标记。</li>
+<li>这个机制是针对应用在将订单信息发送到MQ之前就崩溃的情况，或者MQ消息丢失的情况。</li>
+</ul>
+</li>
+</ul>
+<h4 id="4-6-2-MQ消费者DB操作失败"><a href="#4-6-2-MQ消费者DB操作失败" class="headerlink" title="4.6.2 MQ消费者DB操作失败"></a>4.6.2 MQ消费者DB操作失败</h4><ul>
+<li>已在4.5中描述，消费者事务失败后需补偿Redis。</li>
+</ul>
+<h4 id="4-6-3-定期对账"><a href="#4-6-3-定期对账" class="headerlink" title="4.6.3 定期对账"></a>4.6.3 定期对账</h4><ul>
+<li>定期（如每日低峰期）执行脚本，校对Redis缓存库存&#x2F;用户购买记录与DB中的数据。</li>
+<li>发现不一致时，根据业务规则（通常以DB为准，或结合操作日志）进行修复，并发出告警。</li>
+</ul>
+<h3 id="4-7-监控与告警"><a href="#4-7-监控与告警" class="headerlink" title="4.7 监控与告警"></a>4.7 监控与告警</h3><ul>
+<li><strong>Nginx&#x2F;Gateway：</strong> QPS、错误率、限流触发次数。</li>
+<li><strong>应用服务：</strong> 接口响应时间、错误率、Redis连接池状态。</li>
+<li><strong>Redis Cluster：</strong> 内存使用、CPU、命中率、慢查询、主从同步状态、各节点负载均衡情况（关注Hash Tag可能导致的热点）。</li>
+<li><strong>消息队列：</strong> 消息积压数、生产&#x2F;消费速率。</li>
+<li><strong>订单处理服务：</strong> 消费速率、DB操作耗时、错误率、补偿次数。</li>
+<li><strong>数据库：</strong> 连接数、慢查询、磁盘I&#x2F;O、CPU。</li>
+<li><strong>业务指标：</strong> 库存数量、订单创建成功率、售罄商品列表。</li>
+</ul>
+<h2 id="5-Redis集群下多Key操作"><a href="#5-Redis集群下多Key操作" class="headerlink" title="5. Redis集群下多Key操作"></a>5. Redis集群下多Key操作</h2><ul>
+<li><strong>挑战：</strong> Lua脚本操作的多个Key (<code>product_stock:{pid}</code>, <code>user_purchase_set:{pid}</code>) 必须位于Redis Cluster的同一个slot。</li>
+<li><strong>解决方案：</strong> 使用 <strong>Hash Tags</strong>。确保花括号<code>{}</code>内的字符串对于同一商品是相同的，例如：<ul>
+<li><code>product_stock:{&lt;product_id&gt;}</code></li>
+<li><code>user_purchase_set:{&lt;product_id&gt;}</code></li>
+<li><code>product_sold_out_flag:{&lt;product_id&gt;}</code><br>这样，这些与特定商品ID相关的key会被路由到同一个Redis节点，Lua脚本可以原子地操作它们。</li>
+</ul>
+</li>
+<li><strong>潜在风险：</strong> 热点商品可能导致其对应的slot&#x2F;节点成为瓶颈。需要监控节点负载，并考虑是否有超级热点商品需要特殊处理（如预热到本地缓存，或采用更复杂的库存分配策略，但这会增加系统复杂度）。</li>
+</ul>
+<h2 id="6-总结"><a href="#6-总结" class="headerlink" title="6. 总结"></a>6. 总结</h2><p>该方案通过多层协作，结合Redis Lua的原子性、消息队列的异步削峰以及必要的补偿和对账机制，旨在解决电商高并发场景下的库存超卖和用户限购问题。关键在于平衡性能、一致性和系统复杂度。在实施过程中，充分的压测、详细的日志记录和完善的监控告警是必不可少的。</p>
+<!-- flag of hidden posts -->
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link"><span class="nav-number">1.</span> <span class="nav-text"></span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E8%83%8C%E6%99%AF%E4%B8%8E%E6%8C%91%E6%88%98"><span class="nav-number">1.1.</span> <span class="nav-text">1. 背景与挑战</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E6%A0%B8%E5%BF%83%E8%AE%BE%E8%AE%A1%E5%8E%9F%E5%88%99"><span class="nav-number">1.2.</span> <span class="nav-text">2. 核心设计原则</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84%E6%96%B9%E6%A1%88"><span class="nav-number">1.3.</span> <span class="nav-text">3. 整体架构方案</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E8%AF%A6%E7%BB%86%E8%AE%BE%E8%AE%A1"><span class="nav-number">1.4.</span> <span class="nav-text">4. 详细设计</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-%E5%89%8D%E7%AB%AF%E4%BC%98%E5%8C%96"><span class="nav-number">1.4.1.</span> <span class="nav-text">4.1 前端优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-%E6%B5%81%E9%87%8F%E6%8E%A5%E5%85%A5%E4%B8%8E%E8%BF%87%E6%BB%A4-Nginx-Lua-API-Gateway"><span class="nav-number">1.4.2.</span> <span class="nav-text">4.2 流量接入与过滤 (Nginx+Lua &#x2F; API Gateway)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-%E5%BA%94%E7%94%A8%E6%9C%8D%E5%8A%A1%E5%B1%82"><span class="nav-number">1.4.3.</span> <span class="nav-text">4.3 应用服务层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-4-%E6%A0%B8%E5%BF%83%E5%BA%93%E5%AD%98%E4%B8%8E%E9%99%90%E8%B4%AD%E5%A4%84%E7%90%86-Redis-Cluster-Lua"><span class="nav-number">1.4.4.</span> <span class="nav-text">4.4 核心库存与限购处理 (Redis Cluster + Lua)</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#4-4-1-Redis-Key%E8%AE%BE%E8%AE%A1-%E4%BD%BF%E7%94%A8Hash-Tag%E7%A1%AE%E4%BF%9D%E5%90%8CSlot"><span class="nav-number">1.4.4.1.</span> <span class="nav-text">4.4.1 Redis Key设计 (使用Hash Tag确保同Slot)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-4-2-Lua%E8%84%9A%E6%9C%AC-%E5%8E%9F%E5%AD%90%E6%93%8D%E4%BD%9C"><span class="nav-number">1.4.4.2.</span> <span class="nav-text">4.4.2 Lua脚本 (原子操作)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-4-3-%E5%BA%94%E7%94%A8%E5%B1%82%E8%B0%83%E7%94%A8Lua%E8%84%9A%E6%9C%AC%E9%80%BB%E8%BE%91"><span class="nav-number">1.4.4.3.</span> <span class="nav-text">4.4.3 应用层调用Lua脚本逻辑</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-5-%E5%BC%82%E6%AD%A5%E6%8C%81%E4%B9%85%E5%8C%96-%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97-%E8%AE%A2%E5%8D%95%E5%A4%84%E7%90%86%E6%9C%8D%E5%8A%A1"><span class="nav-number">1.4.5.</span> <span class="nav-text">4.5 异步持久化 (消息队列 + 订单处理服务)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-6-%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86%E4%B8%8E%E6%95%B0%E6%8D%AE%E4%B8%80%E8%87%B4%E6%80%A7%E4%BF%9D%E9%9A%9C"><span class="nav-number">1.4.6.</span> <span class="nav-text">4.6 异常处理与数据一致性保障</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#4-6-1-Redis-Lua%E6%88%90%E5%8A%9F%EF%BC%8C%E5%90%8E%E7%BB%AD%E5%BA%94%E7%94%A8%E5%B4%A9%E6%BA%83-%E7%94%9F%E5%8D%95-%E5%8F%91MQ%E5%89%8D"><span class="nav-number">1.4.6.1.</span> <span class="nav-text">4.6.1 Redis Lua成功，后续应用崩溃 (生单&#x2F;发MQ前)</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-6-2-MQ%E6%B6%88%E8%B4%B9%E8%80%85DB%E6%93%8D%E4%BD%9C%E5%A4%B1%E8%B4%A5"><span class="nav-number">1.4.6.2.</span> <span class="nav-text">4.6.2 MQ消费者DB操作失败</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#4-6-3-%E5%AE%9A%E6%9C%9F%E5%AF%B9%E8%B4%A6"><span class="nav-number">1.4.6.3.</span> <span class="nav-text">4.6.3 定期对账</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-7-%E7%9B%91%E6%8E%A7%E4%B8%8E%E5%91%8A%E8%AD%A6"><span class="nav-number">1.4.7.</span> <span class="nav-text">4.7 监控与告警</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-Redis%E9%9B%86%E7%BE%A4%E4%B8%8B%E5%A4%9AKey%E6%93%8D%E4%BD%9C"><span class="nav-number">1.5.</span> <span class="nav-text">5. Redis集群下多Key操作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E6%80%BB%E7%BB%93"><span class="nav-number">1.6.</span> <span class="nav-text">6. 总结</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="在Spring项目中，RestTemplate简化了HTTP请求和响应的封装，并且执行了Restful原则。底层HTTP请求由HttpURLConnection,Apache HttpComponents和OkHttp三种实现。最近我们在使用Apache HttpClient作为RestTemplate底层实现时，由于使用不当导致耗时瞬间升高">
+<meta property="og:type" content="article">
+<meta property="og:title" content="RestTemplate使用Apache HttpClinet连接池默认大小引发耗时瞬间升高">
+<meta property="og:url" content="https://www.yzhu.name/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="在Spring项目中，RestTemplate简化了HTTP请求和响应的封装，并且执行了Restful原则。底层HTTP请求由HttpURLConnection,Apache HttpComponents和OkHttp三种实现。最近我们在使用Apache HttpClient作为RestTemplate底层实现时，由于使用不当导致耗时瞬间升高">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yzhu.name/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/monitor.jpg">
+<meta property="og:image" content="https://www.yzhu.name/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/opentracing.jpg">
+<meta property="article:published_time" content="2022-07-30T05:54:02.000Z">
+<meta property="article:modified_time" content="2025-11-11T03:53:15.772Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="线上问题">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yzhu.name/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/monitor.jpg">
+
+<link rel="canonical" href="https://www.yzhu.name/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>RestTemplate使用Apache HttpClinet连接池默认大小引发耗时瞬间升高 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          RestTemplate使用Apache HttpClinet连接池默认大小引发耗时瞬间升高
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-07-30 13:54:02" itemprop="dateCreated datePublished" datetime="2022-07-30T13:54:02+08:00">2022-07-30</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在Spring项目中，RestTemplate简化了HTTP请求和响应的封装，并且执行了Restful原则。底层HTTP请求由<code>HttpURLConnection</code>,<code>Apache HttpComponents</code>和<code>OkHttp</code>三种实现。最近我们在使用Apache HttpClient作为RestTemplate底层实现时，由于使用不当导致耗时瞬间升高<span id="more"></span></p>
+<h3 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h3><p>今天天收到报警说我们有一个服务A的接口TP95瞬间升高，打开监控检查发现流量瞬间升高时，耗时会瞬间升高，如图所示；<br><img src="/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/monitor.jpg" alt="图一"><br>打开链路跟踪查看调用链关系，发现该时接口耗时几乎全部耗费在调用下游服务B，如图所示；正常情况下服务B接口TP95耗时在500毫秒以内<br><img src="/2022/07/30/RestTemplate-HttpClinet-Connect-Pool/opentracing.jpg" alt="图二"><br>而且该服务接口连接超时设置2秒，读取超时设置2秒；所以预期内该接口在4秒内应该结束。</p>
+<h3 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h3><h4 id="监控检查"><a href="#监控检查" class="headerlink" title="监控检查"></a>监控检查</h4><ol>
+<li>查看服务B的监控发现服务B的耗时一直很稳定，几乎没有波动</li>
+<li>查看服务C对服务B相同接口的调用在该时刻也很稳定</li>
+<li>查看服务A的GC监控，gc最长耗时60ms，也不会引起该问题 </li>
+<li>查看网络监控，一切正常</li>
+</ol>
+<p>通过监控数据基本确定问题不在服务B，另外Ops工程师反馈近期也没做过任何infrastrucre调整；基本确定问题仍然在服务A，接下来review服务A请求服务B的相关代码</p>
+<h4 id="代码分析"><a href="#代码分析" class="headerlink" title="代码分析"></a>代码分析</h4><p>服务A代码中用<code>RestTemplate</code>调用服务B的接口, <code>RestTemplate</code>的Bean采用默认注入的Builder来生成，而且设置了连接超时和读取超时。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public RestTemplate restTemplate(RestTemplateBuilder builder) &#123;</span><br><span class="line">    return builder.setReadTimeout(Duration.ofMillis(readTimeoutConfig)).setConnectTimeout(Duration.ofMillis(connectTimeoutConfig)).build();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以上代码形式<code>RestTemplate</code>底层实现采用了<code>Apache HttpComponents</code>作为HTTP客户端，<code>Apache HttpComponents</code>在初始化过程中会用默认参数初始化连接池，最终代码会执行到</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">public PoolingHttpClientConnectionManager(</span><br><span class="line">    final HttpClientConnectionOperator httpClientConnectionOperator,</span><br><span class="line">    final HttpConnectionFactory&lt;HttpRoute, ManagedHttpClientConnection&gt; connFactory,</span><br><span class="line">    final long timeToLive, final TimeUnit tunit) &#123;</span><br><span class="line">    super();</span><br><span class="line">    this.configData = new ConfigData();</span><br><span class="line">    this.pool = new CPool(new InternalConnectionFactory(</span><br><span class="line">            this.configData, connFactory), 2, 20, timeToLive, tunit);</span><br><span class="line">    this.pool.setValidateAfterInactivity(2000);</span><br><span class="line">    this.connectionOperator = Args.notNull(httpClientConnectionOperator, &quot;HttpClientConnectionOperator&quot;);</span><br><span class="line">    this.isShutDown = new AtomicBoolean(false);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在代码第7行构造<code>CPool</code>时传递的常量<code>2</code>表示连接池请求相同域名最大连接数，<code>20</code>表示连接池访问所有域名的最大连接数 。</p>
+<p>至此，问题已然清楚，当zeus-order请求量瞬间升高时zeus-order访问zeus的并发量也瞬间增大，如果超过2个并发的HTTP请求只能等待，由于没有设置从连接池获取连接的超时时间，会无限等待，直到连接池内有空闲的HTTP连接然后获取连接继续发出HTTP请求，这样整个请求耗时将可能超过设置的HTTP超时时间</p>
+<h3 id="处理"><a href="#处理" class="headerlink" title="处理"></a>处理</h3><p>基于以上分析，我们使用自定义的HttpClient传递相关参数即可，代码如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">@Bean</span><br><span class="line">    public RestTemplate restTemplate() &#123;</span><br><span class="line">        PoolingHttpClientConnectionManager connectMgr = new PoolingHttpClientConnectionManager() ;</span><br><span class="line">        connectMgr.setDefaultMaxPerRoute(defaultMaxPerRoute);</span><br><span class="line">        connectMgr.setMaxTotal(maxTotal);</span><br><span class="line">        CloseableHttpClient httpClient = HttpClients.custom()</span><br><span class="line">                .setConnectionManager(connectMgr)</span><br><span class="line">                .build();</span><br><span class="line">        HttpComponentsClientHttpRequestFactory requestFactory =</span><br><span class="line">                new HttpComponentsClientHttpRequestFactory();</span><br><span class="line">        requestFactory.setHttpClient(httpClient);</span><br><span class="line">        requestFactory.setConnectTimeout(connectTimeoutConfig);</span><br><span class="line">        requestFactory.setReadTimeout(readTimeoutConfig);</span><br><span class="line">        requestFactory.setConnectionRequestTimeout(connectRequestTimeoutConfig);</span><br><span class="line">        RestTemplate restTemplate = new RestTemplate(requestFactory);</span><br><span class="line">        return restTemplate;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>自定义三个超时时间：<br><strong>connectTimeout</strong>:            建立连接的超时时间<br><strong>readTimeout</strong>:               读取数据的超时时间<br><strong>connectionRequestTimeout</strong>:  从连接池获取连接的超时时间</p>
+<p>修改以后上线观察一天即时出现上述问题的高峰瞬间，耗时始终保持平稳。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E7%BA%BF%E4%B8%8A%E9%97%AE%E9%A2%98/" rel="tag"># 线上问题</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/03/26/Infra-Component-Upgrade/" rel="prev" title="基础组件升级策略与实践">
+      <i class="fa fa-chevron-left"></i> 基础组件升级策略与实践
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/10/22/Session-Memcached-To-Redis/" rel="next" title="Session Memcached集群迁移至Redis集群">
+      Session Memcached集群迁移至Redis集群 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%8E%B0%E8%B1%A1"><span class="nav-number">1.</span> <span class="nav-text">现象</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%86%E6%9E%90"><span class="nav-number">2.</span> <span class="nav-text">分析</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%9B%91%E6%8E%A7%E6%A3%80%E6%9F%A5"><span class="nav-number">2.1.</span> <span class="nav-text">监控检查</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%90"><span class="nav-number">2.2.</span> <span class="nav-text">代码分析</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%A4%84%E7%90%86"><span class="nav-number">3.</span> <span class="nav-text">处理</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

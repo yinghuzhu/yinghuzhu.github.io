@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="随着业务规模的增长，我们的缓存系统面临扩展性和运维效率的挑战。近期我们团队将缓存系统从Memcached迁移到Redis集群。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Data Memcached集群迁移至Redis集群">
+<meta property="og:url" content="https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="随着业务规模的增长，我们的缓存系统面临扩展性和运维效率的挑战。近期我们团队将缓存系统从Memcached迁移到Redis集群。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-09-09T03:38:05.000Z">
+<meta property="article:modified_time" content="2025-11-11T03:53:15.766Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="分布式">
+<meta property="article:tag" content="微服务">
+<meta property="article:tag" content="技术方案">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Data Memcached集群迁移至Redis集群 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Data Memcached集群迁移至Redis集群
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-09-09 11:38:05" itemprop="dateCreated datePublished" datetime="2023-09-09T11:38:05+08:00">2023-09-09</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>随着业务规模的增长，我们的缓存系统面临扩展性和运维效率的挑战。近期我们团队将缓存系统从Memcached迁移到Redis集群。<span id="more"></span></p>
+<h2 id="项目背景与迁移动机"><a href="#项目背景与迁移动机" class="headerlink" title="项目背景与迁移动机"></a>项目背景与迁移动机</h2><p>我们的缓存系统最初基于Memcached，性能表现稳定，但随着业务发展，Memcached的局限性逐渐暴露：</p>
+<ul>
+<li><strong>扩展性受限</strong>：Memcached集群不支持自动分片，扩容和缩容需客户端手动实现，操作繁琐且运维成本高，难以应对流量快速增长。</li>
+<li><strong>监控能力薄弱</strong>：Memcached提供的指标有限（仅命中率、内存使用等），故障排查和告警不便，影响问题定位效率。</li>
+<li><strong>数据类型单一</strong>：仅支持键值对，复杂业务需求需额外开发支持，效率低下。</li>
+</ul>
+<p>这些问题促使我们寻找替代方案，最终选择了Redis集群。迁移的目标不是提升性能，而是解决扩展性和监控问题，为未来发展预留空间。</p>
+<h2 id="技术选型：为什么选择Redis集群"><a href="#技术选型：为什么选择Redis集群" class="headerlink" title="技术选型：为什么选择Redis集群"></a>技术选型：为什么选择Redis集群</h2><p>我们直接选择了Redis集群，原因如下：</p>
+<ul>
+<li><strong>成熟度</strong>：Redis的社区拥有丰富文档和活跃支持，而且我们团队在其他项目中的使用已非常成熟。</li>
+<li><strong>功能优势</strong>：支持自动分片、丰富数据结构（如Hash、List）和内置监控，弥补Memcached的不足。</li>
+<li><strong>团队熟悉</strong>：团队对Redis的开发和运维经验丰富，降低了学习成本。</li>
+</ul>
+<h2 id="迁移过程"><a href="#迁移过程" class="headerlink" title="迁移过程"></a>迁移过程</h2><p>迁移分为几个阶段，确保无侵入且风险可控：</p>
+<ol>
+<li><strong>代码改造</strong>：<ul>
+<li>通过底层SDK适配Redis集群，封装缓存操作接口（<code>get</code>、<code>set</code>），业务代码无需改动。</li>
+<li>配置动态切换缓存后端（Memcached或Redis）。</li>
+</ul>
+</li>
+<li><strong>测试验证</strong>：<ul>
+<li>模拟业务场景验证功能正确性。</li>
+<li>测试Redis集群的扩容&#x2F;缩容，确保无影响。</li>
+</ul>
+</li>
+<li><strong>灰度发布</strong>：<ul>
+<li>从5%流量开始，逐步增至20%，观察一周后全量切换。</li>
+<li>按用户维度区分流量，避免数据一致性问题。</li>
+</ul>
+</li>
+<li><strong>数据过渡</strong>：<ul>
+<li>新请求写入Redis，旧数据在Memcached过期，无需显式迁移。这种策略能有效降低迁移复杂性。但对于某些关键缓存数据，可能需要更谨慎的迁移方案。</li>
+</ul>
+</li>
+<li><strong>监控支持</strong>：<ul>
+<li>使用Prometheus和Grafana，从测试到全量全程监控Redis和业务指标。关键监控指标包括Redis的CPU使用率、内存使用率、连接数、命中率、Key的数量，以及业务相关的错误率、请求量等。</li>
+</ul>
+</li>
+</ol>
+<h2 id="挑战与解决方案"><a href="#挑战与解决方案" class="headerlink" title="挑战与解决方案"></a>挑战与解决方案</h2><p>迁移中暴露了三个主要挑战，我们逐一解决：</p>
+<ol>
+<li><strong>大Key问题</strong>：<ul>
+<li><strong>挑战</strong>：Memcached节点内存大，大Key不明显；Redis集群分片内存小，大Key导致负载不均。</li>
+<li><strong>解决方案</strong>：将大Key拆分为多个小Key（如<code>user:123</code>拆为<code>user:123:profile</code>），均匀分布。</li>
+<li><strong>效果</strong>：内存使用率从100%降至50%。</li>
+</ul>
+</li>
+<li><strong>热Key问题</strong>：<ul>
+<li><strong>挑战</strong>：Redis分片配置低，热Key高频访问导致QPS激增。</li>
+<li><strong>解决方案</strong>：引入本地缓存（TTL 1分钟），允许短暂不一致，优先从本地读取。</li>
+<li><strong>效果</strong>：Redis负载减少80%。</li>
+</ul>
+</li>
+<li><strong>JVM崩溃</strong>：<ul>
+<li><strong>挑战</strong>：在流量高峰时JVM崩溃，因为系统内部使用Redisson依赖的netty与gRPC依赖的netty版本冲突。</li>
+<li><strong>解决方案</strong>：升级Redisson到最新版。</li>
+<li><strong>效果</strong>：崩溃问题消失。</li>
+</ul>
+</li>
+</ol>
+<h2 id="迁移成果"><a href="#迁移成果" class="headerlink" title="迁移成果"></a>迁移成果</h2><ul>
+<li><strong>性能与稳定性</strong>：<ul>
+<li>迁移后性能和稳定性与Memcached持平，未见提升，因目标非性能优化。</li>
+<li>压测显示两者在20万QPS下表现相当。</li>
+</ul>
+</li>
+<li><strong>用户体验</strong>：<ul>
+<li>页面加载时间和服务稳定性无变化，用户无感知反馈。</li>
+</ul>
+</li>
+<li><strong>实际价值</strong>：<ul>
+<li><strong>扩展性</strong>：Redis集群支持动态扩容，解决了Memcached的瓶颈。</li>
+<li><strong>监控性</strong>：丰富指标提升了运维效率。</li>
+</ul>
+</li>
+</ul>
+<h2 id="经验教训"><a href="#经验教训" class="headerlink" title="经验教训"></a>经验教训</h2><ol>
+<li><strong>无侵入SDK</strong>：降低风险，业务代码稳定。</li>
+<li><strong>灰度发布</strong>：分阶段切换，问题可控。</li>
+<li><strong>关闭持久化</strong>：提升性能，适配需求。为了追求更高的读写性能，我们选择关闭了Redis的持久化功能。在生产环境中，需要根据具体的业务场景权衡是否开启持久化以及选择合适的持久化策略。</li>
+<li><strong>全面监控</strong>：实时反馈，快速响应。</li>
+<li><strong>聚焦扩展性</strong>：明确目标，预留潜力。</li>
+</ol>
+<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>这次迁移让我们从Memcached的局限中解脱，Redis集群为未来增长奠定了基础。虽然性能未提升，但扩展性和监控能力的改善达到了预期。关于成本方面，迁移到Redis集群可能会带来一定的服务器成本增加，但运维效率的提升有望在长期降低总体成本。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/" rel="tag"># 技术方案</a>
+              <a href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag"># 分布式</a>
+              <a href="/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/" rel="tag"># 微服务</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/" rel="prev" title="灰度发布过程中缓存数据一致性问题">
+      <i class="fa fa-chevron-left"></i> 灰度发布过程中缓存数据一致性问题
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/" rel="next" title="Sharding-JDBC(ShardingSphere)SQL监控实践">
+      Sharding-JDBC(ShardingSphere)SQL监控实践 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%A1%B9%E7%9B%AE%E8%83%8C%E6%99%AF%E4%B8%8E%E8%BF%81%E7%A7%BB%E5%8A%A8%E6%9C%BA"><span class="nav-number">1.</span> <span class="nav-text">项目背景与迁移动机</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8A%80%E6%9C%AF%E9%80%89%E5%9E%8B%EF%BC%9A%E4%B8%BA%E4%BB%80%E4%B9%88%E9%80%89%E6%8B%A9Redis%E9%9B%86%E7%BE%A4"><span class="nav-number">2.</span> <span class="nav-text">技术选型：为什么选择Redis集群</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%81%E7%A7%BB%E8%BF%87%E7%A8%8B"><span class="nav-number">3.</span> <span class="nav-text">迁移过程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8C%91%E6%88%98%E4%B8%8E%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-number">4.</span> <span class="nav-text">挑战与解决方案</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%81%E7%A7%BB%E6%88%90%E6%9E%9C"><span class="nav-number">5.</span> <span class="nav-text">迁移成果</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%8F%E9%AA%8C%E6%95%99%E8%AE%AD"><span class="nav-number">6.</span> <span class="nav-text">经验教训</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%93%E8%AF%AD"><span class="nav-number">7.</span> <span class="nav-text">结语</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>
