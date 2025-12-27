@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Lead 和 Opportunity 不是重复概念，而是销售漏斗的不同阶段。理解这一点，是做好 CRM 业务建模的关键。本文梳理 Lead、Account、Contact、Opportunity 的职责边界与数据关系，用图示演示 Convert 后系统创建与关联的字段链路，并给出字段映射表、业务实践建议与常见坑。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="EspoCRM定制第7篇：Lead 转换——理解销售漏斗的业务建模">
+<meta property="og:url" content="https://www.yzhu.name/2025/12/27/espocrm/07-lead-conversion/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="Lead 和 Opportunity 不是重复概念，而是销售漏斗的不同阶段。理解这一点，是做好 CRM 业务建模的关键。本文梳理 Lead、Account、Contact、Opportunity 的职责边界与数据关系，用图示演示 Convert 后系统创建与关联的字段链路，并给出字段映射表、业务实践建议与常见坑。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2025-12-27T01:15:00.000Z">
+<meta property="article:modified_time" content="2025-12-27T01:15:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="EspoCRM">
+<meta property="article:tag" content="conversion">
+<meta property="article:tag" content="lead">
+<meta property="article:tag" content="opportunity">
+<meta property="article:tag" content="sales-funnel">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2025/12/27/espocrm/07-lead-conversion/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>EspoCRM定制第7篇：Lead 转换——理解销售漏斗的业务建模 | yhzhu的随手记</title><meta name="robots" content="noindex">
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2025/12/27/espocrm/07-lead-conversion/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          EspoCRM定制第7篇：Lead 转换——理解销售漏斗的业务建模
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2025-12-27 09:15:00" itemprop="dateCreated datePublished" datetime="2025-12-27T09:15:00+08:00">2025-12-27</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/EspoCRM/" itemprop="url" rel="index"><span itemprop="name">EspoCRM</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">Lead 和 Opportunity 不是重复概念，而是销售漏斗的不同阶段。理解这一点，是做好 CRM 业务建模的关键。本文梳理 Lead、Account、Contact、Opportunity 的职责边界与数据关系，用图示演示 Convert 后系统创建与关联的字段链路，并给出字段映射表、业务实践建议与常见坑。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>适用版本：EspoCRM 9.2.2+</p>
+</blockquote>
+<p>Lead 和 Opportunity 不是重复概念，而是销售漏斗的不同阶段。理解这一点，是做好 CRM 业务建模的关键。</p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><strong>Lead &#x3D; “可能是生意”</strong>（未验证，需要去确认）</li>
+<li><strong>Opportunity &#x3D; “真是生意”</strong>（已验证，有金额可以推进）</li>
+<li>Lead 转换：一键生成 Account + Contact + Opportunity，建立关联关系</li>
+<li>分开管理才能计算转化率，销售漏斗才清晰</li>
+</ul>
+<hr>
+<h2 id="1-Lead-vs-Opportunity-——-为什么要分开"><a href="#1-Lead-vs-Opportunity-——-为什么要分开" class="headerlink" title="1. Lead vs Opportunity —— 为什么要分开"></a>1. Lead vs Opportunity —— 为什么要分开</h2><h3 id="1-1-一个核心困惑：Lead-和-Opportunity-不都是”潜在生意”吗？"><a href="#1-1-一个核心困惑：Lead-和-Opportunity-不都是”潜在生意”吗？" class="headerlink" title="1.1 一个核心困惑：Lead 和 Opportunity 不都是”潜在生意”吗？"></a>1.1 一个核心困惑：Lead 和 Opportunity 不都是”潜在生意”吗？</h3><p>很多人不理解为什么 CRM 要把 Lead 和 Opportunity 分开。让我们用一个生活化的比喻：</p>
+<blockquote>
+<p><strong>Lead &#x3D; 鱼漂动了</strong>（不确定是不是真鱼）<br><strong>Opportunity &#x3D; 鱼上钩了</strong>（确实有鱼，可以收线）</p>
+</blockquote>
+<h3 id="1-2-详细对比"><a href="#1-2-详细对比" class="headerlink" title="1.2 详细对比"></a>1.2 详细对比</h3><table>
+<thead>
+<tr>
+<th align="center">对比维度</th>
+<th align="left">Lead（线索）</th>
+<th align="left">Opportunity（商机）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center"><strong>验证状态</strong></td>
+<td align="left">未验证，可能是空的</td>
+<td align="left">已验证，有真实需求</td>
+</tr>
+<tr>
+<td align="center"><strong>信息完整度</strong></td>
+<td align="left">不完整，可能只有姓名电话</td>
+<td align="left">完整，有金额、阶段、预计成交时间</td>
+</tr>
+<tr>
+<td align="center"><strong>是否关联客户</strong></td>
+<td align="left">❌ 独立存在</td>
+<td align="left">✅ 必须关联 Account + Contact</td>
+</tr>
+<tr>
+<td align="center"><strong>有金额吗</strong></td>
+<td align="left">可选（参考用）</td>
+<td align="left">✅ 必须有具体金额</td>
+</tr>
+<tr>
+<td align="center"><strong>有销售阶段吗</strong></td>
+<td align="left">❌ 没有阶段划分</td>
+<td align="left">✅ 有明确销售阶段</td>
+</tr>
+<tr>
+<td align="center"><strong>记忆口诀</strong></td>
+<td align="left">“可能是生意”</td>
+<td align="left">“真是生意”</td>
+</tr>
+</tbody></table>
+<h3 id="1-3-为什么要分开？"><a href="#1-3-为什么要分开？" class="headerlink" title="1.3 为什么要分开？"></a>1.3 为什么要分开？</h3><p><strong>数据管理角度</strong>：</p>
+<ul>
+<li>✅ 清晰的数据分类：Lead 列表 &#x3D; 未验证机会，Opportunity 列表 &#x3D; 跟进中商机</li>
+<li>✅ 可以计算转化率：Converted Lead 数量 &#x2F; 总 Lead 数量</li>
+<li>✅ 销售漏斗更清晰：Lead → Opportunity → Closed Won</li>
+<li>✅ 团队分工明确：市场部负责 Lead，销售部负责 Opportunity</li>
+</ul>
+<h3 id="1-4-完整销售漏斗"><a href="#1-4-完整销售漏斗" class="headerlink" title="1.4 完整销售漏斗"></a>1.4 完整销售漏斗</h3><pre class="mermaid">flowchart LR
+  A[Lead 线索<br>New / Assigned / In Process] -->|验证资格 + Convert| B[Lead 状态: Converted]
+  B --> C[Account 客户/公司]
+  B --> D[Contact 联系人]
+  C --> E[Opportunity 商机（可选）]
+  D --> E
+  E --> F[Closed Won / 成交]</pre>
+
+<hr>
+<h2 id="2-Lead-转换流程"><a href="#2-Lead-转换流程" class="headerlink" title="2. Lead 转换流程"></a>2. Lead 转换流程</h2><h3 id="2-1-转换前：Lead-独立存在"><a href="#2-1-转换前：Lead-独立存在" class="headerlink" title="2.1 转换前：Lead 独立存在"></a>2.1 转换前：Lead 独立存在</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────┐</span><br><span class="line">│  Lead: Alice Example                │</span><br><span class="line">│  ├─ 状态: New                       │</span><br><span class="line">│  ├─ 姓名: Alice Example             │</span><br><span class="line">│  ├─ 公司: Example Travel Co.        │</span><br><span class="line">│  └─ 独立存在，不关联任何其他对象    │</span><br><span class="line">└─────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-转换操作：一键生成"><a href="#2-2-转换操作：一键生成" class="headerlink" title="2.2 转换操作：一键生成"></a>2.2 转换操作：一键生成</h3><p>点击 Convert 按钮，系统同时创建：</p>
+<ul>
+<li><strong>Account</strong>（客户档案）：公司名称</li>
+<li><strong>Contact</strong>（联系人）：姓名、职位、联系方式</li>
+<li><strong>Opportunity</strong>（商机，可选）：金额、预计成交时间</li>
+</ul>
+<h3 id="2-3-转换后：关联关系建立"><a href="#2-3-转换后：关联关系建立" class="headerlink" title="2.3 转换后：关联关系建立"></a>2.3 转换后：关联关系建立</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│  Lead: Alice Example                                                    │</span><br><span class="line">│  ├─ 状态: Converted ✔                                                   │</span><br><span class="line">│  ├─ createdAccountId: → Account.id                                     │</span><br><span class="line">│  ├─ createdContactId: → Contact.id                                     │</span><br><span class="line">│  └─ createdOpportunityId: → Opportunity.id                             │</span><br><span class="line">│                                                                         │</span><br><span class="line">│  ┌─────────────────────────────────────────────────────────────────┐   │</span><br><span class="line">│  │  Account (新建) - Example Travel Co.                            │   │</span><br><span class="line">│  │  └─ contacts: → Contact.id                                     │   │</span><br><span class="line">│  └─────────────────────────────────────────────────────────────────┘   │</span><br><span class="line">│                                                                         │</span><br><span class="line">│  ┌─────────────────────────────────────────────────────────────────┐   │</span><br><span class="line">│  │  Contact (新建) - Alice Example                                 │   │</span><br><span class="line">│  │  ├─ accountId: → Account.id                                    │   │</span><br><span class="line">│  │  └─ opportunities: → Opportunity.id                            │   │</span><br><span class="line">│  └─────────────────────────────────────────────────────────────────┘   │</span><br><span class="line">│                                                                         │</span><br><span class="line">│  ┌─────────────────────────────────────────────────────────────────┐   │</span><br><span class="line">│  │  Opportunity (新建) - $50,000 企业旅游                          │   │</span><br><span class="line">│  │  ├─ amount: $50,000                                             │   │</span><br><span class="line">│  │  ├─ accountId: → Account.id                                    │   │</span><br><span class="line">│  │  └─ contactId: → Contact.id                                    │   │</span><br><span class="line">│  └─────────────────────────────────────────────────────────────────┘   │</span><br><span class="line">└─────────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-4-字段映射（简化版）"><a href="#2-4-字段映射（简化版）" class="headerlink" title="2.4 字段映射（简化版）"></a>2.4 字段映射（简化版）</h3><table>
+<thead>
+<tr>
+<th align="left">Lead 字段</th>
+<th align="left">Account 字段</th>
+<th align="left">Contact 字段</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">accountName</td>
+<td align="left">name</td>
+<td align="left">-</td>
+</tr>
+<tr>
+<td align="left">firstName</td>
+<td align="left">-</td>
+<td align="left">firstName</td>
+</tr>
+<tr>
+<td align="left">lastName</td>
+<td align="left">-</td>
+<td align="left">lastName</td>
+</tr>
+<tr>
+<td align="left">title</td>
+<td align="left">-</td>
+<td align="left">title</td>
+</tr>
+<tr>
+<td align="left">emailAddress</td>
+<td align="left">emailAddress</td>
+<td align="left">emailAddress</td>
+</tr>
+<tr>
+<td align="left">phoneNumber</td>
+<td align="left">phoneNumber</td>
+<td align="left">phoneNumber</td>
+</tr>
+<tr>
+<td align="left">addressCity</td>
+<td align="left">billingAddressCity</td>
+<td align="left">addressCity</td>
+</tr>
+<tr>
+<td align="left">opportunityAmount</td>
+<td align="left">-</td>
+<td align="left">-</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="3-业务实践建议"><a href="#3-业务实践建议" class="headerlink" title="3. 业务实践建议"></a>3. 业务实践建议</h2><h3 id="3-1-什么时候创建-Lead？"><a href="#3-1-什么时候创建-Lead？" class="headerlink" title="3.1 什么时候创建 Lead？"></a>3.1 什么时候创建 Lead？</h3><ul>
+<li>首次接触潜在客户：信息不完整、真假未确认</li>
+<li>市场活动收集：名片、展会报名、落地页表单等</li>
+<li>销售前期资格判断：需要一段跟进过程后再决定</li>
+</ul>
+<h3 id="3-2-什么时候执行转换？"><a href="#3-2-什么时候执行转换？" class="headerlink" title="3.2 什么时候执行转换？"></a>3.2 什么时候执行转换？</h3><ul>
+<li>已确认客户有真实需求</li>
+<li>已获得关键决策人信息</li>
+<li>已估算出大致金额&#x2F;预算</li>
+<li>准备正式进入销售流程</li>
+</ul>
+<h3 id="3-3-Opportunity-必须创建吗？"><a href="#3-3-Opportunity-必须创建吗？" class="headerlink" title="3.3 Opportunity 必须创建吗？"></a>3.3 Opportunity 必须创建吗？</h3><p>不一定。通常在以下情况创建：</p>
+<ul>
+<li>✅ 已经明确知道客户的采购预算&#x2F;金额</li>
+<li>✅ 需要在销售漏斗中跟踪这笔商机</li>
+<li>✅ 需要统计销售预测和业绩</li>
+</ul>
+<p>如果只是先建立客户档案，暂时没有具体商机金额，可以不创建 Opportunity。</p>
+<hr>
+<h2 id="本篇总结"><a href="#本篇总结" class="headerlink" title="本篇总结"></a>本篇总结</h2><ul>
+<li>Lead vs Opportunity 不是重复概念，而是销售漏斗的不同阶段</li>
+<li>Lead 转换：一键生成 Account + Contact + Opportunity，建立关联关系</li>
+<li>分开管理才能计算转化率，销售漏斗才清晰</li>
+</ul>
+<!-- flag of hidden posts -->
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/EspoCRM/" rel="tag"># EspoCRM</a>
+              <a href="/tags/lead/" rel="tag"># lead</a>
+              <a href="/tags/opportunity/" rel="tag"># opportunity</a>
+              <a href="/tags/sales-funnel/" rel="tag"># sales-funnel</a>
+              <a href="/tags/conversion/" rel="tag"># conversion</a>
+          </div>
+
+        
+
+
+        
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-Lead-vs-Opportunity-%E2%80%94%E2%80%94-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%88%86%E5%BC%80"><span class="nav-number">2.</span> <span class="nav-text">1. Lead vs Opportunity —— 为什么要分开</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-%E4%B8%80%E4%B8%AA%E6%A0%B8%E5%BF%83%E5%9B%B0%E6%83%91%EF%BC%9ALead-%E5%92%8C-Opportunity-%E4%B8%8D%E9%83%BD%E6%98%AF%E2%80%9D%E6%BD%9C%E5%9C%A8%E7%94%9F%E6%84%8F%E2%80%9D%E5%90%97%EF%BC%9F"><span class="nav-number">2.1.</span> <span class="nav-text">1.1 一个核心困惑：Lead 和 Opportunity 不都是”潜在生意”吗？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-%E8%AF%A6%E7%BB%86%E5%AF%B9%E6%AF%94"><span class="nav-number">2.2.</span> <span class="nav-text">1.2 详细对比</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-3-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E5%88%86%E5%BC%80%EF%BC%9F"><span class="nav-number">2.3.</span> <span class="nav-text">1.3 为什么要分开？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-4-%E5%AE%8C%E6%95%B4%E9%94%80%E5%94%AE%E6%BC%8F%E6%96%97"><span class="nav-number">2.4.</span> <span class="nav-text">1.4 完整销售漏斗</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-Lead-%E8%BD%AC%E6%8D%A2%E6%B5%81%E7%A8%8B"><span class="nav-number">3.</span> <span class="nav-text">2. Lead 转换流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-%E8%BD%AC%E6%8D%A2%E5%89%8D%EF%BC%9ALead-%E7%8B%AC%E7%AB%8B%E5%AD%98%E5%9C%A8"><span class="nav-number">3.1.</span> <span class="nav-text">2.1 转换前：Lead 独立存在</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-%E8%BD%AC%E6%8D%A2%E6%93%8D%E4%BD%9C%EF%BC%9A%E4%B8%80%E9%94%AE%E7%94%9F%E6%88%90"><span class="nav-number">3.2.</span> <span class="nav-text">2.2 转换操作：一键生成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-%E8%BD%AC%E6%8D%A2%E5%90%8E%EF%BC%9A%E5%85%B3%E8%81%94%E5%85%B3%E7%B3%BB%E5%BB%BA%E7%AB%8B"><span class="nav-number">3.3.</span> <span class="nav-text">2.3 转换后：关联关系建立</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-%E5%AD%97%E6%AE%B5%E6%98%A0%E5%B0%84%EF%BC%88%E7%AE%80%E5%8C%96%E7%89%88%EF%BC%89"><span class="nav-number">3.4.</span> <span class="nav-text">2.4 字段映射（简化版）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E4%B8%9A%E5%8A%A1%E5%AE%9E%E8%B7%B5%E5%BB%BA%E8%AE%AE"><span class="nav-number">4.</span> <span class="nav-text">3. 业务实践建议</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-%E4%BB%80%E4%B9%88%E6%97%B6%E5%80%99%E5%88%9B%E5%BB%BA-Lead%EF%BC%9F"><span class="nav-number">4.1.</span> <span class="nav-text">3.1 什么时候创建 Lead？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-%E4%BB%80%E4%B9%88%E6%97%B6%E5%80%99%E6%89%A7%E8%A1%8C%E8%BD%AC%E6%8D%A2%EF%BC%9F"><span class="nav-number">4.2.</span> <span class="nav-text">3.2 什么时候执行转换？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-Opportunity-%E5%BF%85%E9%A1%BB%E5%88%9B%E5%BB%BA%E5%90%97%EF%BC%9F"><span class="nav-number">4.3.</span> <span class="nav-text">3.3 Opportunity 必须创建吗？</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%AC%E7%AF%87%E6%80%BB%E7%BB%93"><span class="nav-number">5.</span> <span class="nav-text">本篇总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">40</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">42</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

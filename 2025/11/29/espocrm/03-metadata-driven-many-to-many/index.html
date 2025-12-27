@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="你以为多对多必须建中间表？在 EspoCRM 里，手写 SQL 往往是你自己给自己埋雷。本文演示用纯元数据定义多对多关系：entityDefs 的 links + relationName 驱动 rebuild 自动建表。同时补齐 scopes&#x2F;clientDefs&#x2F;layouts，让关系在 UI 可见可配可用，并给出部署验证清单与常见坑。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="EspoCRM定制第3篇: 纯配置多对多——不写 SQL，让 rebuild 自动建表">
+<meta property="og:url" content="https://www.yzhu.name/2025/11/29/espocrm/03-metadata-driven-many-to-many/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="你以为多对多必须建中间表？在 EspoCRM 里，手写 SQL 往往是你自己给自己埋雷。本文演示用纯元数据定义多对多关系：entityDefs 的 links + relationName 驱动 rebuild 自动建表。同时补齐 scopes&#x2F;clientDefs&#x2F;layouts，让关系在 UI 可见可配可用，并给出部署验证清单与常见坑。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2025-11-29T01:10:00.000Z">
+<meta property="article:modified_time" content="2025-11-29T01:10:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="EspoCRM">
+<meta property="article:tag" content="many-to-many">
+<meta property="article:tag" content="metadata">
+<meta property="article:tag" content="rebuild">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2025/11/29/espocrm/03-metadata-driven-many-to-many/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>EspoCRM定制第3篇: 纯配置多对多——不写 SQL，让 rebuild 自动建表 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2025/11/29/espocrm/03-metadata-driven-many-to-many/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          EspoCRM定制第3篇: 纯配置多对多——不写 SQL，让 rebuild 自动建表
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2025-11-29 09:10:00" itemprop="dateCreated datePublished" datetime="2025-11-29T09:10:00+08:00">2025-11-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/EspoCRM/" itemprop="url" rel="index"><span itemprop="name">EspoCRM</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">你以为多对多必须建中间表？在 EspoCRM 里，手写 SQL 往往是你自己给自己埋雷。本文演示用纯元数据定义多对多关系：entityDefs 的 links + relationName 驱动 rebuild 自动建表。同时补齐 scopes/clientDefs/layouts，让关系在 UI 可见可配可用，并给出部署验证清单与常见坑。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>适用版本：EspoCRM 9.2.2+</p>
+</blockquote>
+<p>你以为多对多必须建中间表？在 EspoCRM 里，手写 SQL 往往是你自己给自己埋雷。</p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><code>entityDefs.links</code> + <code>relationName</code> 决定关系与中间表</li>
+<li><code>scopes</code> 决定实体能不能被管理与配置</li>
+<li><code>clientDefs + layouts</code> 决定用户界面”看不看得到、用不用得起来”</li>
+<li><code>rebuild</code> 是让系统把元数据变成真实结构的开关</li>
+</ul>
+<hr>
+<h2 id="1-场景：什么时候需要多对多"><a href="#1-场景：什么时候需要多对多" class="headerlink" title="1. 场景：什么时候需要多对多"></a>1. 场景：什么时候需要多对多</h2><p>很多 CRM 场景都需要多对多关系：</p>
+<ul>
+<li>一个记录关联多个标签、多个分类</li>
+<li>一个项目关联多个联系人、多个资源</li>
+<li>一个工单关联多个参与人、多个附件</li>
+</ul>
+<p>很多人第一反应是：建中间表、写迁移 SQL。这在 EspoCRM 里往往是<strong>最差</strong>的选择——你会绕过系统的元数据机制，升级时痛苦指数爆炸。</p>
+<p>我们推荐的路线：<strong>只写配置</strong> → <code>rebuild</code> → EspoCRM 自动创建表结构。</p>
+<h2 id="2-目标：用一套最小配置打通”能看见、能选择、能保存”"><a href="#2-目标：用一套最小配置打通”能看见、能选择、能保存”" class="headerlink" title="2. 目标：用一套最小配置打通”能看见、能选择、能保存”"></a>2. 目标：用一套最小配置打通”能看见、能选择、能保存”</h2><p>多对多不是”数据能存进去”就完事了。真正能交付给业务用，至少要满足：</p>
+<ul>
+<li>关系在实体定义里存在（后端能存）</li>
+<li>关系在界面上可见（前端能选）</li>
+<li>权限与作用域可控（ACL 不出事）</li>
+<li>rebuild 后自动生成&#x2F;更新结构（可升级）</li>
+</ul>
+<h2 id="3-关键机制：relationName-决定中间表"><a href="#3-关键机制：relationName-决定中间表" class="headerlink" title="3. 关键机制：relationName 决定中间表"></a>3. 关键机制：relationName 决定中间表</h2><p>你可以把 EspoCRM 的自动建表理解为：<br><strong>entityDefs 里声明了关系 → rebuild 生成实际表结构</strong>。</p>
+<pre class="mermaid">flowchart TD
+  A[entityDefs: fields + links] --> B[rebuild]
+  B --> C[(主表自动创建/更新)]
+  B --> D[(中间表按 relationName 自动创建)]
+  B --> E[前端元数据缓存更新]</pre>
+
+<p>在 links 中给同一段关系设置同一个 <code>relationName</code>，就是告诉系统：</p>
+<ul>
+<li>这是同一个关联（正反两侧一致）</li>
+<li>中间表应按这个名字生成（内部映射）</li>
+</ul>
+<h2 id="4-配置最小闭环（示例：EntityA-↔-EntityB）"><a href="#4-配置最小闭环（示例：EntityA-↔-EntityB）" class="headerlink" title="4. 配置最小闭环（示例：EntityA ↔ EntityB）"></a>4. 配置最小闭环（示例：EntityA ↔ EntityB）</h2><p>用中性实体名演示：</p>
+<ul>
+<li><code>CItem</code>：条目</li>
+<li><code>CTag</code>：标签</li>
+</ul>
+<h3 id="4-1-定义实体（entityDefs）"><a href="#4-1-定义实体（entityDefs）" class="headerlink" title="4.1 定义实体（entityDefs）"></a>4.1 定义实体（entityDefs）</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;fields&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span> <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;varchar&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;required&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span> <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;links&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;tags&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;hasMany&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;entity&quot;</span><span class="punctuation">:</span> <span class="string">&quot;CTag&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;foreign&quot;</span><span class="punctuation">:</span> <span class="string">&quot;items&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;relationName&quot;</span><span class="punctuation">:</span> <span class="string">&quot;cItemTag&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>另一侧：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;fields&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span> <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;varchar&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;required&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span> <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;links&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;items&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;hasMany&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;entity&quot;</span><span class="punctuation">:</span> <span class="string">&quot;CItem&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;foreign&quot;</span><span class="punctuation">:</span> <span class="string">&quot;tags&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;relationName&quot;</span><span class="punctuation">:</span> <span class="string">&quot;cItemTag&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-定义作用域（scopes）"><a href="#4-2-定义作用域（scopes）" class="headerlink" title="4.2 定义作用域（scopes）"></a>4.2 定义作用域（scopes）</h3><p>如果 scopes 不完整，菜单不显示、权限无法配置、布局无法编辑。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;entity&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;layouts&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;tab&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;acl&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;customizable&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;importable&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;stream&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;disabled&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Base&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;module&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Custom&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;isCustom&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-3-让关系在-UI-可见（clientDefs-layouts）"><a href="#4-3-让关系在-UI-可见（clientDefs-layouts）" class="headerlink" title="4.3 让关系在 UI 可见（clientDefs + layouts）"></a>4.3 让关系在 UI 可见（clientDefs + layouts）</h3><p>只写 entityDefs，用户会说”加了关系，但页面上看不到”。需要两层：</p>
+<ul>
+<li><code>clientDefs</code>：关系面板声明（relationshipPanels）</li>
+<li><code>layouts</code>：字段&#x2F;面板落位（edit&#x2F;detail）</li>
+</ul>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;relationships&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;tags&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span> <span class="attr">&quot;layout&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">null</span></span> <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>布局示例：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">[</span></span><br><span class="line">  <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;rows&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">      <span class="punctuation">[</span></span><br><span class="line">        <span class="punctuation">&#123;</span> <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;name&quot;</span> <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="punctuation">&#123;</span> <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;tags&quot;</span> <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">]</span></span><br><span class="line">    <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;label&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Overview&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">]</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="5-rebuild-之后会发生什么"><a href="#5-rebuild-之后会发生什么" class="headerlink" title="5. rebuild 之后会发生什么"></a>5. rebuild 之后会发生什么</h2><ul>
+<li>系统为 <code>cItemTag</code> 自动生成中间表</li>
+<li>两侧实体的关联可在 UI 面板中维护</li>
+<li>ACL 生效：不同角色看到的范围可控</li>
+</ul>
+<h2 id="6-部署与验证"><a href="#6-部署与验证" class="headerlink" title="6. 部署与验证"></a>6. 部署与验证</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 逐文件复制</span></span><br><span class="line">CONTAINER_NAME=<span class="string">&quot;&lt;your-espocrm-container&gt;&quot;</span></span><br><span class="line">docker <span class="built_in">cp</span> CItem.json <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span>:/var/www/html/custom/Espo/Modules/MyModule/Resources/metadata/entityDefs/CItem.json</span><br><span class="line">docker <span class="built_in">cp</span> CTag.json <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span>:/var/www/html/custom/Espo/Modules/MyModule/Resources/metadata/entityDefs/CTag.json</span><br><span class="line"></span><br><span class="line"><span class="comment"># rebuild</span></span><br><span class="line">docker <span class="built_in">exec</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span> php /var/www/html/command.php rebuild</span><br></pre></td></tr></table></figure>
+
+<p>验证清单：</p>
+<ul>
+<li><input disabled type="checkbox"> 后台能看到两个实体的菜单入口</li>
+<li><input disabled type="checkbox"> 编辑页面能选择关联记录</li>
+<li><input disabled type="checkbox"> 保存后关系面板能看到关联列表</li>
+<li><input disabled type="checkbox"> 不同角色下 ACL 表现符合预期</li>
+</ul>
+<h2 id="7-常见坑"><a href="#7-常见坑" class="headerlink" title="7. 常见坑"></a>7. 常见坑</h2><ul>
+<li>scopes 配置缺失导致”菜单不显示&#x2F;权限不可配”</li>
+<li>layouts 没放字段导致”后端有关系，前端看不到”</li>
+<li>忘记 rebuild 导致”改了配置不生效”</li>
+</ul>
+<hr>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/EspoCRM/" rel="tag"># EspoCRM</a>
+              <a href="/tags/metadata/" rel="tag"># metadata</a>
+              <a href="/tags/many-to-many/" rel="tag"># many-to-many</a>
+              <a href="/tags/rebuild/" rel="tag"># rebuild</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/11/22/espocrm/02-external-integration/" rel="prev" title="EspoCRM定制第2篇: 外部集成——Outlook双向同步实战">
+      <i class="fa fa-chevron-left"></i> EspoCRM定制第2篇: 外部集成——Outlook双向同步实战
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/12/06/espocrm/04-validation-dynamic-logic-hook/" rel="next" title="EspoCRM定制第4篇 Dynamic Logic + BeforeSave Hook ——前后端双保险">
+      EspoCRM定制第4篇 Dynamic Logic + BeforeSave Hook ——前后端双保险 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E5%9C%BA%E6%99%AF%EF%BC%9A%E4%BB%80%E4%B9%88%E6%97%B6%E5%80%99%E9%9C%80%E8%A6%81%E5%A4%9A%E5%AF%B9%E5%A4%9A"><span class="nav-number">2.</span> <span class="nav-text">1. 场景：什么时候需要多对多</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E7%9B%AE%E6%A0%87%EF%BC%9A%E7%94%A8%E4%B8%80%E5%A5%97%E6%9C%80%E5%B0%8F%E9%85%8D%E7%BD%AE%E6%89%93%E9%80%9A%E2%80%9D%E8%83%BD%E7%9C%8B%E8%A7%81%E3%80%81%E8%83%BD%E9%80%89%E6%8B%A9%E3%80%81%E8%83%BD%E4%BF%9D%E5%AD%98%E2%80%9D"><span class="nav-number">3.</span> <span class="nav-text">2. 目标：用一套最小配置打通”能看见、能选择、能保存”</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E5%85%B3%E9%94%AE%E6%9C%BA%E5%88%B6%EF%BC%9ArelationName-%E5%86%B3%E5%AE%9A%E4%B8%AD%E9%97%B4%E8%A1%A8"><span class="nav-number">4.</span> <span class="nav-text">3. 关键机制：relationName 决定中间表</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E9%85%8D%E7%BD%AE%E6%9C%80%E5%B0%8F%E9%97%AD%E7%8E%AF%EF%BC%88%E7%A4%BA%E4%BE%8B%EF%BC%9AEntityA-%E2%86%94-EntityB%EF%BC%89"><span class="nav-number">5.</span> <span class="nav-text">4. 配置最小闭环（示例：EntityA ↔ EntityB）</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-%E5%AE%9A%E4%B9%89%E5%AE%9E%E4%BD%93%EF%BC%88entityDefs%EF%BC%89"><span class="nav-number">5.1.</span> <span class="nav-text">4.1 定义实体（entityDefs）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-%E5%AE%9A%E4%B9%89%E4%BD%9C%E7%94%A8%E5%9F%9F%EF%BC%88scopes%EF%BC%89"><span class="nav-number">5.2.</span> <span class="nav-text">4.2 定义作用域（scopes）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-%E8%AE%A9%E5%85%B3%E7%B3%BB%E5%9C%A8-UI-%E5%8F%AF%E8%A7%81%EF%BC%88clientDefs-layouts%EF%BC%89"><span class="nav-number">5.3.</span> <span class="nav-text">4.3 让关系在 UI 可见（clientDefs + layouts）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-rebuild-%E4%B9%8B%E5%90%8E%E4%BC%9A%E5%8F%91%E7%94%9F%E4%BB%80%E4%B9%88"><span class="nav-number">6.</span> <span class="nav-text">5. rebuild 之后会发生什么</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E9%83%A8%E7%BD%B2%E4%B8%8E%E9%AA%8C%E8%AF%81"><span class="nav-number">7.</span> <span class="nav-text">6. 部署与验证</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E5%B8%B8%E8%A7%81%E5%9D%91"><span class="nav-number">8.</span> <span class="nav-text">7. 常见坑</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">40</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">42</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

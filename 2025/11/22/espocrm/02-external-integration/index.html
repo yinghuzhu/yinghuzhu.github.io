@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="外部集成的难点不是“调通 API”，而是“长期稳定运行”。本文以 Outlook&#x2F;Graph 为例，讲清 OAuth 授权流程、ExternalAccount 存储、增量同步（deltaLink&#x2F;skipToken）与失败恢复策略。覆盖 token 轮换、错误分类重试、幂等设计与英文日志，让集成长期稳定运行。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="EspoCRM定制第2篇: 外部集成——Outlook双向同步实战">
+<meta property="og:url" content="https://www.yzhu.name/2025/11/22/espocrm/02-external-integration/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="外部集成的难点不是“调通 API”，而是“长期稳定运行”。本文以 Outlook&#x2F;Graph 为例，讲清 OAuth 授权流程、ExternalAccount 存储、增量同步（deltaLink&#x2F;skipToken）与失败恢复策略。覆盖 token 轮换、错误分类重试、幂等设计与英文日志，让集成长期稳定运行。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2025-11-22T01:45:00.000Z">
+<meta property="article:modified_time" content="2025-11-22T01:45:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="EspoCRM">
+<meta property="article:tag" content="integration">
+<meta property="article:tag" content="oauth">
+<meta property="article:tag" content="outlook">
+<meta property="article:tag" content="sync">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2025/11/22/espocrm/02-external-integration/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>EspoCRM定制第2篇: 外部集成——Outlook双向同步实战 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2025/11/22/espocrm/02-external-integration/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          EspoCRM定制第2篇: 外部集成——Outlook双向同步实战
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2025-11-22 09:45:00" itemprop="dateCreated datePublished" datetime="2025-11-22T09:45:00+08:00">2025-11-22</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/EspoCRM/" itemprop="url" rel="index"><span itemprop="name">EspoCRM</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">外部集成的难点不是“调通 API”，而是“长期稳定运行”。本文以 Outlook/Graph 为例，讲清 OAuth 授权流程、ExternalAccount 存储、增量同步（deltaLink/skipToken）与失败恢复策略。覆盖 token 轮换、错误分类重试、幂等设计与英文日志，让集成长期稳定运行。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>适用版本：EspoCRM 9.2.2+</p>
+</blockquote>
+<p>外部集成的难点不是”调通 API”，而是”长期稳定运行”。</p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>OAuth 2.0 实现 EspoCRM 与外部系统的安全连接</li>
+<li>增量同步用 deltaLink&#x2F;skipToken 机制，避免全量拉取</li>
+<li>Token 失效有恢复策略，同步失败不中断服务</li>
+<li>关键判断打英文日志，保证线上可定位</li>
+</ul>
+<hr>
+<h2 id="1-集成场景概述"><a href="#1-集成场景概述" class="headerlink" title="1. 集成场景概述"></a>1. 集成场景概述</h2><h3 id="1-1-常见集成类型"><a href="#1-1-常见集成类型" class="headerlink" title="1.1 常见集成类型"></a>1.1 常见集成类型</h3><table>
+<thead>
+<tr>
+<th align="left">集成类型</th>
+<th align="left">典型场景</th>
+<th align="left">同步方向</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">日历同步</td>
+<td align="left">Outlook&#x2F;Google Calendar</td>
+<td align="left">双向</td>
+</tr>
+<tr>
+<td align="left">联系人同步</td>
+<td align="left">Outlook&#x2F;Google Contacts</td>
+<td align="left">双向</td>
+</tr>
+<tr>
+<td align="left">邮件集成</td>
+<td align="left">SMTP&#x2F;IMAP</td>
+<td align="left">单向（到 EspoCRM）</td>
+</tr>
+<tr>
+<td align="left">数据同步</td>
+<td align="left">ERP&#x2F;财务系统</td>
+<td align="left">双向</td>
+</tr>
+<tr>
+<td align="left">Webhook</td>
+<td align="left">第三方通知</td>
+<td align="left">单向（到 EspoCRM）</td>
+</tr>
+</tbody></table>
+<h3 id="1-2-日历同步的核心挑战"><a href="#1-2-日历同步的核心挑战" class="headerlink" title="1.2 日历同步的核心挑战"></a>1.2 日历同步的核心挑战</h3><ul>
+<li><strong>增量同步</strong>：只拉取变更数据，避免全量拉取的性能开销</li>
+<li><strong>Token 管理</strong>：访问令牌会过期，需要自动刷新</li>
+<li><strong>错误恢复</strong>：网络中断、Token 失效后的恢复机制</li>
+<li><strong>数据一致性</strong>：双向同步时的冲突处理</li>
+</ul>
+<hr>
+<h2 id="2-OAuth-认证流程"><a href="#2-OAuth-认证流程" class="headerlink" title="2. OAuth 认证流程"></a>2. OAuth 认证流程</h2><h3 id="2-1-OAuth-2-0-基本流程"><a href="#2-1-OAuth-2-0-基本流程" class="headerlink" title="2.1 OAuth 2.0 基本流程"></a>2.1 OAuth 2.0 基本流程</h3><pre class="mermaid">flowchart LR
+  A[用户点击连接] --> B[跳转到 Microsoft 授权页]
+  B --> C[用户同意授权]
+  C --> D[回调到 EspoCRM 带 code]
+  D --> E[用 code 换 access_token]
+  E --> F[保存 token 到 external_account]
+  F --> G[开始同步数据]</pre>
+
+<h3 id="2-2-EspoCRM-中的-External-Account-机制"><a href="#2-2-EspoCRM-中的-External-Account-机制" class="headerlink" title="2.2 EspoCRM 中的 External Account 机制"></a>2.2 EspoCRM 中的 External Account 机制</h3><p>EspoCRM 提供了 <code>external_account</code> 实体来存储第三方系统的认证信息：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;xxx&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;userId&quot;</span><span class="punctuation">:</span> <span class="string">&quot;user_id&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;integration&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Outlook&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;accessToken&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&lt;ACCESS_TOKEN&gt;&quot;</span><span class="punctuation">,</span>  <span class="comment">// 访问令牌</span></span><br><span class="line">  <span class="attr">&quot;refreshToken&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&lt;REFRESH_TOKEN&gt;&quot;</span><span class="punctuation">,</span>    <span class="comment">// 刷新令牌</span></span><br><span class="line">  <span class="attr">&quot;expiresAt&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2025-01-27 10:00:00&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2-3-Token-刷新机制"><a href="#2-3-Token-刷新机制" class="headerlink" title="2.3 Token 刷新机制"></a>2.3 Token 刷新机制</h3><figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 伪代码</span></span><br><span class="line"><span class="keyword">if</span> (<span class="variable">$token</span>-&gt;<span class="title function_ invoke__">isExpired</span>()) &#123;</span><br><span class="line">    <span class="variable">$newToken</span> = <span class="variable language_">$this</span>-&gt;oauthHelper-&gt;<span class="title function_ invoke__">refresh</span>(<span class="variable">$token</span>-&gt;<span class="title function_ invoke__">getRefreshToken</span>());</span><br><span class="line">    <span class="variable">$externalAccount</span>-&gt;<span class="title function_ invoke__">set</span>(<span class="string">&#x27;accessToken&#x27;</span>, <span class="variable">$newToken</span>-&gt;access_token);</span><br><span class="line">    <span class="variable">$externalAccount</span>-&gt;<span class="title function_ invoke__">set</span>(<span class="string">&#x27;refreshToken&#x27;</span>, <span class="variable">$newToken</span>-&gt;refresh_token);</span><br><span class="line">    <span class="variable">$externalAccount</span>-&gt;<span class="title function_ invoke__">set</span>(<span class="string">&#x27;expiresAt&#x27;</span>, <span class="variable">$newToken</span>-&gt;expires_at);</span><br><span class="line">    <span class="variable language_">$this</span>-&gt;entityManager-&gt;<span class="title function_ invoke__">saveEntity</span>(<span class="variable">$externalAccount</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="3-增量同步实现"><a href="#3-增量同步实现" class="headerlink" title="3. 增量同步实现"></a>3. 增量同步实现</h2><h3 id="3-1-为什么需要增量同步"><a href="#3-1-为什么需要增量同步" class="headerlink" title="3.1 为什么需要增量同步"></a>3.1 为什么需要增量同步</h3><p>全量拉取的问题：</p>
+<ul>
+<li>每次拉取所有事件，数据量大时性能差</li>
+<li>浪费 API 配额</li>
+<li>同步时间长，用户体验差</li>
+</ul>
+<p><strong>增量同步</strong>：只拉取有变化的记录。</p>
+<h3 id="3-2-Microsoft-Graph-API-的-Delta-机制"><a href="#3-2-Microsoft-Graph-API-的-Delta-机制" class="headerlink" title="3.2 Microsoft Graph API 的 Delta 机制"></a>3.2 Microsoft Graph API 的 Delta 机制</h3><pre class="mermaid">stateDiagram-v2
+    [*] --> 初始同步
+    初始同步 --> 分页中: 收到@odata.nextLink
+    分页中 --> 分页中: 继续下一页
+    分页中 --> 增量同步: 收到@odata.deltaLink
+    增量同步 --> 增量同步: 使用deltaToken
+    增量同步 --> 错误恢复: Token过期
+    错误恢复 --> 初始同步: 重新开始</pre>
+
+<h3 id="3-3-Delta-Token-管理"><a href="#3-3-Delta-Token-管理" class="headerlink" title="3.3 Delta Token 管理"></a>3.3 Delta Token 管理</h3><p><strong>响应格式</strong>：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;@odata.context&quot;</span><span class="punctuation">:</span> <span class="string">&quot;...&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;value&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span> <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;AAMkAG...&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;subject&quot;</span><span class="punctuation">:</span> <span class="string">&quot;会议1&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;@removed&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span> <span class="attr">&quot;reason&quot;</span><span class="punctuation">:</span> <span class="string">&quot;deleted&quot;</span> <span class="punctuation">&#125;</span> <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="punctuation">&#123;</span> <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;AAMkAG...&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;subject&quot;</span><span class="punctuation">:</span> <span class="string">&quot;会议2&quot;</span> <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;@odata.nextLink&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://graph.microsoft.com/...?skipToken=xxx&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="comment">// 或</span></span><br><span class="line">  <span class="attr">&quot;@odata.deltaLink&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://graph.microsoft.com/...?deltaToken=xxx&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>存储策略</strong>：</p>
+<table>
+<thead>
+<tr>
+<th align="left">Token</th>
+<th align="left">存储位置</th>
+<th align="left">用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">deltaToken</td>
+<td align="left">outlook_calendar_user.delta_token</td>
+<td align="left">下次增量同步的起点</td>
+</tr>
+<tr>
+<td align="left">skipToken</td>
+<td align="left">outlook_calendar_user.skip_token</td>
+<td align="left">分页继续的标记</td>
+</tr>
+</tbody></table>
+<h3 id="3-4-同步逻辑骨架"><a href="#3-4-同步逻辑骨架" class="headerlink" title="3.4 同步逻辑骨架"></a>3.4 同步逻辑骨架</h3><figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">syncCalendar</span>(<span class="params">OutlookCalendarUser <span class="variable">$calendarUser</span></span>): <span class="title">void</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="variable">$deltaToken</span> = <span class="variable">$calendarUser</span>-&gt;<span class="title function_ invoke__">get</span>(<span class="string">&#x27;deltaToken&#x27;</span>);</span><br><span class="line">    <span class="variable">$skipToken</span> = <span class="variable">$calendarUser</span>-&gt;<span class="title function_ invoke__">get</span>(<span class="string">&#x27;skipToken&#x27;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="variable">$params</span> = [</span><br><span class="line">        <span class="string">&#x27;start&#x27;</span> =&gt; <span class="keyword">new</span> <span class="title class_">\DateTime</span>(<span class="string">&#x27;-1 month&#x27;</span>),</span><br><span class="line">        <span class="string">&#x27;end&#x27;</span> =&gt; <span class="keyword">new</span> <span class="title class_">\DateTime</span>(<span class="string">&#x27;+3 months&#x27;</span>),</span><br><span class="line">        <span class="string">&#x27;deltaToken&#x27;</span> =&gt; <span class="variable">$deltaToken</span>,</span><br><span class="line">        <span class="string">&#x27;skipToken&#x27;</span> =&gt; <span class="variable">$skipToken</span>,</span><br><span class="line">    ];</span><br><span class="line"></span><br><span class="line">    <span class="keyword">do</span> &#123;</span><br><span class="line">        <span class="variable">$response</span> = <span class="variable language_">$this</span>-&gt;graphClient-&gt;<span class="title function_ invoke__">getCalendarView</span>(<span class="variable">$params</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 处理事件</span></span><br><span class="line">        <span class="keyword">foreach</span> (<span class="variable">$response</span>-&gt;value <span class="keyword">as</span> <span class="variable">$item</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (<span class="keyword">isset</span>(<span class="variable">$item</span>[<span class="string">&#x27;@removed&#x27;</span>])) &#123;</span><br><span class="line">                <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">handleDeletedEvent</span>(<span class="variable">$item</span>);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">handleEvent</span>(<span class="variable">$item</span>);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 更新 token</span></span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">isset</span>(<span class="variable">$response</span>[<span class="string">&#x27;@odata.nextLink&#x27;</span>])) &#123;</span><br><span class="line">            <span class="variable">$calendarUser</span>-&gt;<span class="title function_ invoke__">set</span>(<span class="string">&#x27;skipToken&#x27;</span>, <span class="variable">$this</span>-&gt;<span class="title function_ invoke__">extractSkipToken</span>(<span class="variable">$response</span>));</span><br><span class="line">            <span class="variable">$params</span>[<span class="string">&#x27;skipToken&#x27;</span>] = <span class="variable">$calendarUser</span>-&gt;<span class="title function_ invoke__">get</span>(<span class="string">&#x27;skipToken&#x27;</span>);</span><br><span class="line">        &#125; <span class="keyword">elseif</span> (<span class="keyword">isset</span>(<span class="variable">$response</span>[<span class="string">&#x27;@odata.deltaLink&#x27;</span>])) &#123;</span><br><span class="line">            <span class="variable">$calendarUser</span>-&gt;<span class="title function_ invoke__">set</span>(<span class="string">&#x27;deltaToken&#x27;</span>, <span class="variable">$this</span>-&gt;<span class="title function_ invoke__">extractDeltaToken</span>(<span class="variable">$response</span>));</span><br><span class="line">            <span class="variable">$calendarUser</span>-&gt;<span class="title function_ invoke__">set</span>(<span class="string">&#x27;skipToken&#x27;</span>, <span class="literal">null</span>);</span><br><span class="line">            <span class="keyword">break</span>; <span class="comment">// 同步完成</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125; <span class="keyword">while</span> (<span class="keyword">isset</span>(<span class="variable">$response</span>[<span class="string">&#x27;@odata.nextLink&#x27;</span>]));</span><br><span class="line"></span><br><span class="line">    <span class="variable language_">$this</span>-&gt;entityManager-&gt;<span class="title function_ invoke__">saveEntity</span>(<span class="variable">$calendarUser</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="4-错误处理与恢复"><a href="#4-错误处理与恢复" class="headerlink" title="4. 错误处理与恢复"></a>4. 错误处理与恢复</h2><h3 id="4-1-常见错误类型"><a href="#4-1-常见错误类型" class="headerlink" title="4.1 常见错误类型"></a>4.1 常见错误类型</h3><table>
+<thead>
+<tr>
+<th align="left">错误</th>
+<th align="left">原因</th>
+<th align="left">恢复策略</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">401 Unauthorized</td>
+<td align="left">Token 过期</td>
+<td align="left">用 refreshToken 刷新</td>
+</tr>
+<tr>
+<td align="left">410 Gone</td>
+<td align="left">deltaToken 过期</td>
+<td align="left">重新开始全量同步</td>
+</tr>
+<tr>
+<td align="left">429 TooManyRequests</td>
+<td align="left">API 限流</td>
+<td align="left">延迟重试</td>
+</tr>
+<tr>
+<td align="left">500+ 服务器错误</td>
+<td align="left">临时故障</td>
+<td align="left">延迟重试</td>
+</tr>
+</tbody></table>
+<h3 id="4-2-错误处理流程"><a href="#4-2-错误处理流程" class="headerlink" title="4.2 错误处理流程"></a>4.2 错误处理流程</h3><pre class="mermaid">flowchart TD
+    A[API 请求] --> B{响应状态}
+    B -->|成功| C[处理事件数据]
+    B -->|401| D[刷新 Token]
+    B -->|410| E[清除 Token]
+
+    D --> F[重试请求]
+    E --> G[重新开始全量同步]
+    B -->|429/500| H[延迟后重试]</pre>
+
+<h3 id="4-3-代码示例"><a href="#4-3-代码示例" class="headerlink" title="4.3 代码示例"></a>4.3 代码示例</h3><figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">$response</span> = <span class="variable language_">$this</span>-&gt;graphClient-&gt;<span class="title function_ invoke__">request</span>(<span class="variable">$url</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (<span class="variable">$response</span>-&gt;<span class="title function_ invoke__">getStatusCode</span>() === <span class="number">401</span>) &#123;</span><br><span class="line">    <span class="comment">// Token 过期，尝试刷新</span></span><br><span class="line">    <span class="variable">$newToken</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">refreshAccessToken</span>(<span class="variable">$calendarUser</span>);</span><br><span class="line">    <span class="keyword">if</span> (<span class="variable">$newToken</span>) &#123;</span><br><span class="line">        <span class="keyword">continue</span>; <span class="comment">// 重试</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="variable language_">$this</span>-&gt;log-&gt;<span class="title function_ invoke__">error</span>(<span class="string">&#x27;Token refresh failed&#x27;</span>);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (<span class="variable">$response</span>-&gt;<span class="title function_ invoke__">getStatusCode</span>() === <span class="number">410</span>) &#123;</span><br><span class="line">    <span class="comment">// Delta token 过期，重新开始</span></span><br><span class="line">    <span class="variable language_">$this</span>-&gt;log-&gt;<span class="title function_ invoke__">warning</span>(<span class="string">&#x27;Delta token expired, restarting sync&#x27;</span>);</span><br><span class="line">    <span class="variable">$calendarUser</span>-&gt;<span class="title function_ invoke__">set</span>(<span class="string">&#x27;deltaToken&#x27;</span>, <span class="literal">null</span>);</span><br><span class="line">    <span class="variable">$calendarUser</span>-&gt;<span class="title function_ invoke__">set</span>(<span class="string">&#x27;skipToken&#x27;</span>, <span class="literal">null</span>);</span><br><span class="line">    <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">syncCalendar</span>(<span class="variable">$calendarUser</span>); <span class="comment">// 递归调用，使用无 token 开始</span></span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="5-监控与排障"><a href="#5-监控与排障" class="headerlink" title="5. 监控与排障"></a>5. 监控与排障</h2><h3 id="5-1-关键日志"><a href="#5-1-关键日志" class="headerlink" title="5.1 关键日志"></a>5.1 关键日志</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[INFO] Outlook sync: Processing calendar &#123;calendarName&#125;.</span><br><span class="line">[INFO] Outlook sync: Received deltaToken. Sync completed.</span><br><span class="line">[INFO] Outlook sync: 3 events created, 1 updated, 2 deleted.</span><br><span class="line">[WARNING] Outlook sync: Sync state generation expired, restarting.</span><br><span class="line">[ERROR] Outlook sync: Failed to refresh token for user &#123;userId&#125;.</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-2-数据库验证"><a href="#5-2-数据库验证" class="headerlink" title="5.2 数据库验证"></a>5.2 数据库验证</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 查看同步状态</span></span><br><span class="line"><span class="keyword">SELECT</span></span><br><span class="line">    u.name,</span><br><span class="line">    cu.last_synced_at,</span><br><span class="line">    cu.delta_token <span class="keyword">IS</span> <span class="keyword">NOT NULL</span> <span class="keyword">as</span> has_delta</span><br><span class="line"><span class="keyword">FROM</span> outlook_calendar_user cu</span><br><span class="line"><span class="keyword">JOIN</span> <span class="keyword">user</span> u <span class="keyword">ON</span> cu.user_id <span class="operator">=</span> u.id;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查看同步统计</span></span><br><span class="line"><span class="keyword">SELECT</span></span><br><span class="line">    user_id,</span><br><span class="line">    <span class="built_in">COUNT</span>(<span class="operator">*</span>) <span class="keyword">as</span> total_events,</span><br><span class="line">    <span class="built_in">MAX</span>(synced_at) <span class="keyword">as</span> last_sync</span><br><span class="line"><span class="keyword">FROM</span> outlook_calendar_event</span><br><span class="line"><span class="keyword">GROUP</span> <span class="keyword">BY</span> user_id;</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-3-同步配置参数"><a href="#5-3-同步配置参数" class="headerlink" title="5.3 同步配置参数"></a>5.3 同步配置参数</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;outlookCalendarSyncPeriod&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1 year&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;outlookCalendarSyncEndPeriod&quot;</span><span class="punctuation">:</span> <span class="string">&quot;3 months&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;outlookCalendarSyncMaxPortionSize&quot;</span><span class="punctuation">:</span> <span class="number">100</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th align="left">参数</th>
+<th align="left">说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">syncPeriod</td>
+<td align="left">向前拉取多长时间的数据</td>
+</tr>
+<tr>
+<td align="left">syncEndPeriod</td>
+<td align="left">向后拉取多长时间的数据</td>
+</tr>
+<tr>
+<td align="left">maxPortionSize</td>
+<td align="left">每页返回多少条记录</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="本篇总结"><a href="#本篇总结" class="headerlink" title="本篇总结"></a>本篇总结</h2><ul>
+<li>OAuth 2.0 实现 EspoCRM 与外部系统的安全连接</li>
+<li>增量同步用 deltaLink&#x2F;skipToken 机制，避免全量拉取</li>
+<li>Token 失效有恢复策略，同步失败不中断服务</li>
+<li>关键节点打英文日志，保证线上可定位</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/EspoCRM/" rel="tag"># EspoCRM</a>
+              <a href="/tags/integration/" rel="tag"># integration</a>
+              <a href="/tags/outlook/" rel="tag"># outlook</a>
+              <a href="/tags/oauth/" rel="tag"># oauth</a>
+              <a href="/tags/sync/" rel="tag"># sync</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/11/16/espocrm/01-upgrade-safe-customization-redlines/" rel="prev" title="EspoCRM定制第1篇: 总纲——扩展点选择、模块架构与工程化">
+      <i class="fa fa-chevron-left"></i> EspoCRM定制第1篇: 总纲——扩展点选择、模块架构与工程化
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/11/29/espocrm/03-metadata-driven-many-to-many/" rel="next" title="EspoCRM定制第3篇: 纯配置多对多——不写 SQL，让 rebuild 自动建表">
+      EspoCRM定制第3篇: 纯配置多对多——不写 SQL，让 rebuild 自动建表 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E9%9B%86%E6%88%90%E5%9C%BA%E6%99%AF%E6%A6%82%E8%BF%B0"><span class="nav-number">2.</span> <span class="nav-text">1. 集成场景概述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-%E5%B8%B8%E8%A7%81%E9%9B%86%E6%88%90%E7%B1%BB%E5%9E%8B"><span class="nav-number">2.1.</span> <span class="nav-text">1.1 常见集成类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-%E6%97%A5%E5%8E%86%E5%90%8C%E6%AD%A5%E7%9A%84%E6%A0%B8%E5%BF%83%E6%8C%91%E6%88%98"><span class="nav-number">2.2.</span> <span class="nav-text">1.2 日历同步的核心挑战</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-OAuth-%E8%AE%A4%E8%AF%81%E6%B5%81%E7%A8%8B"><span class="nav-number">3.</span> <span class="nav-text">2. OAuth 认证流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-OAuth-2-0-%E5%9F%BA%E6%9C%AC%E6%B5%81%E7%A8%8B"><span class="nav-number">3.1.</span> <span class="nav-text">2.1 OAuth 2.0 基本流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-EspoCRM-%E4%B8%AD%E7%9A%84-External-Account-%E6%9C%BA%E5%88%B6"><span class="nav-number">3.2.</span> <span class="nav-text">2.2 EspoCRM 中的 External Account 机制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-Token-%E5%88%B7%E6%96%B0%E6%9C%BA%E5%88%B6"><span class="nav-number">3.3.</span> <span class="nav-text">2.3 Token 刷新机制</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E5%A2%9E%E9%87%8F%E5%90%8C%E6%AD%A5%E5%AE%9E%E7%8E%B0"><span class="nav-number">4.</span> <span class="nav-text">3. 增量同步实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E5%A2%9E%E9%87%8F%E5%90%8C%E6%AD%A5"><span class="nav-number">4.1.</span> <span class="nav-text">3.1 为什么需要增量同步</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-Microsoft-Graph-API-%E7%9A%84-Delta-%E6%9C%BA%E5%88%B6"><span class="nav-number">4.2.</span> <span class="nav-text">3.2 Microsoft Graph API 的 Delta 机制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-Delta-Token-%E7%AE%A1%E7%90%86"><span class="nav-number">4.3.</span> <span class="nav-text">3.3 Delta Token 管理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-%E5%90%8C%E6%AD%A5%E9%80%BB%E8%BE%91%E9%AA%A8%E6%9E%B6"><span class="nav-number">4.4.</span> <span class="nav-text">3.4 同步逻辑骨架</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E9%94%99%E8%AF%AF%E5%A4%84%E7%90%86%E4%B8%8E%E6%81%A2%E5%A4%8D"><span class="nav-number">5.</span> <span class="nav-text">4. 错误处理与恢复</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-%E5%B8%B8%E8%A7%81%E9%94%99%E8%AF%AF%E7%B1%BB%E5%9E%8B"><span class="nav-number">5.1.</span> <span class="nav-text">4.1 常见错误类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-%E9%94%99%E8%AF%AF%E5%A4%84%E7%90%86%E6%B5%81%E7%A8%8B"><span class="nav-number">5.2.</span> <span class="nav-text">4.2 错误处理流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-%E4%BB%A3%E7%A0%81%E7%A4%BA%E4%BE%8B"><span class="nav-number">5.3.</span> <span class="nav-text">4.3 代码示例</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-%E7%9B%91%E6%8E%A7%E4%B8%8E%E6%8E%92%E9%9A%9C"><span class="nav-number">6.</span> <span class="nav-text">5. 监控与排障</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-%E5%85%B3%E9%94%AE%E6%97%A5%E5%BF%97"><span class="nav-number">6.1.</span> <span class="nav-text">5.1 关键日志</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-%E6%95%B0%E6%8D%AE%E5%BA%93%E9%AA%8C%E8%AF%81"><span class="nav-number">6.2.</span> <span class="nav-text">5.2 数据库验证</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-%E5%90%8C%E6%AD%A5%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0"><span class="nav-number">6.3.</span> <span class="nav-text">5.3 同步配置参数</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%AC%E7%AF%87%E6%80%BB%E7%BB%93"><span class="nav-number">7.</span> <span class="nav-text">本篇总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">40</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">42</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

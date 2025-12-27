@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="EspoCRM 定制的第一课不是“怎么写代码”，而是“怎么写出可升级的代码”。本文给出扩展点金字塔（Formula → Dynamic Logic → Workflow → Hook → Service），帮助选择最小侵入方案。同时梳理模块架构、目录分区、rebuild 纪律、逐文件部署、回滚与配置备份，确保长期可维护。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="EspoCRM定制第1篇: 总纲——扩展点选择、模块架构与工程化">
+<meta property="og:url" content="https://www.yzhu.name/2025/11/16/espocrm/01-upgrade-safe-customization-redlines/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="EspoCRM 定制的第一课不是“怎么写代码”，而是“怎么写出可升级的代码”。本文给出扩展点金字塔（Formula → Dynamic Logic → Workflow → Hook → Service），帮助选择最小侵入方案。同时梳理模块架构、目录分区、rebuild 纪律、逐文件部署、回滚与配置备份，确保长期可维护。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2025-11-16T01:00:00.000Z">
+<meta property="article:modified_time" content="2025-11-16T01:00:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="EspoCRM">
+<meta property="article:tag" content="customization">
+<meta property="article:tag" content="deployment">
+<meta property="article:tag" content="module-architecture">
+<meta property="article:tag" content="upgrade-safe">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2025/11/16/espocrm/01-upgrade-safe-customization-redlines/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>EspoCRM定制第1篇: 总纲——扩展点选择、模块架构与工程化 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2025/11/16/espocrm/01-upgrade-safe-customization-redlines/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          EspoCRM定制第1篇: 总纲——扩展点选择、模块架构与工程化
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2025-11-16 09:00:00" itemprop="dateCreated datePublished" datetime="2025-11-16T09:00:00+08:00">2025-11-16</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/EspoCRM/" itemprop="url" rel="index"><span itemprop="name">EspoCRM</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">EspoCRM 定制的第一课不是“怎么写代码”，而是“怎么写出可升级的代码”。本文给出扩展点金字塔（Formula → Dynamic Logic → Workflow → Hook → Service），帮助选择最小侵入方案。同时梳理模块架构、目录分区、rebuild 纪律、逐文件部署、回滚与配置备份，确保长期可维护。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>适用版本：EspoCRM 9.2.2+（开源版）</p>
+</blockquote>
+<p>你以为”能跑起来”就完了？真正的难点从你第一次升级开始。</p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>用”扩展点金字塔”选择最小侵入方案，能配置就不写代码</li>
+<li>用”目录分区”隔离管理员配置与开发者代码，避免不可审计混乱</li>
+<li>用”模块化架构”把改动锁在可控边界内</li>
+<li>用”清单化部署+回滚”把风险降到可控</li>
+</ul>
+<hr>
+<h2 id="1-扩展点金字塔"><a href="#1-扩展点金字塔" class="headerlink" title="1. 扩展点金字塔"></a>1. 扩展点金字塔</h2><h3 id="1-1-我们解决的不是”能不能改”，而是”能不能长期维护”"><a href="#1-1-我们解决的不是”能不能改”，而是”能不能长期维护”" class="headerlink" title="1.1 我们解决的不是”能不能改”，而是”能不能长期维护”"></a>1.1 我们解决的不是”能不能改”，而是”能不能长期维护”</h3><p>很多团队做 EspoCRM 定制，第一阶段靠”改得快”赢；第二阶段会被”不可升级、不可回滚、不可定位问题”拖垮。</p>
+<p>这套系列文章的目标很明确：</p>
+<ul>
+<li>不讨论”改核心文件最快”的玩法，只讨论”升级后仍可活”的做法</li>
+<li>不是展示技巧堆叠，而是给一套可复用的工程模板</li>
+</ul>
+<h3 id="1-2-选择扩展点的优先级（金字塔）"><a href="#1-2-选择扩展点的优先级（金字塔）" class="headerlink" title="1.2 选择扩展点的优先级（金字塔）"></a>1.2 选择扩展点的优先级（金字塔）</h3><p>我们的默认策略：<strong>能不写代码就不写代码</strong>，能用系统机制就不用自造轮子。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">1. Formula (优先)      - 简单计算和条件逻辑</span><br><span class="line">2. Dynamic Logic        - 界面显示与字段依赖</span><br><span class="line">3. Workflow / BPM       - 复杂业务流程（谨慎）</span><br><span class="line">4. Hook                 - 数据一致性保障（禁止复杂计算/HTTP/发信）</span><br><span class="line">5. Service / Controller - API 与复杂逻辑（最后手段）</span><br></pre></td></tr></table></figure>
+
+<p>你会在后面几篇里看到同一个套路反复出现：<br>先用 Dynamic Logic 解决体验，再用 Hook&#x2F;Service 解决”绕过与一致性”。</p>
+<h3 id="1-3-红线（违反就注定不可维护）"><a href="#1-3-红线（违反就注定不可维护）" class="headerlink" title="1.3 红线（违反就注定不可维护）"></a>1.3 红线（违反就注定不可维护）</h3><ul>
+<li>不修改 <code>application/</code> 目录下任何文件（除非你准备永久自己维护一个 fork）</li>
+<li>不在代码里硬编码环境信息（域名、容器名、数据库连接、密钥）</li>
+<li>不把管理员配置和开发者代码混在同一套元数据文件里</li>
+<li>不在 Hook 里做重逻辑（尤其是发邮件、复杂计算、HTTP 请求）</li>
+<li>不绕过 ACL（任何”方便调试的后门”最终都会变成安全事故）</li>
+</ul>
+<hr>
+<h2 id="2-模块化架构"><a href="#2-模块化架构" class="headerlink" title="2. 模块化架构"></a>2. 模块化架构</h2><h3 id="2-1-目录分区：开发者模块-vs-管理员配置区"><a href="#2-1-目录分区：开发者模块-vs-管理员配置区" class="headerlink" title="2.1 目录分区：开发者模块 vs 管理员配置区"></a>2.1 目录分区：开发者模块 vs 管理员配置区</h3><p>我们把”可升级”落到物理结构上：</p>
+<ul>
+<li>管理员（GUI）产生的配置：<code>custom/Espo/Custom/</code></li>
+<li>开发者（代码）交付的模块：<code>custom/Espo/Modules/{ModuleName}/</code></li>
+</ul>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">custom/</span><br><span class="line">├── Espo/Custom/                    # 管理员配置区（GUI）</span><br><span class="line">│   └── Resources/metadata/</span><br><span class="line">└── Espo/Modules/&#123;ModuleName&#125;/      # 开发者模块区（代码）</span><br><span class="line">    ├── Controllers/</span><br><span class="line">    ├── Services/</span><br><span class="line">    ├── Hooks/</span><br><span class="line">    ├── Jobs/</span><br><span class="line">    └── Resources/</span><br><span class="line">        ├── metadata/</span><br><span class="line">        ├── routes.json</span><br><span class="line">        └── i18n/</span><br></pre></td></tr></table></figure>
+
+<p><strong>为什么这么苛刻？</strong><br>因为管理员配置可变、不可审计，而开发者代码必须可审计、可回滚、可复现。混在一起，等于把两种生命周期掺成一锅粥。</p>
+<h3 id="2-2-完整后端模块结构"><a href="#2-2-完整后端模块结构" class="headerlink" title="2.2 完整后端模块结构"></a>2.2 完整后端模块结构</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line">custom/Espo/Modules/MyModule/</span><br><span class="line">├── Module.php                          # 模块定义类</span><br><span class="line">├── composer.json                       # 第三方依赖（可选）</span><br><span class="line">│</span><br><span class="line">├── Controllers/                        # API 控制器</span><br><span class="line">│   └── MyEntity.php</span><br><span class="line">│</span><br><span class="line">├── Services/                           # 业务逻辑服务层</span><br><span class="line">│   └── MyService.php</span><br><span class="line">│</span><br><span class="line">├── Hooks/                              # 数据钩子</span><br><span class="line">│   ├── MyEntity/</span><br><span class="line">│   │   └── BeforeSave.php</span><br><span class="line">│   └── AnotherEntity/</span><br><span class="line">│       └── AfterSave.php</span><br><span class="line">│</span><br><span class="line">├── Jobs/                               # 定时任务</span><br><span class="line">│   └── MyScheduledJob.php</span><br><span class="line">│</span><br><span class="line">├── Entities/                           # 实体类（可选）</span><br><span class="line">│   └── MyEntity.php</span><br><span class="line">│</span><br><span class="line">├── Repositories/                       # 数据仓库（可选）</span><br><span class="line">│   └── MyEntityRepository.php</span><br><span class="line">│</span><br><span class="line">└── Resources/                          # 元数据与配置</span><br><span class="line">    ├── metadata/</span><br><span class="line">    │   ├── entityDefs/                 # 实体定义</span><br><span class="line">    │   ├── clientDefs/                 # 前端定义</span><br><span class="line">    │   ├── scopes/                     # 权限作用域</span><br><span class="line">    │   ├── app/</span><br><span class="line">    │   │   ├── adminPanel.json        # 管理面板菜单</span><br><span class="line">    │   │   └── config.json            # 系统配置</span><br><span class="line">    │   └── routes.json                 # API 路由</span><br><span class="line">    │</span><br><span class="line">    ├── layouts/                         # 界面布局</span><br><span class="line">    │   └── MyEntity/</span><br><span class="line">    │       ├── list.json</span><br><span class="line">    │       ├── detail.json</span><br><span class="line">    │       ├── edit.json</span><br><span class="line">    │       └── create.json</span><br><span class="line">    │</span><br><span class="line">    └── i18n/                            # 语言包</span><br><span class="line">        └── en_US/</span><br><span class="line">            ├── Global.json</span><br><span class="line">            └── MyEntity.json</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-3-前端模块结构"><a href="#2-3-前端模块结构" class="headerlink" title="2.3 前端模块结构"></a>2.3 前端模块结构</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">client/modules/my-module/</span><br><span class="line">└── src/</span><br><span class="line">    ├── views/                           # 自定义视图</span><br><span class="line">    │   └── my-entity/</span><br><span class="line">    │       ├── detail.js</span><br><span class="line">    │       ├── edit.js</span><br><span class="line">    │       └── list.js</span><br><span class="line">    ├── fields/                          # 自定义字段类型</span><br><span class="line">    │   └── my-field-type.js</span><br><span class="line">    └── templates/                       # Handlebars 模板（可选）</span><br><span class="line">        └── my-template.tpl</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-4-管理员配置区（开发者不要动）"><a href="#2-4-管理员配置区（开发者不要动）" class="headerlink" title="2.4 管理员配置区（开发者不要动）"></a>2.4 管理员配置区（开发者不要动）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">custom/Espo/Custom/</span><br><span class="line">└── Resources/</span><br><span class="line">    └── metadata/                        # 管理员通过 GUI 添加的配置</span><br><span class="line">        ├── entityDefs/</span><br><span class="line">        ├── clientDefs/</span><br><span class="line">        └── scopes/</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="3-各层职责分工"><a href="#3-各层职责分工" class="headerlink" title="3. 各层职责分工"></a>3. 各层职责分工</h2><h3 id="3-1-Controller：API-入口"><a href="#3-1-Controller：API-入口" class="headerlink" title="3.1 Controller：API 入口"></a>3.1 Controller：API 入口</h3><p><strong>职责</strong>：</p>
+<ul>
+<li>处理 HTTP 请求</li>
+<li>权限检查（ACL）</li>
+<li>调用 Service 处理业务逻辑</li>
+<li>返回 JSON 响应</li>
+</ul>
+<p><strong>示例骨架</strong>：</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"><span class="keyword">namespace</span> <span class="title class_">Espo</span>\<span class="title class_">Modules</span>\<span class="title class_">MyModule</span>\<span class="title class_">Controllers</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">use</span> <span class="title">Espo</span>\<span class="title">Core</span>\<span class="title">Controllers</span>\<span class="title">Record</span>;</span><br><span class="line"><span class="keyword">use</span> <span class="title">Espo</span>\<span class="title">Core</span>\<span class="title">Exceptions</span>\<span class="title">BadRequest</span>;</span><br><span class="line"><span class="keyword">use</span> <span class="title">Espo</span>\<span class="title">Core</span>\<span class="title">Exceptions</span>\<span class="title">Forbidden</span>;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyEntity</span> <span class="keyword">extends</span> <span class="title">Record</span></span></span><br><span class="line"><span class="class"></span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">actionMyAction</span>(<span class="params"><span class="variable">$params</span>, <span class="variable">$data</span>, <span class="variable">$request</span></span>)</span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="comment">// 权限检查</span></span><br><span class="line">        <span class="keyword">if</span> (!<span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">getUser</span>()-&gt;<span class="title function_ invoke__">isAdmin</span>()) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">Forbidden</span>();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 参数验证</span></span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">empty</span>(<span class="variable">$data</span>-&gt;param)) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">BadRequest</span>(<span class="string">&quot;param is required&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 调用 Service</span></span><br><span class="line">        <span class="variable">$result</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">getContainer</span>()-&gt;<span class="title function_ invoke__">get</span>(<span class="string">&#x27;MyService&#x27;</span>)-&gt;<span class="title function_ invoke__">doSomething</span>(<span class="variable">$data</span>-&gt;param);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="variable">$result</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-Service：业务逻辑层"><a href="#3-2-Service：业务逻辑层" class="headerlink" title="3.2 Service：业务逻辑层"></a>3.2 Service：业务逻辑层</h3><p><strong>职责</strong>：</p>
+<ul>
+<li>复杂业务逻辑</li>
+<li>跨实体操作</li>
+<li>数据计算与转换</li>
+<li>调用外部 API</li>
+</ul>
+<p><strong>示例骨架</strong>：</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"><span class="keyword">namespace</span> <span class="title class_">Espo</span>\<span class="title class_">Modules</span>\<span class="title class_">MyModule</span>\<span class="title class_">Services</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">use</span> <span class="title">Espo</span>\<span class="title">Core</span>\<span class="title">ORM</span>\<span class="title">EntityManager</span>;</span><br><span class="line"><span class="keyword">use</span> <span class="title">Espo</span>\<span class="title">Core</span>\<span class="title">Utils</span>\<span class="title">Config</span>;</span><br><span class="line"><span class="keyword">use</span> <span class="title">Espo</span>\<span class="title">Core</span>\<span class="title">Utils</span>\<span class="title">Log</span>;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyService</span></span></span><br><span class="line"><span class="class"></span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="keyword">private</span> EntityManager <span class="variable">$entityManager</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="keyword">private</span> Config <span class="variable">$config</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="keyword">private</span> Log <span class="variable">$log</span></span></span></span><br><span class="line"><span class="params"><span class="function">    </span>) </span>&#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">doSomething</span>(<span class="params"><span class="keyword">string</span> <span class="variable">$param</span></span>): <span class="title">array</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="variable language_">$this</span>-&gt;log-&gt;<span class="title function_ invoke__">info</span>(<span class="string">&quot;MyService::doSomething started with param: <span class="subst">&#123;$param&#125;</span>&quot;</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 业务逻辑</span></span><br><span class="line">        <span class="variable">$result</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">processData</span>(<span class="variable">$param</span>);</span><br><span class="line"></span><br><span class="line">        <span class="variable language_">$this</span>-&gt;log-&gt;<span class="title function_ invoke__">info</span>(<span class="string">&quot;MyService::doSomething completed&quot;</span>);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="variable">$result</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="function"><span class="keyword">function</span> <span class="title">processData</span>(<span class="params"><span class="keyword">string</span> <span class="variable">$param</span></span>): <span class="title">array</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-Hook：数据一致性保障"><a href="#3-3-Hook：数据一致性保障" class="headerlink" title="3.3 Hook：数据一致性保障"></a>3.3 Hook：数据一致性保障</h3><p><strong>职责</strong>：</p>
+<ul>
+<li>数据保存前的校验&#x2F;补充（BeforeSave）</li>
+<li>数据保存后的联动（AfterSave）</li>
+<li>数据删除前的检查（BeforeDelete）</li>
+</ul>
+<p><strong>原则</strong>：</p>
+<ul>
+<li>只做轻逻辑判断</li>
+<li>不发邮件、不做 HTTP 请求</li>
+<li>不做复杂计算</li>
+</ul>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"><span class="keyword">namespace</span> <span class="title class_">Espo</span>\<span class="title class_">Modules</span>\<span class="title class_">MyModule</span>\<span class="title class_">Hooks</span>\<span class="title class_">MyEntity</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">use</span> <span class="title">Espo</span>\<span class="title">ORM</span>\<span class="title">Entity</span>;</span><br><span class="line"><span class="keyword">use</span> <span class="title">Espo</span>\<span class="title">Core</span>\<span class="title">Exceptions</span>\<span class="title">BadRequest</span>;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BeforeSave</span></span></span><br><span class="line"><span class="class"></span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">beforeSave</span>(<span class="params">Entity <span class="variable">$entity</span>, <span class="keyword">array</span> <span class="variable">$options</span></span>): <span class="title">void</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="comment">// 校验</span></span><br><span class="line">        <span class="keyword">if</span> (<span class="variable">$entity</span>-&gt;<span class="title function_ invoke__">get</span>(<span class="string">&#x27;status&#x27;</span>) === <span class="string">&#x27;Closed&#x27;</span> &amp;&amp; !<span class="variable">$entity</span>-&gt;<span class="title function_ invoke__">get</span>(<span class="string">&#x27;closedReason&#x27;</span>)) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">BadRequest</span>(<span class="string">&quot;closedReason is required&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 数据补充</span></span><br><span class="line">        <span class="keyword">if</span> (<span class="variable">$entity</span>-&gt;<span class="title function_ invoke__">isNew</span>()) &#123;</span><br><span class="line">            <span class="variable">$entity</span>-&gt;<span class="title function_ invoke__">set</span>(<span class="string">&#x27;assignedUserId&#x27;</span>, <span class="variable">$this</span>-&gt;<span class="title function_ invoke__">getUser</span>()-&gt;id);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-4-Job：定时后台任务"><a href="#3-4-Job：定时后台任务" class="headerlink" title="3.4 Job：定时后台任务"></a>3.4 Job：定时后台任务</h3><p><strong>职责</strong>：</p>
+<ul>
+<li>定时触发</li>
+<li>批量数据处理</li>
+<li>发送通知&#x2F;邮件</li>
+<li>定期数据同步</li>
+</ul>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"><span class="keyword">namespace</span> <span class="title class_">Espo</span>\<span class="title class_">Modules</span>\<span class="title class_">MyModule</span>\<span class="title class_">Jobs</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">use</span> <span class="title">Espo</span>\<span class="title">Core</span>\<span class="title">Job</span>\<span class="title">JobDataLess</span>;</span><br><span class="line"><span class="keyword">use</span> <span class="title">Espo</span>\<span class="title">Core</span>\<span class="title">ORM</span>\<span class="title">EntityManager</span>;</span><br><span class="line"><span class="keyword">use</span> <span class="title">Espo</span>\<span class="title">Core</span>\<span class="title">Utils</span>\<span class="title">Log</span>;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyScheduledJob</span> <span class="keyword">implements</span> <span class="title">JobDataLess</span></span></span><br><span class="line"><span class="class"></span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">__construct</span>(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="keyword">private</span> EntityManager <span class="variable">$entityManager</span>,</span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="keyword">private</span> Log <span class="variable">$log</span></span></span></span><br><span class="line"><span class="params"><span class="function">    </span>) </span>&#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">run</span>(<span class="params"></span>): <span class="title">void</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="variable language_">$this</span>-&gt;log-&gt;<span class="title function_ invoke__">info</span>(<span class="string">&#x27;MyScheduledJob started&#x27;</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 定时任务逻辑</span></span><br><span class="line"></span><br><span class="line">        <span class="variable language_">$this</span>-&gt;log-&gt;<span class="title function_ invoke__">info</span>(<span class="string">&#x27;MyScheduledJob completed&#x27;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="4-rebuild-与-clear-cache"><a href="#4-rebuild-与-clear-cache" class="headerlink" title="4. rebuild 与 clear-cache"></a>4. rebuild 与 clear-cache</h2><h3 id="4-1-把”生效机制”当成工程事实"><a href="#4-1-把”生效机制”当成工程事实" class="headerlink" title="4.1 把”生效机制”当成工程事实"></a>4.1 把”生效机制”当成工程事实</h3><p>你在 EspoCRM 里改了元数据、前端视图映射、语言包、布局之后，最常见的错误不是”写错代码”，而是”你以为改了就生效”。</p>
+<p>建议把下面清单当作工程制度，而不是”记得就做”：</p>
+<table>
+<thead>
+<tr>
+<th align="left">操作</th>
+<th align="left">必须</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">改 metadata（entityDefs &#x2F; clientDefs &#x2F; scopes &#x2F; routes &#x2F; app）</td>
+<td align="left">rebuild</td>
+</tr>
+<tr>
+<td align="left">改前端视图或模板</td>
+<td align="left">clear-cache + 浏览器强刷</td>
+</tr>
+<tr>
+<td align="left">改语言包</td>
+<td align="left">rebuild</td>
+</tr>
+</tbody></table>
+<h3 id="4-2-执行方式"><a href="#4-2-执行方式" class="headerlink" title="4.2 执行方式"></a>4.2 执行方式</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">CONTAINER_NAME=<span class="string">&quot;&lt;your-espocrm-container&gt;&quot;</span></span><br><span class="line">docker <span class="built_in">exec</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span> php /var/www/html/command.php rebuild</span><br><span class="line">docker <span class="built_in">exec</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span> php /var/www/html/command.php clear-cache</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="5-部署与回滚"><a href="#5-部署与回滚" class="headerlink" title="5. 部署与回滚"></a>5. 部署与回滚</h2><h3 id="5-1-逐文件拷贝原则"><a href="#5-1-逐文件拷贝原则" class="headerlink" title="5.1 逐文件拷贝原则"></a>5.1 逐文件拷贝原则</h3><p><strong>禁止</strong>：目录拷贝（不要把整个 <code>custom/</code> 目录一次性扔进容器）</p>
+<p><strong>正确</strong>：逐文件拷贝</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ✅ 正确：逐文件拷贝，可审计</span></span><br><span class="line">CONTAINER_NAME=<span class="string">&quot;&lt;your-espocrm-container&gt;&quot;</span></span><br><span class="line">docker <span class="built_in">cp</span> Module.php <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span>:/var/www/html/custom/Espo/Modules/MyModule/Module.php</span><br><span class="line">docker <span class="built_in">cp</span> MyEntity.json <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span>:/var/www/html/custom/Espo/Modules/MyModule/Resources/metadata/entityDefs/MyEntity.json</span><br><span class="line"><span class="comment"># ... 逐个文件</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="5-2-部署检查清单"><a href="#5-2-部署检查清单" class="headerlink" title="5.2 部署检查清单"></a>5.2 部署检查清单</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">文件部署</span><br><span class="line">├── [ ] 所有 .php 文件已拷贝</span><br><span class="line">├── [ ] 所有 .json 元数据文件已拷贝</span><br><span class="line">├── [ ] 所有 .js 前端文件已拷贝</span><br><span class="line">└── [ ] 所有 .tpl 模板文件已拷贝</span><br><span class="line"></span><br><span class="line">系统重建</span><br><span class="line">├── [ ] rebuild 已执行</span><br><span class="line">├── [ ] clear-cache 已执行</span><br><span class="line">└── [ ] 浏览器缓存已清空</span><br><span class="line"></span><br><span class="line">功能验证</span><br><span class="line">├── [ ] 新菜单项显示</span><br><span class="line">├── [ ] 新实体可创建/编辑</span><br><span class="line">├── [ ] 新 API 端点可访问</span><br><span class="line">├── [ ] ACL 权限正确</span><br><span class="line">└── [ ] 日志无错误</span><br><span class="line"></span><br><span class="line">备份确认</span><br><span class="line">├── [ ] 管理员配置已备份</span><br><span class="line">└── [ ] 数据库已备份</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-3-回滚策略"><a href="#5-3-回滚策略" class="headerlink" title="5.3 回滚策略"></a>5.3 回滚策略</h3><p><strong>代码回滚</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 1) 在宿主机源码里回滚到上一个可用版本（示例：Git）</span></span><br><span class="line">git checkout &lt;last-good-tag-or-commit&gt; -- custom/Espo/Modules/MyModule/</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2) 按“逐文件拷贝”重新部署到容器</span></span><br><span class="line">CONTAINER_NAME=<span class="string">&quot;&lt;your-espocrm-container&gt;&quot;</span></span><br><span class="line">docker <span class="built_in">cp</span> custom/Espo/Modules/MyModule/Module.php \</span><br><span class="line">  <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span>:/var/www/html/custom/Espo/Modules/MyModule/Module.php</span><br><span class="line">docker <span class="built_in">cp</span> custom/Espo/Modules/MyModule/Resources/metadata/entityDefs/MyEntity.json \</span><br><span class="line">  <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span>:/var/www/html/custom/Espo/Modules/MyModule/Resources/metadata/entityDefs/MyEntity.json</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3) rebuild 生效</span></span><br><span class="line">docker <span class="built_in">exec</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span> php /var/www/html/command.php rebuild</span><br></pre></td></tr></table></figure>
+
+<p><strong>数据回滚</strong>：</p>
+<p>结论：不要指望 rebuild 自动“回收”数据库结构。</p>
+<ul>
+<li>默认 rebuild（soft）只会创建&#x2F;变更需要的表、列、索引；不会 drop 表，也不会 drop 列</li>
+<li>hard rebuild 可能会 drop 未使用的列、缩短超长列长度，但仍不会 drop 表，且有数据丢失风险</li>
+</ul>
+<p>推荐回滚策略：</p>
+<ol>
+<li>回滚前先备份数据库（至少 schema + 相关业务表数据）</li>
+<li>回滚代码与元数据后执行 rebuild，让缓存与元数据状态一致</li>
+<li>对“新增表&#x2F;中间表&#x2F;索引”的清理，采用显式的反向 SQL（DROP TABLE&#x2F;INDEX），并在测试库验证后再执行到生产</li>
+<li>对“新增列&#x2F;字段”的回滚，优先走“弃用而非删除”：保留列与数据，仅从界面与业务逻辑中移除；确需删除时使用 hard rebuild 或反向 SQL，并明确数据保留&#x2F;迁移方案</li>
+</ol>
+<h3 id="5-4-管理员配置备份"><a href="#5-4-管理员配置备份" class="headerlink" title="5.4 管理员配置备份"></a>5.4 管理员配置备份</h3><p>开发者代码在 Git 中有版本控制，但管理员配置（<code>custom/Espo/Custom/</code>）不在任何版本控制系统里。<strong>系统崩溃时，管理员配置会丢失</strong>。</p>
+<p><strong>问题本质</strong>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">开发者代码：Git 版本控制 → 随时恢复 ✅</span><br><span class="line">管理员配置：无版本控制 → 系统崩 = 配置丢 ❌</span><br></pre></td></tr></table></figure>
+
+<p><strong>推荐方案：定时备份脚本</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#!/bin/bash</span></span><br><span class="line"><span class="comment"># backup-admin-config.sh</span></span><br><span class="line"></span><br><span class="line">CONTAINER_NAME=<span class="string">&quot;&lt;your-espocrm-container&gt;&quot;</span></span><br><span class="line">BACKUP_DIR=<span class="string">&quot;/backup/espocrm/admin-config&quot;</span></span><br><span class="line">DATE=$(<span class="built_in">date</span> +%Y%m%d_%H%M%S)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 备份管理员配置（打包成单文件，只拷贝单个归档文件）</span></span><br><span class="line"><span class="built_in">mkdir</span> -p <span class="string">&quot;<span class="variable">$BACKUP_DIR</span>&quot;</span></span><br><span class="line">TMP_FILE=<span class="string">&quot;/tmp/Custom_<span class="variable">$DATE</span>.tar.gz&quot;</span></span><br><span class="line"></span><br><span class="line">docker <span class="built_in">exec</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span> tar -czf <span class="string">&quot;<span class="variable">$TMP_FILE</span>&quot;</span> -C /var/www/html custom/Espo/Custom</span><br><span class="line">docker <span class="built_in">cp</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span>:<span class="string">&quot;<span class="variable">$TMP_FILE</span>&quot;</span> <span class="string">&quot;<span class="variable">$BACKUP_DIR</span>/Custom_<span class="variable">$DATE</span>.tar.gz&quot;</span></span><br><span class="line">docker <span class="built_in">exec</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span> <span class="built_in">rm</span> -f <span class="string">&quot;<span class="variable">$TMP_FILE</span>&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 保留最近 30 天的备份</span></span><br><span class="line">find <span class="string">&quot;<span class="variable">$BACKUP_DIR</span>&quot;</span> -name <span class="string">&quot;Custom_*.tar.gz&quot;</span> -mtime +30 -delete</span><br><span class="line"></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;Admin config backed up: Custom_<span class="variable">$DATE</span>.tar.gz&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>设置 cron 每天自动执行：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 编辑 crontab</span></span><br><span class="line">crontab -e</span><br><span class="line"></span><br><span class="line"><span class="comment"># 添加每天凌晨 2 点执行</span></span><br><span class="line">0 2 * * * /path/to/backup-admin-config.sh &gt;&gt; /var/log/espocrm-backup.log 2&gt;&amp;1</span><br></pre></td></tr></table></figure>
+
+<p><strong>恢复流程</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 恢复管理员配置（选择备份日期，会覆盖现有 Custom 配置）</span></span><br><span class="line">CONTAINER_NAME=<span class="string">&quot;&lt;your-espocrm-container&gt;&quot;</span></span><br><span class="line">BACKUP_FILE=<span class="string">&quot;/backup/espocrm/admin-config/Custom_20251227_020000.tar.gz&quot;</span></span><br><span class="line">TMP_FILE=<span class="string">&quot;/tmp/Custom_restore.tar.gz&quot;</span></span><br><span class="line"></span><br><span class="line">docker <span class="built_in">cp</span> <span class="string">&quot;<span class="variable">$BACKUP_FILE</span>&quot;</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span>:<span class="string">&quot;<span class="variable">$TMP_FILE</span>&quot;</span></span><br><span class="line">docker <span class="built_in">exec</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span> tar -xzf <span class="string">&quot;<span class="variable">$TMP_FILE</span>&quot;</span> -C /var/www/html</span><br><span class="line">docker <span class="built_in">exec</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span> <span class="built_in">rm</span> -f <span class="string">&quot;<span class="variable">$TMP_FILE</span>&quot;</span></span><br><span class="line">docker <span class="built_in">exec</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span> php /var/www/html/command.php rebuild</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="6-总结"><a href="#6-总结" class="headerlink" title="6. 总结"></a>6. 总结</h2><h3 id="6-1-一套可复用的工程模板"><a href="#6-1-一套可复用的工程模板" class="headerlink" title="6.1 一套可复用的工程模板"></a>6.1 一套可复用的工程模板</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">每个需求按同一模板交付：</span><br><span class="line"></span><br><span class="line">├── 需求与验收标准</span><br><span class="line">├── 扩展点选择与理由</span><br><span class="line">├── 技术设计与数据流</span><br><span class="line">├── 代码实现（模块边界内）</span><br><span class="line">├── 测试（UI + API + 边界）</span><br><span class="line">├── 部署脚本（逐文件拷贝）</span><br><span class="line">└── 回滚策略</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-最终建议"><a href="#6-2-最终建议" class="headerlink" title="6.2 最终建议"></a>6.2 最终建议</h3><ol>
+<li><strong>能配置就不写代码</strong> —— 用好 Formula、Dynamic Logic</li>
+<li><strong>能扩展就不重写</strong> —— 默认看板能扩展就别完全重写</li>
+<li><strong>改动锁在模块内</strong> —— 不改 <code>application/</code> 目录</li>
+<li><strong>rebuild 是纪律</strong> —— 改元数据必须 rebuild</li>
+<li><strong>日志用英文</strong> —— 方便线上排障</li>
+</ol>
+<hr>
+<h2 id="系列开篇"><a href="#系列开篇" class="headerlink" title="系列开篇"></a>系列开篇</h2><p>EspoCRM 定制的核心不是”能不能改”，而是”能不能长期维护”。</p>
+<p>希望这系列文章能给你一套可复用的工程模板：</p>
+<ul>
+<li>用扩展点金字塔选择最小侵入方案</li>
+<li>用目录分区隔离管理员配置与开发者代码</li>
+<li>用模块化架构锁住改动边界</li>
+<li>用 rebuild 纪律保证元数据生效</li>
+<li>用清单化部署把风险降到可控</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/EspoCRM/" rel="tag"># EspoCRM</a>
+              <a href="/tags/customization/" rel="tag"># customization</a>
+              <a href="/tags/upgrade-safe/" rel="tag"># upgrade-safe</a>
+              <a href="/tags/module-architecture/" rel="tag"># module-architecture</a>
+              <a href="/tags/deployment/" rel="tag"># deployment</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/11/12/OIDC-OAuth2-Need-Admin-Approval/" rel="prev" title="OIDC "Need Admin Approval" 故障排除与分析">
+      <i class="fa fa-chevron-left"></i> OIDC "Need Admin Approval" 故障排除与分析
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/11/22/espocrm/02-external-integration/" rel="next" title="EspoCRM定制第2篇: 外部集成——Outlook双向同步实战">
+      EspoCRM定制第2篇: 外部集成——Outlook双向同步实战 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E6%89%A9%E5%B1%95%E7%82%B9%E9%87%91%E5%AD%97%E5%A1%94"><span class="nav-number">2.</span> <span class="nav-text">1. 扩展点金字塔</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-%E6%88%91%E4%BB%AC%E8%A7%A3%E5%86%B3%E7%9A%84%E4%B8%8D%E6%98%AF%E2%80%9D%E8%83%BD%E4%B8%8D%E8%83%BD%E6%94%B9%E2%80%9D%EF%BC%8C%E8%80%8C%E6%98%AF%E2%80%9D%E8%83%BD%E4%B8%8D%E8%83%BD%E9%95%BF%E6%9C%9F%E7%BB%B4%E6%8A%A4%E2%80%9D"><span class="nav-number">2.1.</span> <span class="nav-text">1.1 我们解决的不是”能不能改”，而是”能不能长期维护”</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-%E9%80%89%E6%8B%A9%E6%89%A9%E5%B1%95%E7%82%B9%E7%9A%84%E4%BC%98%E5%85%88%E7%BA%A7%EF%BC%88%E9%87%91%E5%AD%97%E5%A1%94%EF%BC%89"><span class="nav-number">2.2.</span> <span class="nav-text">1.2 选择扩展点的优先级（金字塔）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-3-%E7%BA%A2%E7%BA%BF%EF%BC%88%E8%BF%9D%E5%8F%8D%E5%B0%B1%E6%B3%A8%E5%AE%9A%E4%B8%8D%E5%8F%AF%E7%BB%B4%E6%8A%A4%EF%BC%89"><span class="nav-number">2.3.</span> <span class="nav-text">1.3 红线（违反就注定不可维护）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E6%A8%A1%E5%9D%97%E5%8C%96%E6%9E%B6%E6%9E%84"><span class="nav-number">3.</span> <span class="nav-text">2. 模块化架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-%E7%9B%AE%E5%BD%95%E5%88%86%E5%8C%BA%EF%BC%9A%E5%BC%80%E5%8F%91%E8%80%85%E6%A8%A1%E5%9D%97-vs-%E7%AE%A1%E7%90%86%E5%91%98%E9%85%8D%E7%BD%AE%E5%8C%BA"><span class="nav-number">3.1.</span> <span class="nav-text">2.1 目录分区：开发者模块 vs 管理员配置区</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-%E5%AE%8C%E6%95%B4%E5%90%8E%E7%AB%AF%E6%A8%A1%E5%9D%97%E7%BB%93%E6%9E%84"><span class="nav-number">3.2.</span> <span class="nav-text">2.2 完整后端模块结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-%E5%89%8D%E7%AB%AF%E6%A8%A1%E5%9D%97%E7%BB%93%E6%9E%84"><span class="nav-number">3.3.</span> <span class="nav-text">2.3 前端模块结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-%E7%AE%A1%E7%90%86%E5%91%98%E9%85%8D%E7%BD%AE%E5%8C%BA%EF%BC%88%E5%BC%80%E5%8F%91%E8%80%85%E4%B8%8D%E8%A6%81%E5%8A%A8%EF%BC%89"><span class="nav-number">3.4.</span> <span class="nav-text">2.4 管理员配置区（开发者不要动）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E5%90%84%E5%B1%82%E8%81%8C%E8%B4%A3%E5%88%86%E5%B7%A5"><span class="nav-number">4.</span> <span class="nav-text">3. 各层职责分工</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-Controller%EF%BC%9AAPI-%E5%85%A5%E5%8F%A3"><span class="nav-number">4.1.</span> <span class="nav-text">3.1 Controller：API 入口</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-Service%EF%BC%9A%E4%B8%9A%E5%8A%A1%E9%80%BB%E8%BE%91%E5%B1%82"><span class="nav-number">4.2.</span> <span class="nav-text">3.2 Service：业务逻辑层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-Hook%EF%BC%9A%E6%95%B0%E6%8D%AE%E4%B8%80%E8%87%B4%E6%80%A7%E4%BF%9D%E9%9A%9C"><span class="nav-number">4.3.</span> <span class="nav-text">3.3 Hook：数据一致性保障</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-Job%EF%BC%9A%E5%AE%9A%E6%97%B6%E5%90%8E%E5%8F%B0%E4%BB%BB%E5%8A%A1"><span class="nav-number">4.4.</span> <span class="nav-text">3.4 Job：定时后台任务</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-rebuild-%E4%B8%8E-clear-cache"><span class="nav-number">5.</span> <span class="nav-text">4. rebuild 与 clear-cache</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-%E6%8A%8A%E2%80%9D%E7%94%9F%E6%95%88%E6%9C%BA%E5%88%B6%E2%80%9D%E5%BD%93%E6%88%90%E5%B7%A5%E7%A8%8B%E4%BA%8B%E5%AE%9E"><span class="nav-number">5.1.</span> <span class="nav-text">4.1 把”生效机制”当成工程事实</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-%E6%89%A7%E8%A1%8C%E6%96%B9%E5%BC%8F"><span class="nav-number">5.2.</span> <span class="nav-text">4.2 执行方式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-%E9%83%A8%E7%BD%B2%E4%B8%8E%E5%9B%9E%E6%BB%9A"><span class="nav-number">6.</span> <span class="nav-text">5. 部署与回滚</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-%E9%80%90%E6%96%87%E4%BB%B6%E6%8B%B7%E8%B4%9D%E5%8E%9F%E5%88%99"><span class="nav-number">6.1.</span> <span class="nav-text">5.1 逐文件拷贝原则</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-%E9%83%A8%E7%BD%B2%E6%A3%80%E6%9F%A5%E6%B8%85%E5%8D%95"><span class="nav-number">6.2.</span> <span class="nav-text">5.2 部署检查清单</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-%E5%9B%9E%E6%BB%9A%E7%AD%96%E7%95%A5"><span class="nav-number">6.3.</span> <span class="nav-text">5.3 回滚策略</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-4-%E7%AE%A1%E7%90%86%E5%91%98%E9%85%8D%E7%BD%AE%E5%A4%87%E4%BB%BD"><span class="nav-number">6.4.</span> <span class="nav-text">5.4 管理员配置备份</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E6%80%BB%E7%BB%93"><span class="nav-number">7.</span> <span class="nav-text">6. 总结</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-%E4%B8%80%E5%A5%97%E5%8F%AF%E5%A4%8D%E7%94%A8%E7%9A%84%E5%B7%A5%E7%A8%8B%E6%A8%A1%E6%9D%BF"><span class="nav-number">7.1.</span> <span class="nav-text">6.1 一套可复用的工程模板</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-%E6%9C%80%E7%BB%88%E5%BB%BA%E8%AE%AE"><span class="nav-number">7.2.</span> <span class="nav-text">6.2 最终建议</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%B3%BB%E5%88%97%E5%BC%80%E7%AF%87"><span class="nav-number">8.</span> <span class="nav-text">系列开篇</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">40</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">42</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2025</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>
