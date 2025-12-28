@@ -217,6 +217,208 @@
       </tags>
   </entry>
   <entry>
+    <title>基于配置中心属性,Dubbo Consumer动态切换调用RPC/本地方法</title>
+    <url>/2018/07/06/Dubbo-Local-RPC-Switch/</url>
+    <content><![CDATA[<h2 id="需求缘由"><a href="#需求缘由" class="headerlink" title="需求缘由"></a>需求缘由</h2><p>最近部分只读服务已经切换到了Dubbo提供的服务化接口；经过一段时间的生产验证, 各种监控指标显示非常稳定，所以打算开始切换写服务接口; 但大家对写操作跑服务化没有信心，于是提了一个需求能随时将远程rpc调用切换打本地jar方法调用；<span id="more"></span></p>
+<h2 id="dubbo的stub"><a href="#dubbo的stub" class="headerlink" title="dubbo的stub"></a>dubbo的stub</h2><p>听到这个需求，马上想到dubbo的stub属性；但需要在原来代码中做部分改造,具体步骤是：</p>
+<ol>
+<li>原来的jar包实现方法中增加带自身接口类型参数的构造函数;</li>
+<li>在所有的接口实现方法中判断开关状态决定调用RPC&#x2F;本地方法;<br>但是，这样对原代码有极强入侵性；我们认为这不是最好的方案，于是有了下面的方案；</li>
+</ol>
+<h2 id="扩展dubbo-reference标签属性"><a href="#扩展dubbo-reference标签属性" class="headerlink" title="扩展dubbo:reference标签属性"></a>扩展dubbo:reference标签属性</h2><p>首先需要说明，我们在实际使用dubbo的过程中并没有直接使用dubbo这个命名空间，而是自定义了自己的命名空间，自定义命名空间兼容了dubbo命名空间的所有属性，而且扩展了自己的属性；于是针对该需求我们有了新的方案，具体流程如下 ：</p>
+<ol>
+<li>增加<strong>reference</strong>的属性<strong>localbean</strong>，这个属性值为一个本地bean的id；类似的xml配置如下：</li>
+</ol>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">bean</span> <span class="attr">id</span>=<span class="string">&quot;localDemoService&quot;</span> <span class="attr">class</span>=<span class="string">&quot;com.example.Service.impl.DemoServiceImpl&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">mydubbo:reference</span> <span class="attr">interface</span>=<span class="string">&quot;com.example.Service.DemoService&quot;</span> <span class="attr">id</span>=<span class="string">&quot;remoteDemoService&quot;</span></span></span><br><span class="line"><span class="tag">                 <span class="attr">localbean</span> =<span class="string">&quot;localDemoService&quot;</span> <span class="attr">version</span>=<span class="string">&quot;1.0&quot;</span>/&gt;</span></span><br></pre></td></tr></table></figure>
+<ol start="2">
+<li>继承ReferenceBean实现自定义属性locbean；</li>
+<li>继承DubboNamespaceHandler重写init方法,如下:</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">init</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="built_in">super</span>.init();</span><br><span class="line">        <span class="built_in">this</span>.registerBeanDefinitionParser(<span class="string">&quot;reference&quot;</span>, <span class="keyword">new</span> <span class="title class_">MyBeanDefinitionParser</span>(LocalReferenceBean.class, <span class="literal">false</span>));</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<ol start="4">
+<li>自定义filter</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">RPCLocalSwitchFilter</span>&lt;T&gt; <span class="keyword">implements</span> <span class="title class_">Filter</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Logger</span> <span class="variable">logger</span> <span class="operator">=</span> LoggerFactory.getLogger(RPCLocalSwitchFilter.class);</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">ProxyFactory</span> <span class="variable">PROXY_FACTORY</span> <span class="operator">=</span> (ProxyFactory)ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">RPCLocalSwitchFilter</span><span class="params">()</span> &#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> Result <span class="title function_">invoke</span><span class="params">(Invoker&lt;?&gt; invoker, Invocation invocation)</span> <span class="keyword">throws</span> RpcException &#123;</span><br><span class="line">        <span class="keyword">if</span>(cfg.getBooleanProperty(<span class="string">&quot;&quot;</span>)) &#123;  <span class="comment">//判断配置中心开工状态</span></span><br><span class="line">            <span class="type">Object</span> <span class="variable">bean</span> <span class="operator">=</span> <span class="built_in">this</span>.getLocalBean(invoker);</span><br><span class="line">            <span class="keyword">return</span> bean != <span class="literal">null</span>?<span class="built_in">this</span>.executeLocalMethod(bean, invoker, invocation):invoker.invoke(invocation);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> invoker.invoke(invocation);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Result <span class="title function_">executeLocalMethod</span><span class="params">(T bean, Invoker&lt;?&gt; invoker, Invocation invocation)</span> &#123;</span><br><span class="line">        <span class="keyword">if</span>(logger.isDebugEnabled()) &#123;</span><br><span class="line">            logger.debug(<span class="string">&quot;execute local method instead of rpc &quot;</span> + bean.getClass().getCanonicalName() + <span class="string">&quot;.&quot;</span> + invocation.getMethodName());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="type">Invoker</span> <span class="variable">localInvoker</span> <span class="operator">=</span> PROXY_FACTORY.getInvoker(bean, invoker.getInterface(), invoker.getUrl());</span><br><span class="line">        <span class="keyword">return</span> localInvoker.invoke(invocation);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> &lt;T&gt; T <span class="title function_">getLocalBean</span><span class="params">(Invoker&lt;?&gt; invoker)</span> &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">refLocal</span> <span class="operator">=</span> invoker.getUrl().getParameter(<span class="string">&quot;localBean&quot;</span>);</span><br><span class="line">        <span class="keyword">if</span>(refLocal != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="type">ApplicationContext</span> <span class="variable">e</span> <span class="operator">=</span> LocalReferenceBean.getSpringContext();</span><br><span class="line">                <span class="keyword">return</span> e.getBean(refLocal, invoker.getInterface());</span><br><span class="line">            &#125; <span class="keyword">catch</span> (BeansException e) &#123;</span><br><span class="line">                logger.error(var4.getMessage() + <span class="string">&quot; couldn\&#x27;t find the bean[&quot;</span> + localBean + <span class="string">&quot;], please check&quot;</span>, e);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ol start="5">
+<li>配置filter<br>在resources&#x2F;META-INF&#x2F;dubbo&#x2F;com.alibaba.dubbo.rpc.Filter文件中增加如下内容:<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">reflocal=com.example.filter. RPCLocalSwitchFilter</span><br></pre></td></tr></table></figure>
+配置consumer的filter属性<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">mydubbo:consumer</span> <span class="attr">filter</span>=<span class="string">&quot;reflocal&quot;</span> /&gt;</span></span><br></pre></td></tr></table></figure>
+至此可以通过配置中的开关状态来控制远程RPC&#x2F;本地jar方法调用 ;</li>
+</ol>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>RPC</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>灰度发布过程中缓存数据一致性问题</title>
+    <url>/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/</url>
+    <content><![CDATA[<p>灰度发布是一种常见的上线策略。如果灰度发布时间较长，且在灰度期间各分组共用缓存，那么该过程中可能会面临缓存数据一致性的挑战。本文将讨论在灰度发布过程中导致缓存数据不一致的问题和解决方案。 <span id="more"></span></p>
+<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>通常，我们采用了灰度发布策略来确保新功能的平稳上线。我们将用户流量分为两个组（为了描述简单，假设灰度只有两个分组）：A组和B组。在灰度发布的第一阶段，我们选择将20%的流量分配给B组，将剩余的80%分配给A组。这样可以确保新功能在一部分用户中进行测试和验证，同时保持对大多数用户的稳定性。然而，在灰度发布过程中由于代码版本的不一致，导致A组和B组的缓存数据出现了不一致的情况。</p>
+<h3 id="问题分析"><a href="#问题分析" class="headerlink" title="问题分析"></a>问题分析</h3><p>在灰度发布期间可能出现以下两个场景导致数据不一致问题：</p>
+<ol>
+<li><p><strong>缓存增加元素：</strong> 在B组的代码版本（v2）中，我们增加了一个缓存对象的元素，但是A组的代码版本（v1）并没有包含这个元素。这导致A组写入缓存的数据，在B组读取时无法正确反序列化，导致数据解析失败。</p>
+</li>
+<li><p><strong>计算逻辑变化：</strong> 缓存对象的元素（e1）是逻辑计算得出的结果，在B组的代码版本（v2）中我们修改了该元素计算逻辑，但是A组的代码版本（v1）仍是旧的计算逻辑；这导致A组写入的缓存B组读出不符合预期，而B组写入的缓存A组读出不符合预期。</p>
+</li>
+</ol>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h3><p>在面对这种缓存数据一致性问题时，我们采取了以下解决方案：</p>
+<ol>
+<li><p><strong>a&#x2F;b组缓存隔离</strong>：A&#x2F;B组分别访问不同的缓存，不同的分组可以连接不同的缓存或者不同的分组以不同的key前缀区分。然而实际情况是以上问题只会发生在极个别的缓存元素上。这种方案虽然能解决以上问题，但缓存数量会随着分组的增加而成倍增加，造成资源的严重浪费，同时缓存命中率也会下降。</p>
+</li>
+<li><p><strong>反序列化兼容增加的元素</strong>：基本所有的序列化&#x2F;反序列化组件都支持该功能。比如JDK自带的功能确保<code>serialVersionUID</code>保持不变即可，或者使用protobuf、json等序列化类库都可以实现。该方法虽然能解决A组写入B读取反序列化失败的问题，但B组反序列化成功仍然缺少新增加的元素。</p>
+</li>
+<li><p><strong>使用新key</strong>：在B组代码中使用新的key，这样A&#x2F;B组缓存可以彻底隔离。但对于某些底层数据结构，可能被上层很多缓存引用，而且是通过多级引用，开发人员容易遗漏某些key。</p>
+</li>
+<li><p><strong>版本控制</strong>：大致思路是每个缓存在key上携带本次变更的版本号。如果本次发布缓存元素没有变化，则版本号不变。具体实现过程如下：</p>
+<ul>
+<li>在Spring容器启动过程中获取所有标记<code>@Cacheable</code>注解的方法。</li>
+<li>对方法返回值对象内元素按照元素类型和一定的算法计算对象code值。如果对象元素发生变化，则对象code值一定变化。如果是元素是自定义对象需要递归计算。</li>
+<li>读写缓存时在缓存key增加code后缀。</li>
+</ul>
+</li>
+</ol>
+<h3 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h3><p>最后我们采用了<strong>版本控制</strong>的方案。在实施前，我们进行了充分的测试和验证，确保缓存的版本控制逻辑正确无误，并在灰度发布期间保持了缓存数据的一致性。</p>
+]]></content>
+      <tags>
+        <tag>技术方案</tag>
+        <tag>分布式</tag>
+        <tag>一致性</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>一个三年前的Bug导致上线失败</title>
+    <url>/2020/05/30/History-Bug-And-Code-Review/</url>
+    <content><![CDATA[<p>上周某核心服务上线过程中内存瞬间飙升，导致上线失败。经查是一个三年前的bug引发的。<span id="more"></span></p>
+<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
+<li>17:10：开始发布B组 </li>
+<li>17:20：开始出现内存，接口超时报警；开发和SA开始介入</li>
+<li>17:25：认为是新版本有问题立刻回滚</li>
+<li>回滚后持续半小时问题没有出现</li>
+</ol>
+<h3 id="初步分析"><a href="#初步分析" class="headerlink" title="初步分析"></a>初步分析</h3><p>根据开发反馈，本次上线功能逻辑非常简单，只有20多行代码，而且测试过程中没发现任何问题；于是，大家开始review那段代码，review后得出一致多结论，该代码没问题。逻辑非常简单，只有一个地方调用了一个方法；这个方法已经存在了好你年了，而且被多个场景在调用；另外，这个方法逻辑复杂，团队内没有人了解。大家一致认为这个方法不会有问题，毕竟经历了「时间的考验」。</p>
+<h3 id="重现"><a href="#重现" class="headerlink" title="重现"></a>重现</h3><p>在测试环境又做了一轮压力测试，一切正常。根据目前点情况看来这个bug跟数据有关；就是说，可能是某条数据触发了这个bug的临界条件.所以，我们决定在生产环境发布一台机器做测试; 这次发布后5分钟后出现了内存飙升现象,马上切掉该机器的流量而且dump Jvm内存 。</p>
+<h3 id="问题处理"><a href="#问题处理" class="headerlink" title="问题处理"></a>问题处理</h3><p>拿到dump文件后立刻启动MAT分析；发现占用内存最多一个对象有3000多万个，分析该对象的调用盏都指向了同一行代码；「这段代码正是经历过时间考验的代码」。review这行代码相关部分马上发现有死循环的问题，只是满足这个条件的数据不容易出现。而这次的数据正好满足了这个条件。找到了原因，解决方法就很容易了；修改完代码review后没问题，测试，上线后一切正常；至此，该问题解决。这里可能有人会说死循环一般会首先导致CPU报警，怎么没看到我们提到CPU到问题；因为这台机器是16核CPU，所以一个核跑满并没有触发报警规则 。</p>
+<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
+<li>必须严格执行code review，从流程上去控制</li>
+<li>需要监控各项指标到同比变化</li>
+</ol>
+<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>我们总是强调code review到重要性，但执行的时候总有这样那样的原因导致落实不彻底；我不了解当时的情况，但这次的问题我相信只要做过code review是一定可以发现的。另外，我始终相信代码质量最终要依赖开发人员来保证，测试只能保证功能性问题。特别是一些非功能性的边界条件，只能依赖开发保证。</p>
+]]></content>
+      <tags>
+        <tag>线上问题</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>基础组件升级策略与实践</title>
+    <url>/2022/03/26/Infra-Component-Upgrade/</url>
+    <content><![CDATA[<p>基础组件是我们系统构成的关键要素，包括中间件SDK、基础架构组件等。它们为系统提供了核心功能和基本服务，为业务逻辑的实现提供支持; 近几年多做了一些基础组件的升级，有些经历了较长的升级周期，也有的一次上线直接成功，还有个别组件升级失败了，目前仍然在寻找改进方法； <span id="more"></span></p>
+<h2 id="为什么需要基础组件"><a href="#为什么需要基础组件" class="headerlink" title="为什么需要基础组件"></a>为什么需要基础组件</h2><p>为什么我们的系统要引入基础组件，使用基础组件由什么优势,以下根据个人体会列出了几点：</p>
+<ol>
+<li>提高开发效率：基础组件为提供了可重用、可定制和可扩展的组件和库。通过使用这些组件，开发团队能够快速搭建系统，并在不必从头开始编写代码的情况下实现常见功能。这大大提高了开发效率，缩短了产品上线时间</li>
+<li>降低开发成本：通过使用成熟的基础组件，我们能够减少自主开发和维护的工作量。这意味着可以节省开发资源，并将精力集中在增值业务和创新上。</li>
+<li>统一标准和规范：基础组件有助于确保在整个系统中使用一致的标准和规范。这种一致性使得不同团队的开发人员能够更好地协同工作，并减少因为不一致性而导致的问题。例如，使用统一的redis客户端组件限制一些危险命令的使用。</li>
+<li>提升系统可靠性和稳定性：基础组件经过专业的设计和测试，通常具有高度可靠性和稳定性。它们被广泛使用和验证，可以减少系统中的错误和故障。而且，这些组件通常具有自动化的监控和错误处理机制，能够及时发现和处理潜在的问题，提高系统的稳定性。</li>
+<li>解偶业务系统与中间件，平台之间的代码：提高系统的稳定性，方便维护，开发人员聚焦到业务功能开发；</li>
+<li>提高管理效率，通过技术手段将操作流程规范化</li>
+<li>安全性：确保系统采用安全大版本</li>
+</ol>
+<h2 id="为什么进行基础组件升级"><a href="#为什么进行基础组件升级" class="headerlink" title="为什么进行基础组件升级"></a>为什么进行基础组件升级</h2><ol>
+<li>修复组件Bug,提高系统稳定性: 随着时间的推移,基础组件中会暴露出各种Bug,这些Bug可能会导致系统崩溃或业务异常。升级组件可以修复已知的Bug,提高系统稳定性。</li>
+<li>获取最新功能特性,满足业务需要：基础组件推出新版本时,通常会提供新的功能和特性。业务需求瞬息万变,升级组件可以获得最新功能来满足业务需求。</li>
+<li>改善性能,提升效率：新版本的基础组件通常在性能和效率上有改进,如增加缓存、优化算法等。升级后可以减少响应时长,提升系统吞吐量。</li>
+<li>优化资源利用,降低成本：基础组件的新版本可能在资源调度和分配上进行了优化,可以提高资源利用率,降低系统运营成本。</li>
+<li>提高开发效率：新版本组件通常会优化API设计,提高开发效率。同时修复Bug也可以减少开发调试时间。</li>
+<li>解除对旧版的依赖：旧版本组件停止维护后,存在安全风险和兼容性问题。升级可以避免对旧版组件的依赖。</li>
+<li>减少技术债务：使用了较旧版本的基础组件，可能会有技术债务积累，包括安全漏洞、性能瓶颈等；升级基础组件是控制技术债务的重要措施之一，积压的技术债务会制约公司发展</li>
+<li>处理兼容性问题: 随着系统的发展和业务的扩展，可能需要与其他系统进行集成和交互，升级基础组件可以提供更好的兼容性和互操作性；</li>
+</ol>
+<h2 id="升级前的准备工作"><a href="#升级前的准备工作" class="headerlink" title="升级前的准备工作"></a>升级前的准备工作</h2><p>在进行基础组件升级之前，进行充分的准备工作是至关重要的，这可以帮助确保升级过程的顺利进行并最小化潜在风险。以下是升级前需要做的一些准备工作：</p>
+<ol>
+<li>明确目标： 定义升级的具体目标，明确您希望通过升级实现的业务和技术目标。了解升级所需的功能、性能、安全性等需求。</li>
+<li>收集现有信息： 收集关于当前系统和基础组件的详细信息，包括版本、依赖关系、功能和性能特征等。这将有助于为升级过程做出更准确的决策。</li>
+<li>评估风险和影响： 识别潜在的风险和影响范围，包括与升级相关的功能中断、兼容性问题、性能下降等。评估这些风险的严重程度，以便制定应对策略。</li>
+<li>数据策略： 在进行升级之前，确保对系统进行完整的备份。如果升级中出现问题，可以回滚到之前的状态。对于数据库等有状态的组件，可以创建快照； </li>
+<li>制定升级计划： 制定详细的升级计划，包括升级的步骤、时间表、责任人等。确定升级过程中需要涉及的各方，并为他们提供清晰的指导。对于较大范围升级工作，可以拆分为多个里程碑，尽可能保证每个步骤影响范围降到最低；</li>
+<li>制定回滚计划： 确定如何还原系统到升级前的状态，以便在紧急情况下进行干预。原则上对升级操作的每个步骤都有对应的回滚步骤，如果不能回滚的场景下必须给出快速解决的方法。</li>
+<li>测试环境预演： 在测试环境中进行升级的测试预演，以模拟真实生产环境。测试环境应该尽可能地与生产环境相似，以便更准确地预测升级可能的影响。</li>
+<li>性能和压力测试： 在压测环境中进行压力测试，以评估新版本基础组件在不同负载条件下的表现。这有助于预测在生产环境中可能出现的问题。</li>
+<li>制定上线计划通知所有相关方</li>
+<li>用户培训： 如果新版本引入了新的特性或变化，为团队成员提供培训，确保他们熟悉和适应新版本。</li>
+</ol>
+<h2 id="升级实践"><a href="#升级实践" class="headerlink" title="升级实践"></a>升级实践</h2><ol>
+<li>版本选择： 仔细评估新版本的功能、性能和安全特性。选择与业务需求最匹配的版本，同时考虑其稳定性和用户反馈,重点关注开源社区对issue list。</li>
+<li>兼容性检查： 检查新版本与现有系统的兼容性。确保新版本不会破坏现有的功能和集成。</li>
+<li>测试环境验证： 在测试环境中进行升级测试，尽量模拟真实生产环境，确保测试到各种可能影响到的场景。</li>
+<li>自动化测试： 针对关键业务场景和功能，创建自动化测试用例。这有助于快速验证新版本的稳定性和正确性。</li>
+<li>性能测试： 在压测环境中进行压力测试，以评估新版本在不同负载条件下的表现。识别潜在的性能问题。</li>
+<li>数据迁移计划： 如果升级涉及数据存储系统，制定数据迁移计划。确保数据的完整性和一致性。</li>
+<li>备份和回滚： 在进行任何升级操作之前，确保对系统进行全面备份。制定回滚计划，以便在升级过程中遇到问题时能够迅速还原。</li>
+<li>灰度发布： 如果条件许可尽可能采用渐进式发布策略，将新版本逐步引入生产环境，以减少风险。</li>
+<li>监控和报警： 升级后留意监控和报警，以便实时监控系统的性能和稳定性，及时发现并快速解决潜在问题。</li>
+</ol>
+<h2 id="升级后的监测与迭代"><a href="#升级后的监测与迭代" class="headerlink" title="升级后的监测与迭代"></a>升级后的监测与迭代</h2><ol>
+<li>性能监测： 持续监测系统的性能，包括响应时间、吞吐量、延迟等。比较升级前后的性能数据，确保新版本不会导致性能下降。</li>
+<li>稳定性监测： 监测系统的稳定性，识别是否存在崩溃、死锁、内存泄漏等问题。及时处理并解决这些问题，以确保系统不会因此而崩溃或变得不稳定。</li>
+<li>资源利用率监测： 监测服务器、内存、CPU、网络等资源的利用率。确保新版本不会导致资源耗尽。</li>
+<li>错误日志报警： 关注错误日志报警，确保升级后不会出现更多错误，防止问题升级为严重故障。</li>
+<li>快速响应和修复： 如果发现了严重问题，确保能够快速响应并进行修复。灵活地进行紧急发布，以解决可能影响业务的问题。</li>
+<li>收集用户的反馈: 了解用户在使用新版本时遇到的问题，帮助用户解决问题或在在后续版本修复。</li>
+</ol>
+<h2 id="设计基础组件的注意事项"><a href="#设计基础组件的注意事项" class="headerlink" title="设计基础组件的注意事项"></a>设计基础组件的注意事项</h2><p>在设计基础组件时，有一些注意事项可以考虑，以确保其可靠性、可扩展性和易用性。以下是一些常见的注意事项：</p>
+<ol>
+<li>定义清晰的接口：确保组件的功能和接口定义清晰明确。这将帮助其他开发人员理解如何正确使用组件，并减少潜在的集成问题。</li>
+<li>高可用性和容错性：基础组件通常是系统中不可或缺的一部分，因此必须具备高可用性和容错性。考虑使用冗余、自动故障转移和负载均衡等机制来提高系统的可用性。</li>
+<li>可扩展性：设计组件时要考虑到系统未来的扩展需求。确保组件可以水平扩展，以应对增加的负载和数据量。</li>
+<li>安全性：基础组件通常处理敏感数据和关键业务逻辑，因此安全性是至关重要的。实施适当的安全措施，如身份验证、访问控制和数据加密等，以保护组件免受潜在的威胁。</li>
+<li>性能优化：确保组件在处理大量请求和数据时能够提供良好的性能表现。使用高效的算法和数据结构，并进行性能测试和优化，以确保组件能够满足系统的性能需求。</li>
+<li>文档和日志记录：提供清晰、详细的文档和日志记录，以便开发人员和运维团队能够理解组件的工作原理和故障排查方法。</li>
+<li>监控和警报：实施监控和警报机制，以及时检测和响应组件的问题。监控关键指标，并设置警报以便在出现异常情况时及时通知相关人员。</li>
+<li>版本控制和发布管理：使用版本控制系统来管理组件的代码和配置，确保可追溯性和可靠的发布管理。考虑使用自动化工具和流程来简化部署和升级过程。</li>
+<li>可测试性：设计组件时要考虑到测试的可行性。提供适当的接口和工具，以便开发人员能够方便地编写和运行单元测试、集成测试和端到端测试。</li>
+<li>与其他组件的集成：如果组件需要与其他组件进行集成，要确保接口和数据格式的兼容性，并进行充分的集成测试，以验证组件的正确性和稳定性。</li>
+<li>遵循规范：组件实现需要遵循行业设计规范和标准,以提升互操作性</li>
+</ol>
+]]></content>
+  </entry>
+  <entry>
+    <title>JVM初探</title>
+    <url>/2020/03/29/JVM-NEW/</url>
+    <content><![CDATA[<p>最近经常有人跟我一起讨论JVM的相关话题，所以将以前分享过的一篇JVM的基础知识在这里分享出来，欢迎大家指正.<span id="more"></span></p>
+<div class="pdfobject-container" data-target="/pdf/jvm.pdf" data-height="500px"></div>]]></content>
+      <tags>
+        <tag>JVM</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Open Tracing(Jaeger) 遭遇多线程</title>
+    <url>/2019/12/27/Jaeger-Thread/</url>
+    <content><![CDATA[<p>我们知道在Java技术体系中，链路跟踪严重依赖ThreadLocal；因此在多线程的场景下会导致链路跟踪失效.<span id="more"></span></p>
+<h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>前几天一位开发同学反馈了一个问题，在链路跟踪UI上看到某个链路Rpc的span数量比实际调用少了很多；我听完第一反映是我们最近升级的SDK出问题了? 根据该同学反馈该接口是一个新接口，上线后一直没关注过链路；我们随即在链路跟踪UI上将多个系统的常用接口都检查了一遍发现一切正常，基本排除了SDK可能引起的问题。接着开始检查开发同学的代码,顺着该请求发现代码里面用到了<strong>线程池</strong> ,该同学解释该接口内部需要多次调用多个Rpc接口，为了提升效率所以采用了多线程。</p>
+<h3 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h3><p>分析opentracing的源码发现tracing相关的的信息保存在<code>io.opentracing.util.ThreadLocalScopeManager</code>的ThreadLocal变量里:</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ThreadLocalScopeManager</span> <span class="keyword">implements</span> <span class="title class_">ScopeManager</span> &#123;</span><br><span class="line">    <span class="keyword">final</span> ThreadLocal&lt;ThreadLocalScope&gt; tlsScope = <span class="keyword">new</span> <span class="title class_">ThreadLocal</span>&lt;ThreadLocalScope&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Scope <span class="title function_">activate</span><span class="params">(Span span, <span class="type">boolean</span> finishOnClose)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ThreadLocalScope</span>(<span class="built_in">this</span>, span, finishOnClose);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Scope <span class="title function_">active</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> tlsScope.get();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这就可以解释为什么多线程中的Rpc请求没有将相关Tracing信息传递下去;</p>
+<h3 id="解决方法"><a href="#解决方法" class="headerlink" title="解决方法"></a>解决方法</h3><ol>
+<li><p>多线程中ThreadLocal变量的传递:<br>关于多线程中ThreadLocal变量的传递我们可以用阿里巴巴的<a href="https://github.com/alibaba/transmittable-thread-local">transmittable-thread-local</a> ,所以整个思路就是自己实现一遍<code>ThreadLocalScopeManager</code>用<code>TransmittableThreadLocal</code>替换<code>ThreadLocal</code>，以及跟它关联的类<code>ThreadLocalScope</code>(它里面申明了<code>ThreadLocalScopeManager</code>变量)； </p>
+</li>
+<li><p>修改Opentrcing里面默认的<code>ThreadLocalScopeManager</code>为用户自定义<code>ThreadLocalScopeManager</code><br>检查Jaeger的Springboot自动配置文件<code>io.opentracing.contrib.java.spring.jaeger.starter.JaegerAutoConfiguration</code>源码, 在构造Bean <code>io.opentracing.Tracer</code>时有用户自定义方法: <code>tracerCustomizers.forEach(c -&gt; c.customize(builder))</code></p>
+</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">JaegerAutoConfiguration</span> &#123;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Autowired(required = false)</span></span><br><span class="line">  <span class="keyword">private</span> List&lt;TracerBuilderCustomizer&gt; tracerCustomizers = Collections.emptyList();</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Bean</span></span><br><span class="line">  <span class="keyword">public</span> io.opentracing.Tracer <span class="title function_">tracer</span><span class="params">(Sampler sampler,</span></span><br><span class="line"><span class="params">                                      Reporter reporter,</span></span><br><span class="line"><span class="params">                                      Metrics metrics,</span></span><br><span class="line"><span class="params">                                      JaegerConfigurationProperties properties)</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> JaegerTracer.<span class="type">Builder</span> <span class="variable">builder</span> <span class="operator">=</span></span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">JaegerTracer</span>.Builder(properties.getServiceName())</span><br><span class="line">            .withReporter(reporter)</span><br><span class="line">            .withSampler(sampler)</span><br><span class="line">            .withTags(properties.determineTags())</span><br><span class="line">            .withMetrics(metrics);</span><br><span class="line"></span><br><span class="line">    tracerCustomizers.forEach(c -&gt; c.customize(builder));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> builder.build();</span><br><span class="line">  &#125;</span><br><span class="line">  .....</span><br></pre></td></tr></table></figure>
+<p>于是，我们只需要自定义<code>TracerBuilderCustomizer</code>调用<code>builder.withScopeManager</code>方法即可</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TtlTracerBuilderCustomizer</span> <span class="keyword">implements</span> <span class="title class_">TracerBuilderCustomizer</span> &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">customize</span><span class="params">(JaegerTracer.Builder builder)</span> &#123;</span><br><span class="line">        builder.withScopeManager(<span class="keyword">new</span> <span class="title class_">TracingScopeManager</span>());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在SpringBoot自动配置文件中构造Bean:</p>
+<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="keyword">public</span> List&lt;TracerBuilderCustomizer&gt; <span class="title function_">tracerCustomizers</span><span class="params">()</span>&#123;</span><br><span class="line">    <span class="keyword">return</span> Arrays.asList(<span class="keyword">new</span> <span class="title class_">TtlTracerBuilderCustomizer</span>());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>至此，问题解决； 代码参考<a href="https://github.com/yinghuzhu/request-tracing">request-tracing</a></p>
+<h3 id="关于多线程"><a href="#关于多线程" class="headerlink" title="关于多线程"></a>关于多线程</h3><p>我不建议在互联网高并发请求接口内部采用多线程；以Java技术体系为例，请求到达系统后一般会有容器(Tomcat之类)或者Rpc框架先接收，然而这些框架本来就是多线程在运行,如果系统本来已经到瓶颈了，即使增加线程也不会提升效率；如果系统需要增加线程，首先我们应该增加容器或者Rpc框架的线程数量；另外如果接口性能差，我们首先应该考虑是Sql的问题还是代码逻辑的问题；或者系统达到了瓶颈是否可以通过增加机器提升性能；如果接口逻辑本身太复杂，可能是我们的方案或者设计有问题，或许可以考虑按照离线请求的模式设计接口。</p>
+<h3 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h3><p>这个问题虽然没有对业务造成影响，但收集到链路肯定是有问题的；这也暴露出了我们开发过程中的一些问题，对非功能性验证做的不到位，这方面还需要加强。</p>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>链路跟踪</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Data Memcached集群迁移至Redis集群</title>
     <url>/2023/09/09/Data-Memcached-To-Redis/</url>
     <content><![CDATA[<p>随着业务规模的增长，我们的缓存系统面临扩展性和运维效率的挑战。近期我们团队将缓存系统从Memcached迁移到Redis集群。<span id="more"></span></p>
@@ -309,224 +511,6 @@
         <tag>技术方案</tag>
         <tag>分布式</tag>
         <tag>微服务</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>基于配置中心属性,Dubbo Consumer动态切换调用RPC/本地方法</title>
-    <url>/2018/07/06/Dubbo-Local-RPC-Switch/</url>
-    <content><![CDATA[<h2 id="需求缘由"><a href="#需求缘由" class="headerlink" title="需求缘由"></a>需求缘由</h2><p>最近部分只读服务已经切换到了Dubbo提供的服务化接口；经过一段时间的生产验证, 各种监控指标显示非常稳定，所以打算开始切换写服务接口; 但大家对写操作跑服务化没有信心，于是提了一个需求能随时将远程rpc调用切换打本地jar方法调用；<span id="more"></span></p>
-<h2 id="dubbo的stub"><a href="#dubbo的stub" class="headerlink" title="dubbo的stub"></a>dubbo的stub</h2><p>听到这个需求，马上想到dubbo的stub属性；但需要在原来代码中做部分改造,具体步骤是：</p>
-<ol>
-<li>原来的jar包实现方法中增加带自身接口类型参数的构造函数;</li>
-<li>在所有的接口实现方法中判断开关状态决定调用RPC&#x2F;本地方法;<br>但是，这样对原代码有极强入侵性；我们认为这不是最好的方案，于是有了下面的方案；</li>
-</ol>
-<h2 id="扩展dubbo-reference标签属性"><a href="#扩展dubbo-reference标签属性" class="headerlink" title="扩展dubbo:reference标签属性"></a>扩展dubbo:reference标签属性</h2><p>首先需要说明，我们在实际使用dubbo的过程中并没有直接使用dubbo这个命名空间，而是自定义了自己的命名空间，自定义命名空间兼容了dubbo命名空间的所有属性，而且扩展了自己的属性；于是针对该需求我们有了新的方案，具体流程如下 ：</p>
-<ol>
-<li>增加<strong>reference</strong>的属性<strong>localbean</strong>，这个属性值为一个本地bean的id；类似的xml配置如下：</li>
-</ol>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">bean</span> <span class="attr">id</span>=<span class="string">&quot;localDemoService&quot;</span> <span class="attr">class</span>=<span class="string">&quot;com.example.Service.impl.DemoServiceImpl&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">mydubbo:reference</span> <span class="attr">interface</span>=<span class="string">&quot;com.example.Service.DemoService&quot;</span> <span class="attr">id</span>=<span class="string">&quot;remoteDemoService&quot;</span></span></span><br><span class="line"><span class="tag">                 <span class="attr">localbean</span> =<span class="string">&quot;localDemoService&quot;</span> <span class="attr">version</span>=<span class="string">&quot;1.0&quot;</span>/&gt;</span></span><br></pre></td></tr></table></figure>
-<ol start="2">
-<li>继承ReferenceBean实现自定义属性locbean；</li>
-<li>继承DubboNamespaceHandler重写init方法,如下:</li>
-</ol>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">init</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="built_in">super</span>.init();</span><br><span class="line">        <span class="built_in">this</span>.registerBeanDefinitionParser(<span class="string">&quot;reference&quot;</span>, <span class="keyword">new</span> <span class="title class_">MyBeanDefinitionParser</span>(LocalReferenceBean.class, <span class="literal">false</span>));</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-<ol start="4">
-<li>自定义filter</li>
-</ol>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">RPCLocalSwitchFilter</span>&lt;T&gt; <span class="keyword">implements</span> <span class="title class_">Filter</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Logger</span> <span class="variable">logger</span> <span class="operator">=</span> LoggerFactory.getLogger(RPCLocalSwitchFilter.class);</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">ProxyFactory</span> <span class="variable">PROXY_FACTORY</span> <span class="operator">=</span> (ProxyFactory)ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">RPCLocalSwitchFilter</span><span class="params">()</span> &#123;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> Result <span class="title function_">invoke</span><span class="params">(Invoker&lt;?&gt; invoker, Invocation invocation)</span> <span class="keyword">throws</span> RpcException &#123;</span><br><span class="line">        <span class="keyword">if</span>(cfg.getBooleanProperty(<span class="string">&quot;&quot;</span>)) &#123;  <span class="comment">//判断配置中心开工状态</span></span><br><span class="line">            <span class="type">Object</span> <span class="variable">bean</span> <span class="operator">=</span> <span class="built_in">this</span>.getLocalBean(invoker);</span><br><span class="line">            <span class="keyword">return</span> bean != <span class="literal">null</span>?<span class="built_in">this</span>.executeLocalMethod(bean, invoker, invocation):invoker.invoke(invocation);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> invoker.invoke(invocation);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> Result <span class="title function_">executeLocalMethod</span><span class="params">(T bean, Invoker&lt;?&gt; invoker, Invocation invocation)</span> &#123;</span><br><span class="line">        <span class="keyword">if</span>(logger.isDebugEnabled()) &#123;</span><br><span class="line">            logger.debug(<span class="string">&quot;execute local method instead of rpc &quot;</span> + bean.getClass().getCanonicalName() + <span class="string">&quot;.&quot;</span> + invocation.getMethodName());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="type">Invoker</span> <span class="variable">localInvoker</span> <span class="operator">=</span> PROXY_FACTORY.getInvoker(bean, invoker.getInterface(), invoker.getUrl());</span><br><span class="line">        <span class="keyword">return</span> localInvoker.invoke(invocation);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> &lt;T&gt; T <span class="title function_">getLocalBean</span><span class="params">(Invoker&lt;?&gt; invoker)</span> &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">refLocal</span> <span class="operator">=</span> invoker.getUrl().getParameter(<span class="string">&quot;localBean&quot;</span>);</span><br><span class="line">        <span class="keyword">if</span>(refLocal != <span class="literal">null</span>) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="type">ApplicationContext</span> <span class="variable">e</span> <span class="operator">=</span> LocalReferenceBean.getSpringContext();</span><br><span class="line">                <span class="keyword">return</span> e.getBean(refLocal, invoker.getInterface());</span><br><span class="line">            &#125; <span class="keyword">catch</span> (BeansException e) &#123;</span><br><span class="line">                logger.error(var4.getMessage() + <span class="string">&quot; couldn\&#x27;t find the bean[&quot;</span> + localBean + <span class="string">&quot;], please check&quot;</span>, e);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<ol start="5">
-<li>配置filter<br>在resources&#x2F;META-INF&#x2F;dubbo&#x2F;com.alibaba.dubbo.rpc.Filter文件中增加如下内容:<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">reflocal=com.example.filter. RPCLocalSwitchFilter</span><br></pre></td></tr></table></figure>
-配置consumer的filter属性<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">mydubbo:consumer</span> <span class="attr">filter</span>=<span class="string">&quot;reflocal&quot;</span> /&gt;</span></span><br></pre></td></tr></table></figure>
-至此可以通过配置中的开关状态来控制远程RPC&#x2F;本地jar方法调用 ;</li>
-</ol>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>RPC</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>在线工具集合网站</title>
-    <url>/2024/11/15/First-Efficiency-Lab/</url>
-    <content><![CDATA[<p>在日常开发项目中，我们经常需要处理格式转换、日期计算、编码解码等基础操作。这些任务要么需要在开发环境中编写代码实现，要么需要在网上搜索对应的在线工具。为了提高工作效率，我整合了一系列常用工具，并将它们集成到这个网站中：<a href="https://labs.yzhu.name/">https://labs.yzhu.name</a> <span id="more"></span></p>
-<p>该网站目前提供了以下几个工具:</p>
-<h3 id="日期计算器"><a href="#日期计算器" class="headerlink" title="日期计算器"></a><a href="https://labs.yzhu.name/date-calc.html">日期计算器</a></h3><p>计算日期天数差、增减天数以及查找特定日期,常用于处理与日期相关的业务需求。</p>
-<h3 id="单位转换器"><a href="#单位转换器" class="headerlink" title="单位转换器"></a><a href="https://labs.yzhu.name/unit-conv.html">单位转换器</a></h3><p>帮助进行英制和公制单位之间的自由转换,如常用的长度、重量、体积、温度等维度。</p>
-<h3 id="JSON格式化"><a href="#JSON格式化" class="headerlink" title="JSON格式化"></a><a href="https://labs.yzhu.name/json-format.html">JSON格式化</a></h3><p>将JSON数据格式化成有层级缩进的样式,或将格式化后的JSON转成单行,方便发现JSON语法错误。</p>
-<h3 id="编-解码工具"><a href="#编-解码工具" class="headerlink" title="编&#x2F;解码工具"></a><a href="https://labs.yzhu.name/encode.html">编&#x2F;解码工具</a></h3><p>使用常见的Base64、MD5、SHA等多种编码解码算法对文本进行转换,适用于加解密、哈希处理等需求。</p>
-<h3 id="Unix时间戳转换"><a href="#Unix时间戳转换" class="headerlink" title="Unix时间戳转换"></a><a href="https://labs.yzhu.name/timestamp.html">Unix时间戳转换</a></h3><p>将Unix时间戳转成可读的时间格式,或通过年月日等输入获取对应的时间戳。</p>
-<h3 id="YAML-JSON转换"><a href="#YAML-JSON转换" class="headerlink" title="YAML&#x2F;JSON转换"></a><a href="https://labs.yzhu.name/yaml-json.html">YAML&#x2F;JSON转换</a></h3><p>在YAML和JSON两种格式之间双向转换,并同时支持格式化和语法验证。</p>
-<h3 id="转换图片为白地图"><a href="#转换图片为白地图" class="headerlink" title="转换图片为白地图"></a><a href="https://labs.yzhu.name/image-segment.html">转换图片为白地图</a></h3><p>快速扣除商品背景，将证件照换为白地图，等场景，能够对图片进行一键抠图，快速处理。</p>
-<p>这些工具的灵感大多来源于我们日常工作中的一些高频基本需求。核心目的是集中常用的小工具,提高这部分操作的效率。</p>
-<p>工具地址: <a href="https://labs.yzhu.name/">https://labs.yzhu.name</a></p>
-]]></content>
-  </entry>
-  <entry>
-    <title>灰度发布过程中缓存数据一致性问题</title>
-    <url>/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/</url>
-    <content><![CDATA[<p>灰度发布是一种常见的上线策略。如果灰度发布时间较长，且在灰度期间各分组共用缓存，那么该过程中可能会面临缓存数据一致性的挑战。本文将讨论在灰度发布过程中导致缓存数据不一致的问题和解决方案。 <span id="more"></span></p>
-<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>通常，我们采用了灰度发布策略来确保新功能的平稳上线。我们将用户流量分为两个组（为了描述简单，假设灰度只有两个分组）：A组和B组。在灰度发布的第一阶段，我们选择将20%的流量分配给B组，将剩余的80%分配给A组。这样可以确保新功能在一部分用户中进行测试和验证，同时保持对大多数用户的稳定性。然而，在灰度发布过程中由于代码版本的不一致，导致A组和B组的缓存数据出现了不一致的情况。</p>
-<h3 id="问题分析"><a href="#问题分析" class="headerlink" title="问题分析"></a>问题分析</h3><p>在灰度发布期间可能出现以下两个场景导致数据不一致问题：</p>
-<ol>
-<li><p><strong>缓存增加元素：</strong> 在B组的代码版本（v2）中，我们增加了一个缓存对象的元素，但是A组的代码版本（v1）并没有包含这个元素。这导致A组写入缓存的数据，在B组读取时无法正确反序列化，导致数据解析失败。</p>
-</li>
-<li><p><strong>计算逻辑变化：</strong> 缓存对象的元素（e1）是逻辑计算得出的结果，在B组的代码版本（v2）中我们修改了该元素计算逻辑，但是A组的代码版本（v1）仍是旧的计算逻辑；这导致A组写入的缓存B组读出不符合预期，而B组写入的缓存A组读出不符合预期。</p>
-</li>
-</ol>
-<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h3><p>在面对这种缓存数据一致性问题时，我们采取了以下解决方案：</p>
-<ol>
-<li><p><strong>a&#x2F;b组缓存隔离</strong>：A&#x2F;B组分别访问不同的缓存，不同的分组可以连接不同的缓存或者不同的分组以不同的key前缀区分。然而实际情况是以上问题只会发生在极个别的缓存元素上。这种方案虽然能解决以上问题，但缓存数量会随着分组的增加而成倍增加，造成资源的严重浪费，同时缓存命中率也会下降。</p>
-</li>
-<li><p><strong>反序列化兼容增加的元素</strong>：基本所有的序列化&#x2F;反序列化组件都支持该功能。比如JDK自带的功能确保<code>serialVersionUID</code>保持不变即可，或者使用protobuf、json等序列化类库都可以实现。该方法虽然能解决A组写入B读取反序列化失败的问题，但B组反序列化成功仍然缺少新增加的元素。</p>
-</li>
-<li><p><strong>使用新key</strong>：在B组代码中使用新的key，这样A&#x2F;B组缓存可以彻底隔离。但对于某些底层数据结构，可能被上层很多缓存引用，而且是通过多级引用，开发人员容易遗漏某些key。</p>
-</li>
-<li><p><strong>版本控制</strong>：大致思路是每个缓存在key上携带本次变更的版本号。如果本次发布缓存元素没有变化，则版本号不变。具体实现过程如下：</p>
-<ul>
-<li>在Spring容器启动过程中获取所有标记<code>@Cacheable</code>注解的方法。</li>
-<li>对方法返回值对象内元素按照元素类型和一定的算法计算对象code值。如果对象元素发生变化，则对象code值一定变化。如果是元素是自定义对象需要递归计算。</li>
-<li>读写缓存时在缓存key增加code后缀。</li>
-</ul>
-</li>
-</ol>
-<h3 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h3><p>最后我们采用了<strong>版本控制</strong>的方案。在实施前，我们进行了充分的测试和验证，确保缓存的版本控制逻辑正确无误，并在灰度发布期间保持了缓存数据的一致性。</p>
-]]></content>
-      <tags>
-        <tag>技术方案</tag>
-        <tag>分布式</tag>
-        <tag>一致性</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>基础组件升级策略与实践</title>
-    <url>/2022/03/26/Infra-Component-Upgrade/</url>
-    <content><![CDATA[<p>基础组件是我们系统构成的关键要素，包括中间件SDK、基础架构组件等。它们为系统提供了核心功能和基本服务，为业务逻辑的实现提供支持; 近几年多做了一些基础组件的升级，有些经历了较长的升级周期，也有的一次上线直接成功，还有个别组件升级失败了，目前仍然在寻找改进方法； <span id="more"></span></p>
-<h2 id="为什么需要基础组件"><a href="#为什么需要基础组件" class="headerlink" title="为什么需要基础组件"></a>为什么需要基础组件</h2><p>为什么我们的系统要引入基础组件，使用基础组件由什么优势,以下根据个人体会列出了几点：</p>
-<ol>
-<li>提高开发效率：基础组件为提供了可重用、可定制和可扩展的组件和库。通过使用这些组件，开发团队能够快速搭建系统，并在不必从头开始编写代码的情况下实现常见功能。这大大提高了开发效率，缩短了产品上线时间</li>
-<li>降低开发成本：通过使用成熟的基础组件，我们能够减少自主开发和维护的工作量。这意味着可以节省开发资源，并将精力集中在增值业务和创新上。</li>
-<li>统一标准和规范：基础组件有助于确保在整个系统中使用一致的标准和规范。这种一致性使得不同团队的开发人员能够更好地协同工作，并减少因为不一致性而导致的问题。例如，使用统一的redis客户端组件限制一些危险命令的使用。</li>
-<li>提升系统可靠性和稳定性：基础组件经过专业的设计和测试，通常具有高度可靠性和稳定性。它们被广泛使用和验证，可以减少系统中的错误和故障。而且，这些组件通常具有自动化的监控和错误处理机制，能够及时发现和处理潜在的问题，提高系统的稳定性。</li>
-<li>解偶业务系统与中间件，平台之间的代码：提高系统的稳定性，方便维护，开发人员聚焦到业务功能开发；</li>
-<li>提高管理效率，通过技术手段将操作流程规范化</li>
-<li>安全性：确保系统采用安全大版本</li>
-</ol>
-<h2 id="为什么进行基础组件升级"><a href="#为什么进行基础组件升级" class="headerlink" title="为什么进行基础组件升级"></a>为什么进行基础组件升级</h2><ol>
-<li>修复组件Bug,提高系统稳定性: 随着时间的推移,基础组件中会暴露出各种Bug,这些Bug可能会导致系统崩溃或业务异常。升级组件可以修复已知的Bug,提高系统稳定性。</li>
-<li>获取最新功能特性,满足业务需要：基础组件推出新版本时,通常会提供新的功能和特性。业务需求瞬息万变,升级组件可以获得最新功能来满足业务需求。</li>
-<li>改善性能,提升效率：新版本的基础组件通常在性能和效率上有改进,如增加缓存、优化算法等。升级后可以减少响应时长,提升系统吞吐量。</li>
-<li>优化资源利用,降低成本：基础组件的新版本可能在资源调度和分配上进行了优化,可以提高资源利用率,降低系统运营成本。</li>
-<li>提高开发效率：新版本组件通常会优化API设计,提高开发效率。同时修复Bug也可以减少开发调试时间。</li>
-<li>解除对旧版的依赖：旧版本组件停止维护后,存在安全风险和兼容性问题。升级可以避免对旧版组件的依赖。</li>
-<li>减少技术债务：使用了较旧版本的基础组件，可能会有技术债务积累，包括安全漏洞、性能瓶颈等；升级基础组件是控制技术债务的重要措施之一，积压的技术债务会制约公司发展</li>
-<li>处理兼容性问题: 随着系统的发展和业务的扩展，可能需要与其他系统进行集成和交互，升级基础组件可以提供更好的兼容性和互操作性；</li>
-</ol>
-<h2 id="升级前的准备工作"><a href="#升级前的准备工作" class="headerlink" title="升级前的准备工作"></a>升级前的准备工作</h2><p>在进行基础组件升级之前，进行充分的准备工作是至关重要的，这可以帮助确保升级过程的顺利进行并最小化潜在风险。以下是升级前需要做的一些准备工作：</p>
-<ol>
-<li>明确目标： 定义升级的具体目标，明确您希望通过升级实现的业务和技术目标。了解升级所需的功能、性能、安全性等需求。</li>
-<li>收集现有信息： 收集关于当前系统和基础组件的详细信息，包括版本、依赖关系、功能和性能特征等。这将有助于为升级过程做出更准确的决策。</li>
-<li>评估风险和影响： 识别潜在的风险和影响范围，包括与升级相关的功能中断、兼容性问题、性能下降等。评估这些风险的严重程度，以便制定应对策略。</li>
-<li>数据策略： 在进行升级之前，确保对系统进行完整的备份。如果升级中出现问题，可以回滚到之前的状态。对于数据库等有状态的组件，可以创建快照； </li>
-<li>制定升级计划： 制定详细的升级计划，包括升级的步骤、时间表、责任人等。确定升级过程中需要涉及的各方，并为他们提供清晰的指导。对于较大范围升级工作，可以拆分为多个里程碑，尽可能保证每个步骤影响范围降到最低；</li>
-<li>制定回滚计划： 确定如何还原系统到升级前的状态，以便在紧急情况下进行干预。原则上对升级操作的每个步骤都有对应的回滚步骤，如果不能回滚的场景下必须给出快速解决的方法。</li>
-<li>测试环境预演： 在测试环境中进行升级的测试预演，以模拟真实生产环境。测试环境应该尽可能地与生产环境相似，以便更准确地预测升级可能的影响。</li>
-<li>性能和压力测试： 在压测环境中进行压力测试，以评估新版本基础组件在不同负载条件下的表现。这有助于预测在生产环境中可能出现的问题。</li>
-<li>制定上线计划通知所有相关方</li>
-<li>用户培训： 如果新版本引入了新的特性或变化，为团队成员提供培训，确保他们熟悉和适应新版本。</li>
-</ol>
-<h2 id="升级实践"><a href="#升级实践" class="headerlink" title="升级实践"></a>升级实践</h2><ol>
-<li>版本选择： 仔细评估新版本的功能、性能和安全特性。选择与业务需求最匹配的版本，同时考虑其稳定性和用户反馈,重点关注开源社区对issue list。</li>
-<li>兼容性检查： 检查新版本与现有系统的兼容性。确保新版本不会破坏现有的功能和集成。</li>
-<li>测试环境验证： 在测试环境中进行升级测试，尽量模拟真实生产环境，确保测试到各种可能影响到的场景。</li>
-<li>自动化测试： 针对关键业务场景和功能，创建自动化测试用例。这有助于快速验证新版本的稳定性和正确性。</li>
-<li>性能测试： 在压测环境中进行压力测试，以评估新版本在不同负载条件下的表现。识别潜在的性能问题。</li>
-<li>数据迁移计划： 如果升级涉及数据存储系统，制定数据迁移计划。确保数据的完整性和一致性。</li>
-<li>备份和回滚： 在进行任何升级操作之前，确保对系统进行全面备份。制定回滚计划，以便在升级过程中遇到问题时能够迅速还原。</li>
-<li>灰度发布： 如果条件许可尽可能采用渐进式发布策略，将新版本逐步引入生产环境，以减少风险。</li>
-<li>监控和报警： 升级后留意监控和报警，以便实时监控系统的性能和稳定性，及时发现并快速解决潜在问题。</li>
-</ol>
-<h2 id="升级后的监测与迭代"><a href="#升级后的监测与迭代" class="headerlink" title="升级后的监测与迭代"></a>升级后的监测与迭代</h2><ol>
-<li>性能监测： 持续监测系统的性能，包括响应时间、吞吐量、延迟等。比较升级前后的性能数据，确保新版本不会导致性能下降。</li>
-<li>稳定性监测： 监测系统的稳定性，识别是否存在崩溃、死锁、内存泄漏等问题。及时处理并解决这些问题，以确保系统不会因此而崩溃或变得不稳定。</li>
-<li>资源利用率监测： 监测服务器、内存、CPU、网络等资源的利用率。确保新版本不会导致资源耗尽。</li>
-<li>错误日志报警： 关注错误日志报警，确保升级后不会出现更多错误，防止问题升级为严重故障。</li>
-<li>快速响应和修复： 如果发现了严重问题，确保能够快速响应并进行修复。灵活地进行紧急发布，以解决可能影响业务的问题。</li>
-<li>收集用户的反馈: 了解用户在使用新版本时遇到的问题，帮助用户解决问题或在在后续版本修复。</li>
-</ol>
-<h2 id="设计基础组件的注意事项"><a href="#设计基础组件的注意事项" class="headerlink" title="设计基础组件的注意事项"></a>设计基础组件的注意事项</h2><p>在设计基础组件时，有一些注意事项可以考虑，以确保其可靠性、可扩展性和易用性。以下是一些常见的注意事项：</p>
-<ol>
-<li>定义清晰的接口：确保组件的功能和接口定义清晰明确。这将帮助其他开发人员理解如何正确使用组件，并减少潜在的集成问题。</li>
-<li>高可用性和容错性：基础组件通常是系统中不可或缺的一部分，因此必须具备高可用性和容错性。考虑使用冗余、自动故障转移和负载均衡等机制来提高系统的可用性。</li>
-<li>可扩展性：设计组件时要考虑到系统未来的扩展需求。确保组件可以水平扩展，以应对增加的负载和数据量。</li>
-<li>安全性：基础组件通常处理敏感数据和关键业务逻辑，因此安全性是至关重要的。实施适当的安全措施，如身份验证、访问控制和数据加密等，以保护组件免受潜在的威胁。</li>
-<li>性能优化：确保组件在处理大量请求和数据时能够提供良好的性能表现。使用高效的算法和数据结构，并进行性能测试和优化，以确保组件能够满足系统的性能需求。</li>
-<li>文档和日志记录：提供清晰、详细的文档和日志记录，以便开发人员和运维团队能够理解组件的工作原理和故障排查方法。</li>
-<li>监控和警报：实施监控和警报机制，以及时检测和响应组件的问题。监控关键指标，并设置警报以便在出现异常情况时及时通知相关人员。</li>
-<li>版本控制和发布管理：使用版本控制系统来管理组件的代码和配置，确保可追溯性和可靠的发布管理。考虑使用自动化工具和流程来简化部署和升级过程。</li>
-<li>可测试性：设计组件时要考虑到测试的可行性。提供适当的接口和工具，以便开发人员能够方便地编写和运行单元测试、集成测试和端到端测试。</li>
-<li>与其他组件的集成：如果组件需要与其他组件进行集成，要确保接口和数据格式的兼容性，并进行充分的集成测试，以验证组件的正确性和稳定性。</li>
-<li>遵循规范：组件实现需要遵循行业设计规范和标准,以提升互操作性</li>
-</ol>
-]]></content>
-  </entry>
-  <entry>
-    <title>一个三年前的Bug导致上线失败</title>
-    <url>/2020/05/30/History-Bug-And-Code-Review/</url>
-    <content><![CDATA[<p>上周某核心服务上线过程中内存瞬间飙升，导致上线失败。经查是一个三年前的bug引发的。<span id="more"></span></p>
-<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
-<li>17:10：开始发布B组 </li>
-<li>17:20：开始出现内存，接口超时报警；开发和SA开始介入</li>
-<li>17:25：认为是新版本有问题立刻回滚</li>
-<li>回滚后持续半小时问题没有出现</li>
-</ol>
-<h3 id="初步分析"><a href="#初步分析" class="headerlink" title="初步分析"></a>初步分析</h3><p>根据开发反馈，本次上线功能逻辑非常简单，只有20多行代码，而且测试过程中没发现任何问题；于是，大家开始review那段代码，review后得出一致多结论，该代码没问题。逻辑非常简单，只有一个地方调用了一个方法；这个方法已经存在了好你年了，而且被多个场景在调用；另外，这个方法逻辑复杂，团队内没有人了解。大家一致认为这个方法不会有问题，毕竟经历了「时间的考验」。</p>
-<h3 id="重现"><a href="#重现" class="headerlink" title="重现"></a>重现</h3><p>在测试环境又做了一轮压力测试，一切正常。根据目前点情况看来这个bug跟数据有关；就是说，可能是某条数据触发了这个bug的临界条件.所以，我们决定在生产环境发布一台机器做测试; 这次发布后5分钟后出现了内存飙升现象,马上切掉该机器的流量而且dump Jvm内存 。</p>
-<h3 id="问题处理"><a href="#问题处理" class="headerlink" title="问题处理"></a>问题处理</h3><p>拿到dump文件后立刻启动MAT分析；发现占用内存最多一个对象有3000多万个，分析该对象的调用盏都指向了同一行代码；「这段代码正是经历过时间考验的代码」。review这行代码相关部分马上发现有死循环的问题，只是满足这个条件的数据不容易出现。而这次的数据正好满足了这个条件。找到了原因，解决方法就很容易了；修改完代码review后没问题，测试，上线后一切正常；至此，该问题解决。这里可能有人会说死循环一般会首先导致CPU报警，怎么没看到我们提到CPU到问题；因为这台机器是16核CPU，所以一个核跑满并没有触发报警规则 。</p>
-<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
-<li>必须严格执行code review，从流程上去控制</li>
-<li>需要监控各项指标到同比变化</li>
-</ol>
-<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>我们总是强调code review到重要性，但执行的时候总有这样那样的原因导致落实不彻底；我不了解当时的情况，但这次的问题我相信只要做过code review是一定可以发现的。另外，我始终相信代码质量最终要依赖开发人员来保证，测试只能保证功能性问题。特别是一些非功能性的边界条件，只能依赖开发保证。</p>
-]]></content>
-      <tags>
-        <tag>线上问题</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Open Tracing(Jaeger) 遭遇多线程</title>
-    <url>/2019/12/27/Jaeger-Thread/</url>
-    <content><![CDATA[<p>我们知道在Java技术体系中，链路跟踪严重依赖ThreadLocal；因此在多线程的场景下会导致链路跟踪失效.<span id="more"></span></p>
-<h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>前几天一位开发同学反馈了一个问题，在链路跟踪UI上看到某个链路Rpc的span数量比实际调用少了很多；我听完第一反映是我们最近升级的SDK出问题了? 根据该同学反馈该接口是一个新接口，上线后一直没关注过链路；我们随即在链路跟踪UI上将多个系统的常用接口都检查了一遍发现一切正常，基本排除了SDK可能引起的问题。接着开始检查开发同学的代码,顺着该请求发现代码里面用到了<strong>线程池</strong> ,该同学解释该接口内部需要多次调用多个Rpc接口，为了提升效率所以采用了多线程。</p>
-<h3 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h3><p>分析opentracing的源码发现tracing相关的的信息保存在<code>io.opentracing.util.ThreadLocalScopeManager</code>的ThreadLocal变量里:</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">ThreadLocalScopeManager</span> <span class="keyword">implements</span> <span class="title class_">ScopeManager</span> &#123;</span><br><span class="line">    <span class="keyword">final</span> ThreadLocal&lt;ThreadLocalScope&gt; tlsScope = <span class="keyword">new</span> <span class="title class_">ThreadLocal</span>&lt;ThreadLocalScope&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Scope <span class="title function_">activate</span><span class="params">(Span span, <span class="type">boolean</span> finishOnClose)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">ThreadLocalScope</span>(<span class="built_in">this</span>, span, finishOnClose);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> Scope <span class="title function_">active</span><span class="params">()</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> tlsScope.get();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>这就可以解释为什么多线程中的Rpc请求没有将相关Tracing信息传递下去;</p>
-<h3 id="解决方法"><a href="#解决方法" class="headerlink" title="解决方法"></a>解决方法</h3><ol>
-<li><p>多线程中ThreadLocal变量的传递:<br>关于多线程中ThreadLocal变量的传递我们可以用阿里巴巴的<a href="https://github.com/alibaba/transmittable-thread-local">transmittable-thread-local</a> ,所以整个思路就是自己实现一遍<code>ThreadLocalScopeManager</code>用<code>TransmittableThreadLocal</code>替换<code>ThreadLocal</code>，以及跟它关联的类<code>ThreadLocalScope</code>(它里面申明了<code>ThreadLocalScopeManager</code>变量)； </p>
-</li>
-<li><p>修改Opentrcing里面默认的<code>ThreadLocalScopeManager</code>为用户自定义<code>ThreadLocalScopeManager</code><br>检查Jaeger的Springboot自动配置文件<code>io.opentracing.contrib.java.spring.jaeger.starter.JaegerAutoConfiguration</code>源码, 在构造Bean <code>io.opentracing.Tracer</code>时有用户自定义方法: <code>tracerCustomizers.forEach(c -&gt; c.customize(builder))</code></p>
-</li>
-</ol>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">JaegerAutoConfiguration</span> &#123;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Autowired(required = false)</span></span><br><span class="line">  <span class="keyword">private</span> List&lt;TracerBuilderCustomizer&gt; tracerCustomizers = Collections.emptyList();</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Bean</span></span><br><span class="line">  <span class="keyword">public</span> io.opentracing.Tracer <span class="title function_">tracer</span><span class="params">(Sampler sampler,</span></span><br><span class="line"><span class="params">                                      Reporter reporter,</span></span><br><span class="line"><span class="params">                                      Metrics metrics,</span></span><br><span class="line"><span class="params">                                      JaegerConfigurationProperties properties)</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> JaegerTracer.<span class="type">Builder</span> <span class="variable">builder</span> <span class="operator">=</span></span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">JaegerTracer</span>.Builder(properties.getServiceName())</span><br><span class="line">            .withReporter(reporter)</span><br><span class="line">            .withSampler(sampler)</span><br><span class="line">            .withTags(properties.determineTags())</span><br><span class="line">            .withMetrics(metrics);</span><br><span class="line"></span><br><span class="line">    tracerCustomizers.forEach(c -&gt; c.customize(builder));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> builder.build();</span><br><span class="line">  &#125;</span><br><span class="line">  .....</span><br></pre></td></tr></table></figure>
-<p>于是，我们只需要自定义<code>TracerBuilderCustomizer</code>调用<code>builder.withScopeManager</code>方法即可</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TtlTracerBuilderCustomizer</span> <span class="keyword">implements</span> <span class="title class_">TracerBuilderCustomizer</span> &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">customize</span><span class="params">(JaegerTracer.Builder builder)</span> &#123;</span><br><span class="line">        builder.withScopeManager(<span class="keyword">new</span> <span class="title class_">TracingScopeManager</span>());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>在SpringBoot自动配置文件中构造Bean:</p>
-<figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="keyword">public</span> List&lt;TracerBuilderCustomizer&gt; <span class="title function_">tracerCustomizers</span><span class="params">()</span>&#123;</span><br><span class="line">    <span class="keyword">return</span> Arrays.asList(<span class="keyword">new</span> <span class="title class_">TtlTracerBuilderCustomizer</span>());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>至此，问题解决； 代码参考<a href="https://github.com/yinghuzhu/request-tracing">request-tracing</a></p>
-<h3 id="关于多线程"><a href="#关于多线程" class="headerlink" title="关于多线程"></a>关于多线程</h3><p>我不建议在互联网高并发请求接口内部采用多线程；以Java技术体系为例，请求到达系统后一般会有容器(Tomcat之类)或者Rpc框架先接收，然而这些框架本来就是多线程在运行,如果系统本来已经到瓶颈了，即使增加线程也不会提升效率；如果系统需要增加线程，首先我们应该增加容器或者Rpc框架的线程数量；另外如果接口性能差，我们首先应该考虑是Sql的问题还是代码逻辑的问题；或者系统达到了瓶颈是否可以通过增加机器提升性能；如果接口逻辑本身太复杂，可能是我们的方案或者设计有问题，或许可以考虑按照离线请求的模式设计接口。</p>
-<h3 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h3><p>这个问题虽然没有对业务造成影响，但收集到链路肯定是有问题的；这也暴露出了我们开发过程中的一些问题，对非功能性验证做的不到位，这方面还需要加强。</p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>链路跟踪</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>JVM初探</title>
-    <url>/2020/03/29/JVM-NEW/</url>
-    <content><![CDATA[<p>最近经常有人跟我一起讨论JVM的相关话题，所以将以前分享过的一篇JVM的基础知识在这里分享出来，欢迎大家指正.<span id="more"></span></p>
-<div class="pdfobject-container" data-target="/pdf/jvm.pdf" data-height="500px"></div>]]></content>
-      <tags>
-        <tag>JVM</tag>
       </tags>
   </entry>
   <entry>
@@ -735,45 +719,6 @@
       <tags>
         <tag>微服务</tag>
         <tag>RPC</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>服务化多项目测试环境隔离</title>
-    <url>/2019/02/13/Multi-Project-Test-Env/</url>
-    <content><![CDATA[<p>单体应用依赖比较少，大部分情况我们只需要启动一个应用就可以开始测试工作。架构升级到服务化后，每个应用依赖比较多，任何一个依赖有问题都会影响测试结果；如果服务化环境中多项目并行测试，测试效率会更差 。 <span id="more"></span> 为此，我们给出服务化多项目并行测试方案。</p>
-<h3 id="版本号隔离"><a href="#版本号隔离" class="headerlink" title="版本号隔离"></a>版本号隔离</h3><p>首先能想到的方法就是利用版本号的特征「类dubb的RPC框架都有版本号属性」，对不同的项目给出不同的版本号; 比如有如下调用关系:</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Client -&gt; SA  </span><br></pre></td></tr></table></figure>
-<p>在启动SA的时候对不同的项目指定不同的版本号,Client在调用SA的时候根据不同的项目指定与SA相匹配的版本号.</p>
-<ul>
-<li>优点: 简单，无需额外开发，类dubbo的RPC框架都支持</li>
-</ul>
-<h3 id="多项目开发测试现状"><a href="#多项目开发测试现状" class="headerlink" title="多项目开发测试现状"></a>多项目开发测试现状</h3><p>实际项目中的调用关系： </p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Client -&gt; SA -&gt; SB -&gt; SC -&gt; SD</span><br></pre></td></tr></table></figure>
-<p>有两个项目在并行开发：</p>
-<ul>
-<li>project1「以下简称P1」代码变更部分是SA, SC</li>
-<li>project2「以下简称P2」代码变更部分是SB, SD</li>
-</ul>
-<p>如果我们采用「版本号隔离」方案; 对于P1, 不但需要部署SA和SC，还需要部署Client和SB，因为Client调用SA，SB调用SC的<strong>版本号分别指向新部署的SA和SC</strong> 。P2也需要类似的部署方法；这样我们发现，几乎所有的服务在每个项目中都需要部署一套；造成资源大量浪费，显然不现实。 因此，我们有了下面的方案「动态路由」 。</p>
-<h3 id="动态路由"><a href="#动态路由" class="headerlink" title="动态路由"></a>动态路由</h3><p>动态路由的思路是环境分<strong>一套稳定环境和每个项目对应一套项目测试环境,其中稳定环境包括所有的服务，项目测试环境仅包括该项目代码变更部分的服务</strong>,各个环境的所有服务采用同一注册中心；方案如下图所示 </p>
-<p><img src="/2019/02/13/Multi-Project-Test-Env/multi-test-env.png" alt="服务化多项目测试环境"></p>
-<ul>
-<li>稳定环境: 部署所有的服务，保证稳定环境作为完整的系统；可以利用CI&#x2F;CD每日从Master拉稳定版本的代码完成自动部署</li>
-<li>P1: project1测试环境，仅部署有代码变更的SA1和SC1 </li>
-<li>P2: project2测试环境，仅部署有代码变更的SB2和SD2</li>
-<li>路由策略： Client发起调用的时候携带该调用链路所有测试环境的路由规则，如果没有指定路由规则请求默认环境的服务</li>
-</ul>
-<h5 id="实现要点"><a href="#实现要点" class="headerlink" title="实现要点"></a>实现要点</h5><ul>
-<li>每个服务启动时候在注册中心注册服务所在节点测试环境类型(P1，P2或者默认环境)，默认情况注册为默认环境 </li>
-<li>自定义loadbalance，根据路由规则将RPC请求路由到指定节点上</li>
-<li>每次RPC调用将该调用链路的路由规则隐士传递到下层服务</li>
-<li>每个测试环境需要一个独立的入口，以WEB项目为例可以将nginx作为入口，路由规则可以配置在nginx的配置文件中</li>
-<li>对接发布系统，有变更的服务发布到测试环境时候，该测试环境的路由规则自动写入测试环境的入口配置文件</li>
-</ul>
-]]></content>
-      <tags>
-        <tag>技术方案</tag>
-        <tag>微服务</tag>
       </tags>
   </entry>
   <entry>
@@ -1052,35 +997,6 @@
       </tags>
   </entry>
   <entry>
-    <title>一次OOM引发服务雪崩的思考</title>
-    <url>/2018/12/01/OOM-Casue-Snowslide/</url>
-    <content><![CDATA[<p>前几天核心基础服务(简称S,两节点)发生了一次线上故障，导致整个基础服务雪崩，最终，该基础服务故障导致整站多项功能失效；</p>
-<span id="more"></span>
-<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
-<li>4:15 开始S的多个上游服务开始出现大量超时,而且出现告警</li>
-<li>4:30 S的节点S1出现OOM停止服务 ,同时告警系统发出了告警信息</li>
-<li>4:50 S的节点S2由于操作系统内存不足被系统kill ,同时告警系统发出了告警信息<br> ….</li>
-<li>8:00 运营同学反馈问题,技术同学开始排查</li>
-<li>8:05 技术同学发现S故障,重启S服务，服务正常</li>
-</ol>
-<h3 id="原因分析"><a href="#原因分析" class="headerlink" title="原因分析"></a>原因分析</h3><ol>
-<li>S的上游应用某定时任务在凌晨4:10请求了大量(一次超过200w)的数据将S1先拖死，导致流量全部到S2，S2逐渐不堪重负,导致被系统kill </li>
-<li>S对上游数据请求量没有限制，没有启用限流分组功能</li>
-<li>告警信息没有引起足够重视,告警被忽略</li>
-<li>告警信息仅仅报告给monitor，没有到系统的owner</li>
-</ol>
-<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
-<li>启用限流，分组功能</li>
-<li>必须严格执行code review</li>
-<li>告警信息必须分级，而且必须同时报告给monitor和系统owner;接警人接到报警后根据不同的级别进行处理</li>
-</ol>
-<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>在互联网领域我们为了追求n个9，会采取一系列的流程措施来保障系统的可用性;但，真正落实到位的有多少? 其实，线上故障不可怕，可怕的是没有相应的应对措施；更可怕的是有相应的应对措施，但没有落实到位; 比如: 在服务化推进的过程中架构团队已经提供了限流，分组等功能，而且也进行了宣讲；但，最终这些措施还是没有落实到位；也许这就是大厂和创业公司的区别，大厂里面的架构师大部分也是螺丝钉，只要自己有产出符合预期完成KPI就是一个合格的架构师；但是，创业公司的架构师要考虑更多的因素，从最初的技术方案到设计，实现，最终的落地执行都需要全程参与确保每一个功能真正落实到位</p>
-]]></content>
-      <tags>
-        <tag>线上问题</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>OIDC &quot;Need Admin Approval&quot; 故障排除与分析</title>
     <url>/2025/11/12/OIDC-OAuth2-Need-Admin-Approval/</url>
     <content><![CDATA[<p>本文详细记录了一次OIDC认证系统中遇到的”Need admin approval”问题。用户在登录时持续收到错误提示，但使用相同令牌的独立工具却能正常工作。经过深入分析，发现问题根源在于OIDC配置中的<code>Authorization Prompt</code>参数设置不当<span id="more"></span>。本文不仅提供了完整的故障排除过程，还包含了OIDC&#x2F;OAuth2.0的基础知识，以帮助不同技术水平的同事理解和解决类似问题。虽然案例基于EspoCRM，但此问题在任何使用OIDC&#x2F;OAuth2.0的系统中都可能遇到。</p>
@@ -1272,49 +1188,32 @@
 ]]></content>
   </entry>
   <entry>
-    <title>服务化准备工作</title>
-    <url>/2018/06/18/Parepare-Service/</url>
-    <content><![CDATA[<p>在决定进行服务化时，我们做了一些必要的准备工作；从服务治理，链路跟踪，监控以及报警方面到代码层面，运维，流程等多个方面做了相应的调整</p>
+    <title>一次OOM引发服务雪崩的思考</title>
+    <url>/2018/12/01/OOM-Casue-Snowslide/</url>
+    <content><![CDATA[<p>前几天核心基础服务(简称S,两节点)发生了一次线上故障，导致整个基础服务雪崩，最终，该基础服务故障导致整站多项功能失效；</p>
 <span id="more"></span>
-<h2 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h2><p>我们的服务化是在dubbo的基础上进行的，首先适配了服务化需要的相关组件，包括配置中心，链路跟踪，监控，服务治理等，整体架构如图所示 </p>
-<p><img src="/2018/06/18/Parepare-Service/arch.jpg" alt="架构图"></p>
-<ul>
-<li>配置中心: Apollo </li>
-<li>链路跟踪: Zipkin, Kafka, ES</li>
-<li>服务治理: dubbo官方的dubbo-admin</li>
-<li>服务监控: dubbo官方的dubbo-monitor</li>
-</ul>
-<h2 id="准备工作"><a href="#准备工作" class="headerlink" title="准备工作"></a>准备工作</h2><h3 id="服务化SDK"><a href="#服务化SDK" class="headerlink" title="服务化SDK"></a>服务化SDK</h3><p>我们提供了服务化SDK给业务团队使用；SDK自定义了xsd文件继承了dubbo的xml标签，在此基础上集成了apollo配置；这样业务团队在使用的过程中对一些系统配置不需要关注，比如注册中心，启用监控，启用链路跟踪等 .</p>
-<h3 id="代码改造"><a href="#代码改造" class="headerlink" title="代码改造"></a>代码改造</h3><ol>
-<li><p>分离Service的API接口到独立的Jar包</p>
-</li>
-<li><p>检查接口的输入输出参数是否实现了Serializable接口</p>
-</li>
-<li><p>是否使用了接口参数在方法内部修改后的值，代码如下:</p>
-  <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">/*服务端*/</span></span><br><span class="line"><span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">call</span><span class="params">(List&lt;String&gt; list)</span>&#123;</span><br><span class="line">        list.add(<span class="string">&quot;b&quot;</span>);</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*客户端*/</span> </span><br><span class="line">List&lt;String&gt; list = <span class="keyword">new</span> <span class="title class_">ArrayList</span>();</span><br><span class="line">service.call(list);</span><br><span class="line">list.get(<span class="number">0</span>)</span><br></pre></td></tr></table></figure>
-
-<p> 这个代码在同一个JVM是没有问题，但RPC调用并不能返还预期的结果；</p>
-</li>
-<li><p>本地事务改造为分布式事务</p>
-</li>
-<li><p>确保所有的单元测试通过</p>
-</li>
+<h3 id="故障现象"><a href="#故障现象" class="headerlink" title="故障现象"></a>故障现象</h3><ol>
+<li>4:15 开始S的多个上游服务开始出现大量超时,而且出现告警</li>
+<li>4:30 S的节点S1出现OOM停止服务 ,同时告警系统发出了告警信息</li>
+<li>4:50 S的节点S2由于操作系统内存不足被系统kill ,同时告警系统发出了告警信息<br> ….</li>
+<li>8:00 运营同学反馈问题,技术同学开始排查</li>
+<li>8:05 技术同学发现S故障,重启S服务，服务正常</li>
 </ol>
-<h3 id="日志输出增加链路跟踪信息"><a href="#日志输出增加链路跟踪信息" class="headerlink" title="日志输出增加链路跟踪信息"></a>日志输出增加链路跟踪信息</h3><p>每条输出日志包括了zipkin的span id,这样每条日志都能清楚的跟踪到从整个调用链；</p>
-<h3 id="监控系统"><a href="#监控系统" class="headerlink" title="监控系统"></a>监控系统</h3><p>dubbo-monitor对接现有的报警系统，将采集到监控数据上报到现有报警系统,做到实时报警 </p>
-<h3 id="发布系统"><a href="#发布系统" class="headerlink" title="发布系统"></a>发布系统</h3><p>dubbo的服务在正常停止的过程中不再接受新的请求,但是启动后在注册中心完成注册马上开始接受新的请求；我们希望启动后由发布系统控制什么时候开始接受新请求；</p>
-<h3 id="版本控制"><a href="#版本控制" class="headerlink" title="版本控制"></a>版本控制</h3><p>服务化后对所有的依赖必须基于强版本，所以对每一个发布的服务都提供了强版本策略，而且正常情况下保证每个新版本必须兼容旧版本；版本路线如图所示:<br><img src="/2018/06/18/Parepare-Service/version.jpg" alt="版本"></p>
-<h3 id="流程控制"><a href="#流程控制" class="headerlink" title="流程控制"></a>流程控制</h3><p>  改造现有的流程控制系统，做到每个团队可以独立开发，独立测试，独立部署，独立上线以及独立回滚; 而且保证CI, CD能正常工作,所有流程能自动完成; </p>
-<h3 id="服务拆分"><a href="#服务拆分" class="headerlink" title="服务拆分"></a>服务拆分</h3><p>首先拆分出基础服务,包括地址服务，推送服务，图片服务，等与业务无关的服务；其次按照业务领域进行拆分，包括订单，用户中心，支付等</p>
-<h2 id="后续"><a href="#后续" class="headerlink" title="后续"></a>后续</h2><ul>
-<li>服务安全</li>
-<li>物理分组 </li>
-<li>多维度监控</li>
-<li>等…</li>
-</ul>
+<h3 id="原因分析"><a href="#原因分析" class="headerlink" title="原因分析"></a>原因分析</h3><ol>
+<li>S的上游应用某定时任务在凌晨4:10请求了大量(一次超过200w)的数据将S1先拖死，导致流量全部到S2，S2逐渐不堪重负,导致被系统kill </li>
+<li>S对上游数据请求量没有限制，没有启用限流分组功能</li>
+<li>告警信息没有引起足够重视,告警被忽略</li>
+<li>告警信息仅仅报告给monitor，没有到系统的owner</li>
+</ol>
+<h3 id="后续措施"><a href="#后续措施" class="headerlink" title="后续措施"></a>后续措施</h3><ol>
+<li>启用限流，分组功能</li>
+<li>必须严格执行code review</li>
+<li>告警信息必须分级，而且必须同时报告给monitor和系统owner;接警人接到报警后根据不同的级别进行处理</li>
+</ol>
+<h3 id="反思"><a href="#反思" class="headerlink" title="反思"></a>反思</h3><p>在互联网领域我们为了追求n个9，会采取一系列的流程措施来保障系统的可用性;但，真正落实到位的有多少? 其实，线上故障不可怕，可怕的是没有相应的应对措施；更可怕的是有相应的应对措施，但没有落实到位; 比如: 在服务化推进的过程中架构团队已经提供了限流，分组等功能，而且也进行了宣讲；但，最终这些措施还是没有落实到位；也许这就是大厂和创业公司的区别，大厂里面的架构师大部分也是螺丝钉，只要自己有产出符合预期完成KPI就是一个合格的架构师；但是，创业公司的架构师要考虑更多的因素，从最初的技术方案到设计，实现，最终的落地执行都需要全程参与确保每一个功能真正落实到位</p>
 ]]></content>
       <tags>
-        <tag>微服务</tag>
+        <tag>线上问题</tag>
       </tags>
   </entry>
   <entry>
@@ -1532,6 +1431,52 @@
       </tags>
   </entry>
   <entry>
+    <title>服务化准备工作</title>
+    <url>/2018/06/18/Parepare-Service/</url>
+    <content><![CDATA[<p>在决定进行服务化时，我们做了一些必要的准备工作；从服务治理，链路跟踪，监控以及报警方面到代码层面，运维，流程等多个方面做了相应的调整</p>
+<span id="more"></span>
+<h2 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h2><p>我们的服务化是在dubbo的基础上进行的，首先适配了服务化需要的相关组件，包括配置中心，链路跟踪，监控，服务治理等，整体架构如图所示 </p>
+<p><img src="/2018/06/18/Parepare-Service/arch.jpg" alt="架构图"></p>
+<ul>
+<li>配置中心: Apollo </li>
+<li>链路跟踪: Zipkin, Kafka, ES</li>
+<li>服务治理: dubbo官方的dubbo-admin</li>
+<li>服务监控: dubbo官方的dubbo-monitor</li>
+</ul>
+<h2 id="准备工作"><a href="#准备工作" class="headerlink" title="准备工作"></a>准备工作</h2><h3 id="服务化SDK"><a href="#服务化SDK" class="headerlink" title="服务化SDK"></a>服务化SDK</h3><p>我们提供了服务化SDK给业务团队使用；SDK自定义了xsd文件继承了dubbo的xml标签，在此基础上集成了apollo配置；这样业务团队在使用的过程中对一些系统配置不需要关注，比如注册中心，启用监控，启用链路跟踪等 .</p>
+<h3 id="代码改造"><a href="#代码改造" class="headerlink" title="代码改造"></a>代码改造</h3><ol>
+<li><p>分离Service的API接口到独立的Jar包</p>
+</li>
+<li><p>检查接口的输入输出参数是否实现了Serializable接口</p>
+</li>
+<li><p>是否使用了接口参数在方法内部修改后的值，代码如下:</p>
+  <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"><span class="comment">/*服务端*/</span></span><br><span class="line"><span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">call</span><span class="params">(List&lt;String&gt; list)</span>&#123;</span><br><span class="line">        list.add(<span class="string">&quot;b&quot;</span>);</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*客户端*/</span> </span><br><span class="line">List&lt;String&gt; list = <span class="keyword">new</span> <span class="title class_">ArrayList</span>();</span><br><span class="line">service.call(list);</span><br><span class="line">list.get(<span class="number">0</span>)</span><br></pre></td></tr></table></figure>
+
+<p> 这个代码在同一个JVM是没有问题，但RPC调用并不能返还预期的结果；</p>
+</li>
+<li><p>本地事务改造为分布式事务</p>
+</li>
+<li><p>确保所有的单元测试通过</p>
+</li>
+</ol>
+<h3 id="日志输出增加链路跟踪信息"><a href="#日志输出增加链路跟踪信息" class="headerlink" title="日志输出增加链路跟踪信息"></a>日志输出增加链路跟踪信息</h3><p>每条输出日志包括了zipkin的span id,这样每条日志都能清楚的跟踪到从整个调用链；</p>
+<h3 id="监控系统"><a href="#监控系统" class="headerlink" title="监控系统"></a>监控系统</h3><p>dubbo-monitor对接现有的报警系统，将采集到监控数据上报到现有报警系统,做到实时报警 </p>
+<h3 id="发布系统"><a href="#发布系统" class="headerlink" title="发布系统"></a>发布系统</h3><p>dubbo的服务在正常停止的过程中不再接受新的请求,但是启动后在注册中心完成注册马上开始接受新的请求；我们希望启动后由发布系统控制什么时候开始接受新请求；</p>
+<h3 id="版本控制"><a href="#版本控制" class="headerlink" title="版本控制"></a>版本控制</h3><p>服务化后对所有的依赖必须基于强版本，所以对每一个发布的服务都提供了强版本策略，而且正常情况下保证每个新版本必须兼容旧版本；版本路线如图所示:<br><img src="/2018/06/18/Parepare-Service/version.jpg" alt="版本"></p>
+<h3 id="流程控制"><a href="#流程控制" class="headerlink" title="流程控制"></a>流程控制</h3><p>  改造现有的流程控制系统，做到每个团队可以独立开发，独立测试，独立部署，独立上线以及独立回滚; 而且保证CI, CD能正常工作,所有流程能自动完成; </p>
+<h3 id="服务拆分"><a href="#服务拆分" class="headerlink" title="服务拆分"></a>服务拆分</h3><p>首先拆分出基础服务,包括地址服务，推送服务，图片服务，等与业务无关的服务；其次按照业务领域进行拆分，包括订单，用户中心，支付等</p>
+<h2 id="后续"><a href="#后续" class="headerlink" title="后续"></a>后续</h2><ul>
+<li>服务安全</li>
+<li>物理分组 </li>
+<li>多维度监控</li>
+<li>等…</li>
+</ul>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>分布式调度系统选型</title>
     <url>/2019/03/30/Schedule-Job/</url>
     <content><![CDATA[<h4 id="为什么需要调度系统"><a href="#为什么需要调度系统" class="headerlink" title="为什么需要调度系统"></a>为什么需要调度系统</h4><p>我们可能有这样的需求:</p>
@@ -1710,6 +1655,45 @@
       </tags>
   </entry>
   <entry>
+    <title>服务化多项目测试环境隔离</title>
+    <url>/2019/02/13/Multi-Project-Test-Env/</url>
+    <content><![CDATA[<p>单体应用依赖比较少，大部分情况我们只需要启动一个应用就可以开始测试工作。架构升级到服务化后，每个应用依赖比较多，任何一个依赖有问题都会影响测试结果；如果服务化环境中多项目并行测试，测试效率会更差 。 <span id="more"></span> 为此，我们给出服务化多项目并行测试方案。</p>
+<h3 id="版本号隔离"><a href="#版本号隔离" class="headerlink" title="版本号隔离"></a>版本号隔离</h3><p>首先能想到的方法就是利用版本号的特征「类dubb的RPC框架都有版本号属性」，对不同的项目给出不同的版本号; 比如有如下调用关系:</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Client -&gt; SA  </span><br></pre></td></tr></table></figure>
+<p>在启动SA的时候对不同的项目指定不同的版本号,Client在调用SA的时候根据不同的项目指定与SA相匹配的版本号.</p>
+<ul>
+<li>优点: 简单，无需额外开发，类dubbo的RPC框架都支持</li>
+</ul>
+<h3 id="多项目开发测试现状"><a href="#多项目开发测试现状" class="headerlink" title="多项目开发测试现状"></a>多项目开发测试现状</h3><p>实际项目中的调用关系： </p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Client -&gt; SA -&gt; SB -&gt; SC -&gt; SD</span><br></pre></td></tr></table></figure>
+<p>有两个项目在并行开发：</p>
+<ul>
+<li>project1「以下简称P1」代码变更部分是SA, SC</li>
+<li>project2「以下简称P2」代码变更部分是SB, SD</li>
+</ul>
+<p>如果我们采用「版本号隔离」方案; 对于P1, 不但需要部署SA和SC，还需要部署Client和SB，因为Client调用SA，SB调用SC的<strong>版本号分别指向新部署的SA和SC</strong> 。P2也需要类似的部署方法；这样我们发现，几乎所有的服务在每个项目中都需要部署一套；造成资源大量浪费，显然不现实。 因此，我们有了下面的方案「动态路由」 。</p>
+<h3 id="动态路由"><a href="#动态路由" class="headerlink" title="动态路由"></a>动态路由</h3><p>动态路由的思路是环境分<strong>一套稳定环境和每个项目对应一套项目测试环境,其中稳定环境包括所有的服务，项目测试环境仅包括该项目代码变更部分的服务</strong>,各个环境的所有服务采用同一注册中心；方案如下图所示 </p>
+<p><img src="/2019/02/13/Multi-Project-Test-Env/multi-test-env.png" alt="服务化多项目测试环境"></p>
+<ul>
+<li>稳定环境: 部署所有的服务，保证稳定环境作为完整的系统；可以利用CI&#x2F;CD每日从Master拉稳定版本的代码完成自动部署</li>
+<li>P1: project1测试环境，仅部署有代码变更的SA1和SC1 </li>
+<li>P2: project2测试环境，仅部署有代码变更的SB2和SD2</li>
+<li>路由策略： Client发起调用的时候携带该调用链路所有测试环境的路由规则，如果没有指定路由规则请求默认环境的服务</li>
+</ul>
+<h5 id="实现要点"><a href="#实现要点" class="headerlink" title="实现要点"></a>实现要点</h5><ul>
+<li>每个服务启动时候在注册中心注册服务所在节点测试环境类型(P1，P2或者默认环境)，默认情况注册为默认环境 </li>
+<li>自定义loadbalance，根据路由规则将RPC请求路由到指定节点上</li>
+<li>每次RPC调用将该调用链路的路由规则隐士传递到下层服务</li>
+<li>每个测试环境需要一个独立的入口，以WEB项目为例可以将nginx作为入口，路由规则可以配置在nginx的配置文件中</li>
+<li>对接发布系统，有变更的服务发布到测试环境时候，该测试环境的路由规则自动写入测试环境的入口配置文件</li>
+</ul>
+]]></content>
+      <tags>
+        <tag>技术方案</tag>
+        <tag>微服务</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Session Memcached集群迁移至Redis集群</title>
     <url>/2022/10/22/Session-Memcached-To-Redis/</url>
     <content><![CDATA[<h3 id="项目背景"><a href="#项目背景" class="headerlink" title="项目背景"></a>项目背景</h3><p>随着业务的快速发展，我们原有的 <code>session</code> 存储方案  <code>Memcached</code>  逐渐显露出一些瓶颈，主要体现在以下几个方面。：</p>
@@ -1823,6 +1807,32 @@
       </tags>
   </entry>
   <entry>
+    <title>技术给业务赋能</title>
+    <url>/2019/04/27/Tech-VS-Biz/</url>
+    <content><![CDATA[<p>技术人员在技术选型的时候如何做好技术与业务的平衡，如何推广技术方案，甚至与产品人员沟通改变某些功能的实现方式，这些问题值得每一个技术人员思考。我们不管采用什么技术方案，最终目的是为了帮助业务发展，使公司在商业上获取回报。如果技术人员能有一些产品和运营的思维，对整个业务的发展会起到更好的效果。<span id="more"></span></p>
+<h3 id="技术选型"><a href="#技术选型" class="headerlink" title="技术选型"></a>技术选型</h3><p>技术选型我们要考虑很多因素：产品所处的阶段，技术栈，当前的技术实力，技术债务，时间,等… 。特别是产品的不同阶段其目标也不同：</p>
+<ol>
+<li><p>初创阶段：这个阶段重点考虑两个方面：</p>
+<ul>
+<li>1.1 <strong>快</strong>：这个时候重点是<strong>快速上线</strong>，快速验证。同时，技术人员应该注意到有些需求产品人员没有提出来，但以后肯定有这个需求，只是当前优先级比较低。所以技术人员应该考虑到这些需求对现有方案可能存在的影响；如果是举手之劳的事情就顺便实现，至少在设计表结构时应该考虑到。可能有人会说该阶段到底哪些需求应该考虑，哪些不应该考虑；我个人的想法是支撑半年内业务的发展不需要重构为目标。所以在出方案前一定要跟产品，运营等业务方充分沟通拿到所有的数据，比如：半年后PV到多少，单量是多少等业务数据，以此为目标。</li>
+<li>1.2 <strong>可维护性</strong>：产品第一版上线后，会持续迭代和bug修复；从可维护性的角度应该考虑这几点：<ul>
+<li>当前团队有相应的技术储备</li>
+<li>业界有大量的工程师正在使用的技术</li>
+<li>如果是开源项目,其社区足够庞大，如果是商业项目需要有充分的技术支持</li>
+<li>一定是让团队内部最资深的工程师开始写第一行代码，因为所有的项目在重构前，代码一定会越写越烂</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>成长阶段 ：这个阶段产品的商业模式已经被验证过，产品正在为大量的用户提供服务，而且业务正在快速发展中，此时的技术方案以不影响现有业务为前提，或者说将影响降到最低，就是行业内所说的<strong>给飞行中的飞机换引擎</strong> 。 个人认为此阶段的技术方案应该重点考虑<strong>可落地</strong> ,一般这个阶段团队也会扩大，同时会引入一些外部人才。这个时候会出现一些新的思想，新的方案，此时要特别注意这些方案是不是立足于本团队的实际情况。特别一些大厂背景的工程师，可能会给出一些高大上的方案，但是各项成本可能非常高。即便是一些规模相当友商团队的工程师过来给出的方案也不一定能马上落地，因为没有一家企业的流程，制度，文化跟另一家企业是完全一样的，技术方案本质是用技术的手段解决业务的问题，流程的问题，质量的问题，效率的问题，成本的问题。</p>
+</li>
+</ol>
+<h3 id="技术方案推广"><a href="#技术方案推广" class="headerlink" title="技术方案推广"></a>技术方案推广</h3><p>有人说一个技术方案的效果只有在实施后才能知道，我个人认为一个技术方案如果推广成本太高一定不是一个好的方案。在出方案时候就应该考虑到如何去推广，一般情况下开发团队时间很紧迫，不可能为了一个技术改造耽误太多时间。我个人的做法是在出方案前跟相关团队沟通清楚当前面对的问题，以及各个团队的诉求。根据具体的问题给出适合的方案，接下来跟自己的领导沟通方案以及部分细节，确保能得到领导的支持「这点非常重要」；再准备方案，包括但不限于相应的文档，代码，工具，流程等；在正式推广之前，召集所有团队相关负责人「甚至所有技术人员」宣讲，主要包括几个方面：面对的问题，应对方案，如何实施，相关团队如何配合与执行，达到的效果，deadline 。特别是团队配合与执行部分给出详细的执行步骤，以及常见的QA。要站在执行团队的立场上考虑问题，让执行团队充分意识到，采用了新方案后可以提升效率，提升质量或者节省成本，等；可能经过多次沟通后仍有部分团队不能配合执行，此时只能将问题上升到更高一层管理者来协调 。技术方案的实施要充分权衡成本与业务的影响，比如一个案例：业务方要求实施方案不允许停机，然而跟业务方沟通告知不停机的成本太高，最终选择了凌晨业务低峰时期停机20分钟来完成，实际实施的过程中真正停机的时间只有5分钟；然而，该时间段对业务的影响也非常低，因此最终的方案都是权衡各方的利益后博弈的结果。方案实施后要监控各项指标，查看各项指标是否符合预期，如果没有达到预期目标，一定要找到根本原因是方案本身的问题，还是执行过程的问题，避免相同的问题再次出现。</p>
+<h3 id="与产品人员沟通"><a href="#与产品人员沟通" class="headerlink" title="与产品人员沟通"></a>与产品人员沟通</h3><p>我们经常看到一些关于产品人员和技术人员相爱相杀的段子，我认为现实中这样的例子并不多「也许我经历少」。技术人员拿到PRD后要仔细分析PRD背后的逻辑和诉求，有些看似简单需求背后可能需要复杂的技术支撑，不是每一个产品人员都有技术背景，此时需要技术人员跟产品人员充分沟通该需求的实现成本「理论上来说所有的需求都是可以实现的」，帮助产品人员梳理出重点和优先级，适当的时候可以减少需求或者改变产品逻辑。切忌一句“这是一个伪需求”或“这个需求实现不了” ；如果认为是伪需求请给出具体的数据，一切以数据为依据 ，即使实现不了也应该告知当前的困难，是资源问题，还是时间的问题等。如果多次沟通都没效果建议换个产品人员伺候，如果你没有选择的余地或者你认为公司都是这种产品人员，建议还是换工作吧。</p>
+<h3 id="一些思考"><a href="#一些思考" class="headerlink" title="一些思考"></a>一些思考</h3><p>技术的世界比较简单，确定的输入一定可以得到确定的输出，然而，我们的世界并不总是这样，有很多东西是没有绝对的对错之分。技术人员可以经常与非技术人员聊聊，听听他们看问题的角度，听听他们的诉求；也许这样可以让技术更好的帮助业务成长。</p>
+]]></content>
+  </entry>
+  <entry>
     <title>Sharding-JDBC(ShardingSphere)SQL监控实践</title>
     <url>/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</url>
     <content><![CDATA[<p>最近我们进行了一个项目的重构，其中一个重要目标是减少数据库访问的负载。由于核心数据库被多个应用程序访问，并且数据库服务器只能对整体数据库流量进行监控，我们需要在应用程序端监控不同应用程序的SQL请求，并将其与现有的指标集成在一起<span id="more"></span>。</p>
@@ -1872,420 +1882,6 @@
 <h5 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h5><ul>
 <li>详细代码： <a href="https://github.com/yinghuzhu/ydal-spring-boot-starter">https://github.com/yinghuzhu/ydal-spring-boot-starter</a></li>
 </ul>
-]]></content>
-      <tags>
-        <tag>分布式</tag>
-        <tag>微服务</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>技术给业务赋能</title>
-    <url>/2019/04/27/Tech-VS-Biz/</url>
-    <content><![CDATA[<p>技术人员在技术选型的时候如何做好技术与业务的平衡，如何推广技术方案，甚至与产品人员沟通改变某些功能的实现方式，这些问题值得每一个技术人员思考。我们不管采用什么技术方案，最终目的是为了帮助业务发展，使公司在商业上获取回报。如果技术人员能有一些产品和运营的思维，对整个业务的发展会起到更好的效果。<span id="more"></span></p>
-<h3 id="技术选型"><a href="#技术选型" class="headerlink" title="技术选型"></a>技术选型</h3><p>技术选型我们要考虑很多因素：产品所处的阶段，技术栈，当前的技术实力，技术债务，时间,等… 。特别是产品的不同阶段其目标也不同：</p>
-<ol>
-<li><p>初创阶段：这个阶段重点考虑两个方面：</p>
-<ul>
-<li>1.1 <strong>快</strong>：这个时候重点是<strong>快速上线</strong>，快速验证。同时，技术人员应该注意到有些需求产品人员没有提出来，但以后肯定有这个需求，只是当前优先级比较低。所以技术人员应该考虑到这些需求对现有方案可能存在的影响；如果是举手之劳的事情就顺便实现，至少在设计表结构时应该考虑到。可能有人会说该阶段到底哪些需求应该考虑，哪些不应该考虑；我个人的想法是支撑半年内业务的发展不需要重构为目标。所以在出方案前一定要跟产品，运营等业务方充分沟通拿到所有的数据，比如：半年后PV到多少，单量是多少等业务数据，以此为目标。</li>
-<li>1.2 <strong>可维护性</strong>：产品第一版上线后，会持续迭代和bug修复；从可维护性的角度应该考虑这几点：<ul>
-<li>当前团队有相应的技术储备</li>
-<li>业界有大量的工程师正在使用的技术</li>
-<li>如果是开源项目,其社区足够庞大，如果是商业项目需要有充分的技术支持</li>
-<li>一定是让团队内部最资深的工程师开始写第一行代码，因为所有的项目在重构前，代码一定会越写越烂</li>
-</ul>
-</li>
-</ul>
-</li>
-<li><p>成长阶段 ：这个阶段产品的商业模式已经被验证过，产品正在为大量的用户提供服务，而且业务正在快速发展中，此时的技术方案以不影响现有业务为前提，或者说将影响降到最低，就是行业内所说的<strong>给飞行中的飞机换引擎</strong> 。 个人认为此阶段的技术方案应该重点考虑<strong>可落地</strong> ,一般这个阶段团队也会扩大，同时会引入一些外部人才。这个时候会出现一些新的思想，新的方案，此时要特别注意这些方案是不是立足于本团队的实际情况。特别一些大厂背景的工程师，可能会给出一些高大上的方案，但是各项成本可能非常高。即便是一些规模相当友商团队的工程师过来给出的方案也不一定能马上落地，因为没有一家企业的流程，制度，文化跟另一家企业是完全一样的，技术方案本质是用技术的手段解决业务的问题，流程的问题，质量的问题，效率的问题，成本的问题。</p>
-</li>
-</ol>
-<h3 id="技术方案推广"><a href="#技术方案推广" class="headerlink" title="技术方案推广"></a>技术方案推广</h3><p>有人说一个技术方案的效果只有在实施后才能知道，我个人认为一个技术方案如果推广成本太高一定不是一个好的方案。在出方案时候就应该考虑到如何去推广，一般情况下开发团队时间很紧迫，不可能为了一个技术改造耽误太多时间。我个人的做法是在出方案前跟相关团队沟通清楚当前面对的问题，以及各个团队的诉求。根据具体的问题给出适合的方案，接下来跟自己的领导沟通方案以及部分细节，确保能得到领导的支持「这点非常重要」；再准备方案，包括但不限于相应的文档，代码，工具，流程等；在正式推广之前，召集所有团队相关负责人「甚至所有技术人员」宣讲，主要包括几个方面：面对的问题，应对方案，如何实施，相关团队如何配合与执行，达到的效果，deadline 。特别是团队配合与执行部分给出详细的执行步骤，以及常见的QA。要站在执行团队的立场上考虑问题，让执行团队充分意识到，采用了新方案后可以提升效率，提升质量或者节省成本，等；可能经过多次沟通后仍有部分团队不能配合执行，此时只能将问题上升到更高一层管理者来协调 。技术方案的实施要充分权衡成本与业务的影响，比如一个案例：业务方要求实施方案不允许停机，然而跟业务方沟通告知不停机的成本太高，最终选择了凌晨业务低峰时期停机20分钟来完成，实际实施的过程中真正停机的时间只有5分钟；然而，该时间段对业务的影响也非常低，因此最终的方案都是权衡各方的利益后博弈的结果。方案实施后要监控各项指标，查看各项指标是否符合预期，如果没有达到预期目标，一定要找到根本原因是方案本身的问题，还是执行过程的问题，避免相同的问题再次出现。</p>
-<h3 id="与产品人员沟通"><a href="#与产品人员沟通" class="headerlink" title="与产品人员沟通"></a>与产品人员沟通</h3><p>我们经常看到一些关于产品人员和技术人员相爱相杀的段子，我认为现实中这样的例子并不多「也许我经历少」。技术人员拿到PRD后要仔细分析PRD背后的逻辑和诉求，有些看似简单需求背后可能需要复杂的技术支撑，不是每一个产品人员都有技术背景，此时需要技术人员跟产品人员充分沟通该需求的实现成本「理论上来说所有的需求都是可以实现的」，帮助产品人员梳理出重点和优先级，适当的时候可以减少需求或者改变产品逻辑。切忌一句“这是一个伪需求”或“这个需求实现不了” ；如果认为是伪需求请给出具体的数据，一切以数据为依据 ，即使实现不了也应该告知当前的困难，是资源问题，还是时间的问题等。如果多次沟通都没效果建议换个产品人员伺候，如果你没有选择的余地或者你认为公司都是这种产品人员，建议还是换工作吧。</p>
-<h3 id="一些思考"><a href="#一些思考" class="headerlink" title="一些思考"></a>一些思考</h3><p>技术的世界比较简单，确定的输入一定可以得到确定的输出，然而，我们的世界并不总是这样，有很多东西是没有绝对的对错之分。技术人员可以经常与非技术人员聊聊，听听他们看问题的角度，听听他们的诉求；也许这样可以让技术更好的帮助业务成长。</p>
-]]></content>
-  </entry>
-  <entry>
-    <title>跨境电商用户标签系统架构设计</title>
-    <url>/2023/12/10/User-Tag/</url>
-    <content><![CDATA[<h3 id="一、项目背景与业务价值"><a href="#一、项目背景与业务价值" class="headerlink" title="一、项目背景与业务价值"></a>一、项目背景与业务价值</h3><p>在竞争激烈的跨境电商领域，用户体验和精细化运营至关重要。为了实现<strong>精准营销、动态定价和运营分析</strong>等关键业务场景，我们需要更及时、更准确地理解用户行为<span id="more"></span>。</p>
-<p>然而，传统用户标签系统依赖离线计算，数据更新频率为<strong>每日一次</strong>，实时性不足，无法满足业务快速响应用户行为变化的需求。例如，<strong>新用户下单后无法立即享受老用户折扣</strong>，<strong>个性化推荐也存在滞后性</strong>。</p>
-<p>为了解决这些痛点，我们启动了<strong>实时用户标签系统</strong>项目，旨在构建一套<strong>高性能、低延迟、可扩展</strong>的用户标签基础设施，实现用户行为的<strong>实时采集、计算和应用</strong>，为业务增长提供有力的数据支撑。</p>
-<p>系统上线后，成功支撑<strong>日均三千万级</strong>用户行为数据处理，<strong>标签更新延迟控制在500ms内</strong>，为以下关键业务场景提供了有力支持：</p>
-<ul>
-<li><strong>精准营销</strong>：基于用户标签实现<strong>千人千面</strong>的商品推荐，提升点击率和转化率。</li>
-<li><strong>动态定价</strong>：根据用户标签（如新老用户）实施<strong>差异化价格策略</strong>，提升用户粘性和复购率。</li>
-<li><strong>运营分析</strong>：通过用户行为标签进行<strong>用户行为洞察和转化率优化</strong>，指导运营策略调整。</li>
-</ul>
-<h3 id="二、架构设计全景图"><a href="#二、架构设计全景图" class="headerlink" title="二、架构设计全景图"></a>二、架构设计全景图</h3><h4 id="1-整体架构"><a href="#1-整体架构" class="headerlink" title="1. 整体架构"></a>1. 整体架构</h4><pre class="mermaid">graph TD
-    AAW[App/Web] -->|HTTP上报| A[区域A数据采集系统]
-    ABK[后端系统] -->|SDK上报| A
-    BAW[App/Web] -->|HTT上报| B[区域B数据采集系统]
-    BBK[后端系统] -->|SDK上报| B
-    A -->|MQ| C[标签计算系统]
-    B -->|MQ| C
-    C --> Da[区域A数据库集群: MongoDB+MySQL+Redis]
-    C --> Db[区域B数据库集群: MySQL+Redis]
-    Ea[标签查询] --> Da
-    Fa[用户系统]-->Ea
-    Ga[订单系统]-->Ea
-    Ia[营销系统]-->Ea
-    Ha[其它...系统]-->Ea
-    Eb[标签查询] --> Db
-    Fb[用户系统]-->Eb
-    Gb[订单系统]-->Eb
-    Ib[营销系统]-->Eb
-    Hb[其它...系统]-->Eb</pre>
-
-
-<p><strong>数据流:</strong>  <code>App/Web/后端系统</code> → <code>HTTP/SDK上报</code> → <code>区域采集系统</code> → <code>RabbitMQ</code> → <code>标签计算系统</code> → <code>MongoDB/MySQL/Redis</code></p>
-<p><strong>分层架构:</strong></p>
-<ul>
-<li><strong>数据采集层</strong>：采用 <strong>Nginx+SpringCloud</strong> 技术栈，<strong>双区域独立部署</strong> (区域A和区域B数据采集系统)，支持 <strong>App&#x2F;Web&#x2F;API 多端统一接入</strong>。具备 <strong>高并发 HTTP 接入</strong> 能力和 <strong>区域路由</strong> 功能，确保数据就近接入，降低网络延迟。</li>
-<li><strong>消息中间件</strong>：复用现有 <strong>RabbitMQ 集群</strong>，降低运维成本。RabbitMQ 承担 <strong>数据缓冲和异步解耦</strong> 的作用，保障数据采集层和计算层之间的稳定通信。</li>
-<li><strong>计算存储层</strong>：<ul>
-<li><strong>标签计算系统</strong>：基于 <strong>Spring</strong> 构建，采用 <strong>轻量级规则引擎</strong> 框架，易于扩展和维护。</li>
-<li><strong>规则管理</strong>：<strong>MySQL</strong> 存储标签规则，实现 <strong>规则版本控制和回滚</strong>，方便规则迭代和管理。</li>
-<li><strong>标签存储</strong>：采用 <strong>MySQL+Redis</strong> 组合，<strong>MySQL</strong> 持久化存储标签规则与计算结果，<strong>Redis</strong> 提供 <strong>实时查询能力</strong>，支撑高并发的标签查询请求。</li>
-</ul>
-</li>
-</ul>
-<h4 id="2-核心组件设计"><a href="#2-核心组件设计" class="headerlink" title="2. 核心组件设计"></a>2. 核心组件设计</h4><table>
-<thead>
-<tr>
-<th>模块</th>
-<th>技术选型</th>
-<th>设计要点</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>数据采集</td>
-<td>Nginx+SpringCloud</td>
-<td>高并发HTTP接入，区域路由</td>
-</tr>
-<tr>
-<td>消息队列</td>
-<td>RabbitMQ集群</td>
-<td>消息持久化，自动故障转移</td>
-</tr>
-<tr>
-<td>标签计算</td>
-<td>Spring</td>
-<td>轻量级规则引擎，易于扩展</td>
-</tr>
-<tr>
-<td>规则管理</td>
-<td>MySQL</td>
-<td>规则版本控制，支持回滚</td>
-</tr>
-<tr>
-<td>标签存储</td>
-<td>MySQL+Redis</td>
-<td>冷热数据分离存储策略</td>
-</tr>
-<tr>
-<td>用户行为存储</td>
-<td>MongoDB</td>
-<td>用户行为持久化</td>
-</tr>
-</tbody></table>
-<h3 id="三、核心设计决策"><a href="#三、核心设计决策" class="headerlink" title="三、核心设计决策"></a>三、核心设计决策</h3><h4 id="1-数据采集方案"><a href="#1-数据采集方案" class="headerlink" title="1. 数据采集方案"></a>1. 数据采集方案</h4><ul>
-<li><strong>多端统一接入</strong>：定义标准 <strong>HTTP 上报协议</strong>，统一 <code>App/Web/API</code> 多端数据接入方式，降低接入成本。</li>
-<li><strong>区域路由策略</strong>：基于 <strong>用户标识自动路由</strong> 到相应区域采集节点，提升数据上报效率，降低网络延迟。</li>
-<li><strong>数据校验机制</strong>：<ul>
-<li><strong>上报数据格式校验</strong>：在采集层进行数据格式校验，过滤无效数据。</li>
-<li><strong>去重处理</strong>：对重复上报数据进行 <strong>去重处理</strong>，保障数据质量，避免重复计算。</li>
-</ul>
-</li>
-</ul>
-<h4 id="2-消息中间件选型"><a href="#2-消息中间件选型" class="headerlink" title="2. 消息中间件选型"></a>2. 消息中间件选型</h4><table>
-<thead>
-<tr>
-<th>对比维度</th>
-<th>RabbitMQ优势</th>
-<th>设计考量点</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>运维成本</td>
-<td>复用现有集群</td>
-<td><strong>无需额外运维投入</strong></td>
-</tr>
-<tr>
-<td>可靠性</td>
-<td>消息持久化+ACK机制</td>
-<td><strong>数据零丢失保障</strong></td>
-</tr>
-<tr>
-<td>扩展性</td>
-<td>集群模式支持水平扩展</td>
-<td><strong>满足未来增长需求</strong></td>
-</tr>
-</tbody></table>
-<p><strong>选型分析:</strong>  综合考虑 <strong>运维成本、可靠性和扩展性</strong> 等因素，<strong>复用现有 RabbitMQ 集群</strong> 是最优选择。RabbitMQ 集群具备良好的 <strong>消息持久化、ACK 机制和水平扩展能力</strong>，能够满足实时用户标签系统对消息队列的需求。</p>
-<h4 id="3-计算存储架构"><a href="#3-计算存储架构" class="headerlink" title="3. 计算存储架构"></a>3. 计算存储架构</h4><table>
-<thead>
-<tr>
-<th>数据类型</th>
-<th>存储方案</th>
-<th>设计考量点</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>上报日志</td>
-<td>MongoDB分片集群</td>
-<td><strong>高吞吐写入，灵活 Schema</strong>，支持海量用户行为日志存储</td>
-</tr>
-<tr>
-<td>标签规则</td>
-<td>MySQL</td>
-<td><strong>事务支持，版本管理</strong>，保障规则数据一致性和可维护性</td>
-</tr>
-<tr>
-<td>标签结果</td>
-<td>MySQL+Redis</td>
-<td><strong>实时查询与持久化存储</strong>，兼顾实时查询性能和数据可靠性</td>
-</tr>
-</tbody></table>
-<p><strong>存储选型:</strong></p>
-<ul>
-<li><strong>MongoDB 分片集群</strong>：适用于存储 <strong>海量、Schema 灵活</strong> 的用户行为日志数据，满足高吞吐写入需求。</li>
-<li><strong>MySQL</strong>：适用于存储 <strong>结构化</strong> 的标签规则和标签结果数据，提供 <strong>事务支持和数据一致性</strong> 保障。</li>
-<li><strong>Redis</strong>：适用于缓存 <strong>热点标签数据</strong>，利用其 <strong>高性能内存数据库</strong> 特性，提升标签查询效率。</li>
-</ul>
-<h3 id="四、性能优化实践"><a href="#四、性能优化实践" class="headerlink" title="四、性能优化实践"></a>四、性能优化实践</h3><h4 id="1-采集层优化"><a href="#1-采集层优化" class="headerlink" title="1. 采集层优化"></a>1. 采集层优化</h4><ul>
-<li><strong>负载均衡</strong>：采用 <strong>Nginx 轮询 + 权重分配</strong> 策略，实现采集层负载均衡，<strong>单节点支持 10k QPS</strong> 高并发接入。</li>
-<li><strong>异步处理</strong>：数据上报请求 <strong>异步化处理</strong>，降低请求响应时间，<strong>响应时间 &lt;50ms</strong>。</li>
-<li><strong>数据压缩</strong>：采用 <strong>Gzip 压缩</strong> 技术，对上报数据进行压缩，<strong>降低 70% 网络传输量</strong>，提升传输效率。</li>
-</ul>
-<h4 id="2-容灾方案设计"><a href="#2-容灾方案设计" class="headerlink" title="2. 容灾方案设计"></a>2. 容灾方案设计</h4><ul>
-<li><strong>消息重试</strong>：RabbitMQ 启用 <strong>死信队列</strong>，处理标签计算失败消息，保障数据可靠性。</li>
-<li><strong>数据备份</strong>：MySQL 数据库进行 <strong>每日全量备份 + 增量备份</strong>，防止数据丢失。</li>
-<li><strong>故障切换</strong>：Redis 采用 <strong>主从模式</strong> 部署，实现 <strong>主从自动切换</strong>，<strong>切换时间 &lt;30s</strong>，保障缓存服务高可用。</li>
-</ul>
-<h3 id="五、标签体系设计"><a href="#五、标签体系设计" class="headerlink" title="五、标签体系设计"></a>五、标签体系设计</h3><h4 id="1-标签分类模型"><a href="#1-标签分类模型" class="headerlink" title="1. 标签分类模型"></a>1. 标签分类模型</h4><pre class="mermaid">graph TD
-    A[用户标签] --> B(基础标签)
-    A --> C(行为标签)
-    B --> D[用户属性]
-    B --> E[设备信息]
-    C --> F[购买行为]
-    C --> G[浏览偏好]</pre>
-
-<ul>
-<li><strong>基础标签</strong>：描述用户的<strong>静态属性</strong>，例如：用户属性（年龄、地域）、设备信息（设备类型、操作系统）。<strong>更新机制为批量每日更新</strong>。</li>
-<li><strong>行为标签</strong>：描述用户的<strong>动态行为</strong>，例如：购买行为（购买商品、订单金额）、浏览偏好（浏览商品类目、浏览时长）。<strong>更新机制为事件驱动实时更新</strong>。</li>
-</ul>
-<h4 id="2-典型场景实现：新用户转老用户逻辑"><a href="#2-典型场景实现：新用户转老用户逻辑" class="headerlink" title="2. 典型场景实现：新用户转老用户逻辑"></a>2. 典型场景实现：新用户转老用户逻辑</h4><p>以 <strong>新用户转老用户</strong> 标签更新场景为例，说明实时标签系统的应用流程：</p>
-<ol>
-<li><strong>监听下单事件</strong>：系统 <strong>实时监听</strong> 订单系统产生的下单事件。</li>
-<li><strong>校验历史订单数</strong>：标签计算系统接收到下单事件后，<strong>校验用户近一年内历史订单数是否为 1</strong>。</li>
-<li><strong>触发标签状态变更</strong>：若校验通过，则 <strong>触发用户标签状态变更</strong>，将用户标签从 “新用户” 更新为 “老用户”。</li>
-<li><strong>推送价格策略</strong>：标签计算系统将 <strong>新的用户标签推送至商品服务</strong>。商品服务 <strong>实时更新价格策略</strong>，使用户在 <strong>&lt;500ms 内</strong> 看到商品价格折扣。</li>
-</ol>
-<h3 id="六、总结与展望"><a href="#六、总结与展望" class="headerlink" title="六、总结与展望"></a>六、总结与展望</h3><p>实时用户标签系统的成功上线，显著提升了用户标签的<strong>实时性</strong>和<strong>应用效率</strong>，为业务的<strong>精细化运营</strong>提供了强有力的数据支撑。项目在<strong>高性能、高可靠、可扩展</strong>等方面做了深入设计和优化，为后续的迭代升级奠定了坚实基础。</p>
-<p>未来，我们将继续在以下方面进行探索和优化：</p>
-<ul>
-<li><strong>更智能的告警</strong>：引入 <strong>异常检测</strong> 等智能告警策略，提升问题发现和处理效率。</li>
-<li><strong>更丰富的标签类型</strong>：扩展 <strong>用户兴趣标签、用户偏好标签</strong> 等，构建更全面的用户画像。</li>
-<li><strong>更灵活的规则引擎</strong>：实现更负载的标签计算逻辑，提升系统灵活性。</li>
-</ul>
-<p>随着实时用户标签系统的不断完善，将为业务带来更大的价值，持续驱动业务增长。</p>
-]]></content>
-      <tags>
-        <tag>技术方案</tag>
-        <tag>分布式</tag>
-        <tag>微服务</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Dify 源码改造：自定义品牌实践</title>
-    <url>/2025/09/20/dify-custom-brand/</url>
-    <content><![CDATA[<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>Dify 是一款开源的大语言模型（LLM）应用开发平台，凭借其灵活的插件机制和可视化编排能力，成为企业构建 AI 应用的热门选择。我们希望通过品牌(以品牌 <code>YZHU</code> 为例)定制让 Dify 平台融入其企业形象，强化用户对品牌的认知。<span id="more"></span></p>
-<p>本次变更聚焦于品牌定制，覆盖前端界面（标题、Logo）和嵌入式脚本（交互图标），形成了一套完整的品牌替换流程。这种场景在开源项目二次开发中非常常见：企业需要通过品牌替换和配置调整，让工具更贴合业务需求。本文记录了此次变更的实践细节，希望为其他开发者提供可复用的参考模板。</p>
-<h2 id="核心变更的技术细节"><a href="#核心变更的技术细节" class="headerlink" title="核心变更的技术细节"></a>核心变更的技术细节</h2><p>本次变更涉及 <strong>前端资源</strong> 和 <strong>嵌入式脚本</strong> 两个模块，围绕品牌定制目标展开。以下从技术视角逐一解析关键修改点。</p>
-<h3 id="前端资源"><a href="#前端资源" class="headerlink" title="前端资源"></a>前端资源</h3><p>前端资源是品牌定制的核心，目标是将 “Dify” 品牌替换为 “YZHU”，并优化视觉和无障碍体验。</p>
-<h4 id="1-页面标题"><a href="#1-页面标题" class="headerlink" title="1. 页面标题"></a>1. 页面标题</h4><p>修改 <code>web/hooks/use-document-title.ts</code> 中的标题拼接逻辑，将 <code>${prefix}Dify</code> 替换为 <code>${prefix}YZHU</code>，确保所有页面标题（如 “Home - Dify”）显示为 “Home - YZHU”：</p>
-<figure class="highlight diff"><table><tr><td class="code"><pre><span class="line">// web/hooks/use-document-title.ts</span><br><span class="line"><span class="deletion">- const title = `$&#123;prefix&#125;Dify`;</span></span><br><span class="line"><span class="addition">+ const title = `$&#123;prefix&#125;YZHU`;</span></span><br></pre></td></tr></table></figure>
-
-<p><strong>测试方法</strong>：运行 <code>npm run dev</code>，打开浏览器检查页面标题后缀是否正确更新为 “ - YZHU” 。</p>
-<h4 id="2-Logo-描述"><a href="#2-Logo-描述" class="headerlink" title="2. Logo 描述"></a>2. Logo 描述</h4><p>更新以下文件中 Logo 图片的 <code>alt</code> 属性，从 “Dify logo” 改为 “YZHU logo”，提升搜索引擎优化（SEO）和无障碍访问体验（屏幕阅读器会读取 <code>alt</code> 文本）：</p>
-<ul>
-<li><code>web/app/account/(commonLayout)/header.tsx</code></li>
-<li><code>web/app/components/base/logo/dify-logo.tsx</code></li>
-</ul>
-<figure class="highlight diff"><table><tr><td class="code"><pre><span class="line">// web/app/components/base/logo/dify-logo.tsx</span><br><span class="line"><span class="deletion">- &lt;img src=&quot;logo.svg&quot; alt=&quot;Dify logo&quot; /&gt;</span></span><br><span class="line"><span class="addition">+ &lt;img src=&quot;logo.svg&quot; alt=&quot;YZHU logo&quot; /&gt;</span></span><br></pre></td></tr></table></figure>
-
-<p><strong>注意</strong>：<code>alt</code> 属性的修改需确保描述准确，反映品牌名称，有助于搜索引擎抓取和无障碍工具识别。</p>
-<h4 id="3-Logo-图片更新"><a href="#3-Logo-图片更新" class="headerlink" title="3. Logo 图片更新"></a>3. Logo 图片更新</h4><p>将 <code>web/app/components/base/logo/logo.svg</code> 替换为自定义的 YZHU Logo。确保新 SVG 文件的尺寸与原文件一致，以避免界面布局错乱。示例 SVG 结构：</p>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="comment">&lt;!-- web/app/components/base/logo/logo.svg --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">svg</span> <span class="attr">width</span>=<span class="string">&quot;200&quot;</span> <span class="attr">height</span>=<span class="string">&quot;50&quot;</span> <span class="attr">viewBox</span>=<span class="string">&quot;0 0 200 50&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">text</span> <span class="attr">x</span>=<span class="string">&quot;10&quot;</span> <span class="attr">y</span>=<span class="string">&quot;35&quot;</span> <span class="attr">font-size</span>=<span class="string">&quot;24&quot;</span> <span class="attr">fill</span>=<span class="string">&quot;#000&quot;</span>&gt;</span>YZHU<span class="tag">&lt;/<span class="name">text</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">svg</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-<p><strong>测试方法</strong>：在开发环境中检查 Logo 在不同页面和屏幕尺寸下的显示效果，确保无拉伸或模糊。</p>
-<h3 id="嵌入式脚本"><a href="#嵌入式脚本" class="headerlink" title="嵌入式脚本"></a>嵌入式脚本</h3><p>嵌入式脚本 <code>embed.js</code> 用于在网页中嵌入 Dify 的交互组件（如聊天窗口）。本次变更更新了脚本中使用的图标文件 <code>closeIcon.svg</code> 和 <code>openIcon.svg</code>，用于 “展开&#x2F;关闭” 交互按钮。</p>
-<h4 id="图标文件更新"><a href="#图标文件更新" class="headerlink" title="图标文件更新"></a>图标文件更新</h4><p>在<code>embed.js</code>将 <code>closeIcon.svg</code> 和 <code>openIcon.svg</code> 替换为自定义 SVG 图标。SVG 格式支持矢量缩放，适合高清屏幕，且可通过代码调整样式（例如颜色、大小）。示例：</p>
-<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="comment">&lt;!-- closeIcon.svg --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">svg</span> <span class="attr">width</span>=<span class="string">&quot;24&quot;</span> <span class="attr">height</span>=<span class="string">&quot;24&quot;</span> <span class="attr">viewBox</span>=<span class="string">&quot;0 0 24 24&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">path</span> <span class="attr">fill</span>=<span class="string">&quot;#FF0000&quot;</span> <span class="attr">d</span>=<span class="string">&quot;M10 10L14 14M14 10L10 14&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">svg</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">&lt;!-- openIcon.svg --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">svg</span> <span class="attr">width</span>=<span class="string">&quot;24&quot;</span> <span class="attr">height</span>=<span class="string">&quot;24&quot;</span> <span class="attr">viewBox</span>=<span class="string">&quot;0 0 24 24&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">path</span> <span class="attr">fill</span>=<span class="string">&quot;#0000FF&quot;</span> <span class="attr">d</span>=<span class="string">&quot;M12 5V19M5 12H19&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">svg</span>&gt;</span></span><br></pre></td></tr></table></figure>
-
-
-<p><strong>优势</strong>：SVG 图标支持动态修改 <code>fill</code> 属性（例如，切换为暗模式时更改颜色），比字体图标更灵活。</p>
-<p><strong>测试方法</strong>：在网页中嵌入 <code>embed.js</code>，检查交互按钮的图标是否正确显示，点击时是否触发展开&#x2F;关闭功能。</p>
-<h3 id="后续优化建议"><a href="#后续优化建议" class="headerlink" title="后续优化建议"></a>后续优化建议</h3><p>新增品牌配置文件：当前品牌标识（如 “YZHU”）硬编码在代码中，后续修改需逐文件替换。建议新增 brand.config.js：</p>
-<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">// web/brand.config.js</span></span><br><span class="line"><span class="keyword">export</span> <span class="keyword">const</span> brand = &#123;</span><br><span class="line">  <span class="attr">name</span>: <span class="string">&#x27;YZHU&#x27;</span>,</span><br><span class="line">  <span class="attr">logoPath</span>: <span class="string">&#x27;/path/to/logo.svg&#x27;</span>,</span><br><span class="line">  <span class="attr">altText</span>: <span class="string">&#x27;YZHU logo&#x27;</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-<p>在代码中引用：</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">import &#123; brand &#125; from &#x27;./brand.config.js&#x27;;</span><br><span class="line">const title = `$&#123;prefix&#125;$&#123;brand.name&#125;`;</span><br></pre></td></tr></table></figure>
-
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>开源项目的二次开发不一定需要改动核心功能，像本次 Dify 品牌定制这样，通过精细化的文本替换、视觉更新和部署优化，同样能让工具无缝融入企业业务场景。本文提供了一套可复用的品牌替换流程，涵盖前端资源和嵌入式脚本，适合中小型企业或初次接触 Dify 的开发者。</p>
-<p>如果你也在进行 Dify 的二次开发，欢迎分享你的经验！希望本文能为你的项目提供参考。</p>
-]]></content>
-  </entry>
-  <entry>
-    <title>分布式事务实现</title>
-    <url>/2018/05/22/distributed-transaction/</url>
-    <content><![CDATA[<p>在分布式系统中，同时满足“CAP定律”中的“一致性”、“可用性”和“分区容错性”三者是不可能的。在互联网领域的绝大多数的场景，都需要牺牲强一致性来换取系统的高可用性，系统往往只需要保证“最终一致性”，只要这个最终时间是在用户可以接受的范围内即可。<span id="more"></span></p>
-<h3 id="XA"><a href="#XA" class="headerlink" title="XA"></a>XA</h3><p>XA规范主要定义了事务管理器(Transaction Manager)和资源管理器(Resource Manager)之间的接口. XA引入事务管理器是因为在分布式系统中，从理论上讲两台机器上无法达到一致的状态，需要引入一个外部点进行协调。事务管理器控制着全局事务，管理事务生命周期，并协调资源, 资源管理器负责控制和管理实际资源 。XA是一个两阶段提交协议，该协议分为以下两个阶段：</p>
-<ol>
-<li>事务协调器要求每个涉及到事务的数据库预提交，并反映是否可以提交 。</li>
-<li>事务协调器要求每个数据库提交数据 。</li>
-</ol>
-<p>如果有任何一个数据库否决此次提交，那么所有数据库都会被要求回滚它们在此事务中的那部分信息 。</p>
-<h3 id="JTA"><a href="#JTA" class="headerlink" title="JTA"></a>JTA</h3><p>JTA作为JAVA平台上的事务规范，同时定义了对XA事务的支持；在JTA中，事务管理器抽象为javax.transaction.TransactionManager接口，通过底层事务服务（即JTS）实现,JTA仅仅定义了接口，具体的实现则是由供应商(如J2EE厂商)负责提供，目前JTA的实现主要由J2EE容器所提供的JTA实现(如JBOSS)和独立的JTA实现(如JOTM，Atomikos)。</p>
-<blockquote>
-<p>JTA本质上是两阶段提交，实现复杂，牺牲了可用性，对性能影响较大, 适合对数据强一致(<strong>其实也不能100%保证强一致</strong>)要求很高的关键领域; 大部分互联网业务都不会采用两阶段提交的方式 。</p>
-</blockquote>
-<h3 id="链式事务管理"><a href="#链式事务管理" class="headerlink" title="链式事务管理"></a>链式事务管理</h3><p>这种方式也Spring提供的，可以将两个或多个数据库资源的事务串联到一起，公用一个TransactionManager来实现对多个资源的事务。配置方式如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">  &lt;bean id=&quot;transactionManager&quot; class=&quot;org.springframework.data.transaction.ChainedTransactionManager&quot;&gt;</span><br><span class="line">  &lt;property name=&quot;transactionManagers&quot;&gt;</span><br><span class="line">    &lt;list&gt;</span><br><span class="line">      &lt;bean</span><br><span class="line">        class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;</span><br><span class="line">        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource1&quot; /&gt;</span><br><span class="line">      &lt;/bean&gt;</span><br><span class="line">      &lt;bean</span><br><span class="line">        class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;</span><br><span class="line">        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource2&quot; /&gt;</span><br><span class="line">      &lt;/bean&gt;</span><br><span class="line">    &lt;/list&gt;</span><br><span class="line">  &lt;/property&gt;</span><br><span class="line">&lt;/bean&gt;</span><br><span class="line"> &lt;/code&gt;</span><br></pre></td></tr></table></figure>
-<p>针对多个数据库实现事务。使用这种方式时，在Spring事务提交的时候，它会依次调用里面的多个dataSource的commit()方法，如果业务方法出错，就会按照相反的顺序调用rollback()方法。这种方法可能会出现先前的提交成功，之后的提交失败，所以还是会有事务失败的可能。</p>
-<blockquote>
-<p>实现简单，但可能会出现先前的提交成功，之后的提交失败，所以还是会有事务失败的可能</p>
-</blockquote>
-<h3 id="最大努力一次提交-Best-Efforts-1PC"><a href="#最大努力一次提交-Best-Efforts-1PC" class="headerlink" title="最大努力一次提交(Best Efforts 1PC)"></a>最大努力一次提交(Best Efforts 1PC)</h3><p>在一个系统中使用数据库和带事务功能的消息中间件，业务流程如下</p>
-<ol>
-<li>开始消息事务</li>
-<li>发送消息</li>
-<li>开始数据库事务</li>
-<li>更新数据库</li>
-<li>提交数据库事务</li>
-<li>提交消息事务</li>
-</ol>
-<p>有两个事务，分别是DB的和JMS的事务，事务的开启和提交都是相互独立的。依次提交这两个事务，只要第二个事务顺利提交，整个方法就能够保证数据的一致性。实际上，在绝大多数情况下，只要数据库和MQ能够正常访问，这也确实能够保证。所以，这种方式就叫’最大努力’一次提交。</p>
-<p>使用这种方式，事物提交的顺序是非常重要的。假设在提交messaging transaction的时候发生错误，这时数据库的事务已经提交，无法回滚，但是消息的事务被回滚，那么这一条消息会被重新放回队列中，该业务方法会被再次触发，再次在一个新的事务中处理。但是，这时数据的处理已经完成，只是最后JMS的事物提交出错，那么就需要通过防止重复提交的方式，来避免数据库的再次处理。</p>
-<h3 id="事务补偿型-TCC型事务–Try-Confirm-Cancel"><a href="#事务补偿型-TCC型事务–Try-Confirm-Cancel" class="headerlink" title="事务补偿型(TCC型事务–Try&#x2F;Confirm&#x2F;Cancel)"></a>事务补偿型(TCC型事务–Try&#x2F;Confirm&#x2F;Cancel)</h3><p>其核心思想是：针对每个操作，都要注册一个与其对应的确认和补偿（撤销）操作。它分为三个阶段：</p>
-<ul>
-<li>Try 阶段主要是对业务系统做检测及资源预留</li>
-<li>Confirm 阶段主要是对业务系统做确认提交，Try阶段执行成功并开始执行 Confirm阶段时，默认 Confirm阶段是不会出错的, 即：只要Try成功，Confirm一定成功</li>
-<li>Cancel 阶段主要是在业务执行错误，需要回滚的状态下执行的业务取消，预留资源释放</li>
-</ul>
-<p>在一个长事务，一个由两台服务器一起参与的事务，服务器A发起事务，服务器B参与事务，B所处理时间可能比较长。如果按照ACID的原则，要保持事务的隔离性、一致性，服务器A中发起的事务中使用到的事务资源将会被锁定，不允许其他应用访问到事务过程中的中间结果，直到整个事务被提交或者回滚。这就造成事务A中的资源被长时间锁定，系统的可用性将不可接受。服务器A的事务如果执行顺利，那么事务A就先行提交，如果事务B也执行顺利，则事务B也提交，整个事务就算完成。但是如果事务B执行失败，事务B本身回滚，这时事务A已经被提交，所以需要执行一个<strong>补偿</strong>操作，将已经提交的事务A执行的操作作反操作，恢复到未执行前事务A的状态。这样的事务模型，是牺牲了一定的隔离性和一致性的，但是提高了事务的可用性。</p>
-<blockquote>
-<p>与两阶段提交相比实现及流程相对简单，但应用层要写很多补偿代码(而且补偿也不能保证一定成功)</p>
-</blockquote>
-<h3 id="本地流水表实现最终一致性"><a href="#本地流水表实现最终一致性" class="headerlink" title="本地流水表实现最终一致性"></a>本地流水表实现最终一致性</h3><p>以电商下单场景为例，主要涉及到两个操作，<strong>扣减库存</strong>和<strong>生成订单</strong>,因为两个操作在不同的数据库，无法保证强一致性,可以通过本地流水表来实现最终一致性 ， 具体流程如下:</p>
-<ul>
-<li>生成交易操作唯一标示token</li>
-<li>事务一(库存系统): <ul>
-<li>冻结库存</li>
-<li>根据下单流水号生成商品的库存冻结记录,冻结记录主要包括<strong>skuId</strong>,<strong>token</strong>,<strong>冻结数量</strong>,<strong>状态</strong> .状态有3种状态: <strong>已冻结</strong>，<strong>下单成功扣减</strong>，<strong>下单失败释放</strong>,初始状态为已冻结</li>
-</ul>
-</li>
-<li>如果事务一失败，直接返回；如果成功进入事务二 </li>
-<li>事务二(订单系统, 本地事务)：根据token生成订单,订单的状态主要包括：<strong>未支付</strong>,<strong>已支付</strong>,<strong>超时未支付</strong>,订单的初始状态为<strong>未支付</strong></li>
-<li>事务二如果成功，则进行后续的流程,</li>
-<li>事务二如果失败，调用库存系统的回滚接口，返回下单失败;</li>
-<li>定时任务: 因为存在<strong>事务一成功</strong>而<strong>事务二</strong>失败的情况，这样会冻结商品的部分库存，所以可以捞取出创建超过一定时间状态为<strong>已冻结</strong>的所有冻结记录，根据每个冻结记录的token去订单表查询，若不存在对应的订单，则将冻结记录的状态更新为<strong>下单失败释放</strong>，并回滚商品库存数量</li>
-</ul>
-<h3 id="异步确保型"><a href="#异步确保型" class="headerlink" title="异步确保型"></a>异步确保型</h3><p>将一些有同步的事务操作变为异步操作，避免对数据库事务的争用；继续以以电商下单场景为例，支付成功后增加用户积分；</p>
-<ul>
-<li>事务一(订单系统)，订单状态修改为支付成功，发送支付成功消息</li>
-<li>事务二(用户系统)，用户系统接到支付成功消息后，增加用户积分</li>
-</ul>
-<h3 id="MQ事务消息"><a href="#MQ事务消息" class="headerlink" title="MQ事务消息"></a>MQ事务消息</h3><p>一些第支持事务消息MQ，比如RocketMQ，他们支持事务消息的方式也是类似于采用的二阶段提交，其思路大致为：</p>
-<ul>
-<li>第一阶段Prepared消息，会拿到消息的地址。</li>
-<li>第二阶段执行本地事务，第三阶段通过第一阶段拿到的地址去访问消息，并修改状态。</li>
-</ul>
-<p>在业务方法内要想消息队列提交两次请求，一次发送消息和一次确认消息。如果确认消息发送失败了RocketMQ会定期扫描消息集群中的事务消息，这时候发现了Prepared消息，它会向消息发送者确认，是回滚还是继续发送确认消息。这样就保证了消息发送保证与本地事务同时成功或同时失败 </p>
-<h3 id="分布式事务实现的原则"><a href="#分布式事务实现的原则" class="headerlink" title="分布式事务实现的原则"></a>分布式事务实现的原则</h3><ul>
-<li>大事务拆成小事务，每个小事务都是单机上的事务</li>
-<li>补偿 + 重试， 业务上设计补偿机制，而且保证补偿失败后有重试机制</li>
-<li>幂等, 保证每次事务操作是幂等的，保证幂等的方式可以采用：<ul>
-<li>状态值，每次写操作的时候检查状态值</li>
-<li>唯一标示，每次写操作都带入业务唯一标示</li>
-</ul>
-</li>
-</ul>
-]]></content>
-      <tags>
-        <tag>分布式</tag>
-        <tag>微服务</tag>
-        <tag>一致性</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Java与Go之间gRPC调用失败问题排查</title>
-    <url>/2019/06/02/gRPC-Go-Java/</url>
-    <content><![CDATA[<p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
-<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
-<ol>
-<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
-<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
-<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
-<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
-<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
-</ol>
-<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
-<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
-<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
-<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
-</ol>
-<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
-<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
-<ol>
-<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
-<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
-<li>最终还是要升级到新版本</li>
-</ol>
-<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
-<ol>
-<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
-<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
-</ol>
-<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
-<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a href="https://grpc.io/">https://grpc.io/</a><br><a href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
-]]></content>
-      <tags>
-        <tag>微服务</tag>
-        <tag>RPC</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>如何提一个问题</title>
-    <url>/2018/12/23/how-to-question/</url>
-    <content><![CDATA[<p>在我们日常生活以及工作中经常会遇到提问题, 我们有没有想过如何提一个好问题？也许有人会说，「提问谁不回？会讲话的小孩子就会问为什么，这有什么值得说的？」没错，从这个角度上说机会每个人都会提问。但是，我们有没有想过，我们问问题的目的是什么？是得到对问题的解答。大家有没有遇到过这样的情况，自己问题发给对方后始终得不到回复，或者对方敷衍了事，更有甚者被对方怼回去。如果遇到这些情况，我们应该好好反思一下，我们是不是提了一个好问题；在说好问题之前结合个人的经历谈谈什么样的问题不是一个好问题。<span id="more"></span></p>
-<ol>
-<li>提问者在im上发一个截图，截图里面是一个异常栈，没有任何上下文，然后就没有然后了；解答者在那里等对方进一步的信息，结果什么也等到；过了很久(估计等很久没回复)，亲自过来说「帮我看看我的问题」；这个时候才开始沟通，问题是怎么出现的，什么环境，上下文，等… </li>
-<li>有些问题在技术文档，产品文档上都已经说的很清楚；但提问者不看文档，直接把问题抛过来；也许是提问者自己没有按照文档要求操作，或者真的是一个问题但文档FAQ部分已经解释的很清楚 ；</li>
-<li>提问者直接将问题抛出来，不做任何思考和尝试，只在那里等答案；不知道提问者有没有想过，解答者也要花费大量的时间去调研；</li>
-<li>提问者提问道时候，发的关键信息是一张截图，截图中可能有id之类的标示，此时解答者可能需要根据id搜索，只能手工输入，这样既浪费时间也容易出错；</li>
-</ol>
-<p>对于以上的案例，个人觉得提问者需要加强独立思考的能力，不然会给对方留下「伸手党」的感觉；个人觉得可以按照如下的方式考虑提问:</p>
-<ol>
-<li>对于技术问题或者产品问题，一般作者会提供相应的文档；首先我们应该阅读相关文档，特别注意FAQ部分；</li>
-<li>善于使用搜索引擎，具备基本的搜商(SQ) ,推荐用google(对技术工作者，这个不需要解释), 百度请忽略所有「广告」字样的文章，微信，知乎等工具;</li>
-<li>在以上两步都没有找到答案情况下，可以参考第二步搜索过程中出现的文章以及官方提供的文档尝试；比如是否可以升级软件版本，是否可以调整某些参数；相信在尝试过程中会加深自己对问题的理解以及提升自己解决问题的能力</li>
-<li>经过以上步骤能解决95%的问题了；如果还没有解决，这时候再提问，相信这个时候提出的问题质量是非常高的；比如: 该问题是如何出现的，什么环境，硬件型号是什么，软件版本是什么，我的操作步骤是什么，我做了哪些调研，尝试了哪些方式，得到结果是什么,等..</li>
-</ol>
-<p>那么提一个好问题有那么重要吗？我认为提一个好问题比解答一个问题更能体现一个人的真实水平，因为这证明提问者有独立思考的能力；比如在职场中一个常见的场景是这样的，面试最后部分面试官会问面试者有什么问题吗？这个时候如果提一个高质量的问题，相信会加深面试官的印象,在同等条件的候选者中相信胜出的概率会更高;</p>
-<p>最后关于什么是好问题，这里引用某大佬的一句话 「什么是好问题，你对某个领域有一定研究，你已经翻阅和查询了足够的资料，然后你基于你的理解，对这些资料中，某几个无法理解的细节提出来，希望专业人士给与解惑，而这个细节问题确实具有足够代表性，是理解一些关键问题的钥匙，这就是好问题。」</p>
-]]></content>
-  </entry>
-  <entry>
-    <title>基于protobuf的定义在跨语言消息传递中的应用</title>
-    <url>/2021/09/21/message-dsl-base-protobuff/</url>
-    <content><![CDATA[<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>在需要消息队列的场景中，生产端和消费端会事先就消息体格式达成共识确保生产端发送的消息在消费端能正常识别；如果生产端和消费都是Java项目，我们通常会定义消息体的Jar，让生产端和消费端都引用Jar确保消息的一致性；但在跨语言消息传递中<span id="more"></span>通常通过文档约定消息格式各自定义自己的消息体。在我们实际使用过程中发现不同语言之间传递信息还是会出现一些问题；比如：Java用fastjson输出复杂数据在Go项目解析失败，而且各语言在配置mq参数时候有各自的约定,人工操作容易引起误操作，所以我们希望能有一套跨语言的工具能分别生出各自语言的代码和配置。</p>
-<h3 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h3><p>现有系统跨语言之间RPC的调用我们采用了gRPC,很自然的想到可以借鉴gRPC Protobuf定义消息体。具体方法就是扩展<code>google.protobuf.MethodOptions</code>定义</p>
-<h5 id="方法"><a href="#方法" class="headerlink" title="方法"></a>方法</h5><p>下面以RabbitMQ为例，在Protobuf文件中定义MQ相关参数</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">extend google.protobuf.MethodOptions &#123;</span><br><span class="line">    </span><br><span class="line">    // exchange类型: topic direct fanout ,默认: direct</span><br><span class="line">    string routeType = 7010101;</span><br><span class="line"></span><br><span class="line">	// producer 发送到exchange上有效的routekey; 仅topic模式有效</span><br><span class="line">    repeated string routeKey = 7010102;</span><br><span class="line"></span><br><span class="line">    //consumer监听的队列名称，direct模式 该参数无效</span><br><span class="line">    repeated string listener = 7010103;</span><br><span class="line"></span><br><span class="line">   // 延迟队列的延迟时间</span><br><span class="line">   int32 delay = 6010106;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p><strong>说明</strong>: 如果exchange为topic模式，监听队列绑定的routekey必须根据此处定义的routKey定义设置;比如文件定义的routeKey是a.b.c则consumer端绑定到队列的routkey只能是 a.b.c, a.b.<em>, a.</em>, * 其中之一</p>
-<h5 id="生产Java代码"><a href="#生产Java代码" class="headerlink" title="生产Java代码"></a>生产Java代码</h5><p>通常在Maven工程中我们使用<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成gRPC的Java代码。现在我们可以扩展<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成MQ的代码。核心扩展点如下:</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> @Mojo(</span><br><span class="line">        name = &quot;compile-mq&quot;,</span><br><span class="line">        defaultPhase = LifecyclePhase.GENERATE_SOURCES,</span><br><span class="line">        requiresDependencyResolution = ResolutionScope.COMPILE,</span><br><span class="line">        threadSafe = true</span><br><span class="line">)</span><br><span class="line">public class ProtocCompileMQMojo extends AbstractProtocCompileMojo&#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void execute() throws MojoExecutionException, MojoFailureException &#123;</span><br><span class="line">        super.execute();  </span><br><span class="line">        // 利用 DescriptorProtos.FileDescriptorSet 读取proto文件的定义根据规范生出Java文件</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>最后配合MQ的SDK可以大大提高开发效率而且减低配置的复杂性。</p>
 ]]></content>
       <tags>
         <tag>分布式</tag>
@@ -2614,6 +2210,272 @@
 ]]></content>
   </entry>
   <entry>
+    <title>在线工具集合网站</title>
+    <url>/2024/11/15/First-Efficiency-Lab/</url>
+    <content><![CDATA[<p>在日常开发项目中，我们经常需要处理格式转换、日期计算、编码解码等基础操作。这些任务要么需要在开发环境中编写代码实现，要么需要在网上搜索对应的在线工具。为了提高工作效率，我整合了一系列常用工具，并将它们集成到这个网站中：<a href="https://labs.yzhu.name/">https://labs.yzhu.name</a> <span id="more"></span></p>
+<p>该网站目前提供了以下几个工具:</p>
+<h3 id="日期计算器"><a href="#日期计算器" class="headerlink" title="日期计算器"></a><a href="https://labs.yzhu.name/date-calc.html">日期计算器</a></h3><p>计算日期天数差、增减天数以及查找特定日期,常用于处理与日期相关的业务需求。</p>
+<h3 id="单位转换器"><a href="#单位转换器" class="headerlink" title="单位转换器"></a><a href="https://labs.yzhu.name/unit-conv.html">单位转换器</a></h3><p>帮助进行英制和公制单位之间的自由转换,如常用的长度、重量、体积、温度等维度。</p>
+<h3 id="JSON格式化"><a href="#JSON格式化" class="headerlink" title="JSON格式化"></a><a href="https://labs.yzhu.name/json-format.html">JSON格式化</a></h3><p>将JSON数据格式化成有层级缩进的样式,或将格式化后的JSON转成单行,方便发现JSON语法错误。</p>
+<h3 id="编-解码工具"><a href="#编-解码工具" class="headerlink" title="编&#x2F;解码工具"></a><a href="https://labs.yzhu.name/encode.html">编&#x2F;解码工具</a></h3><p>使用常见的Base64、MD5、SHA等多种编码解码算法对文本进行转换,适用于加解密、哈希处理等需求。</p>
+<h3 id="Unix时间戳转换"><a href="#Unix时间戳转换" class="headerlink" title="Unix时间戳转换"></a><a href="https://labs.yzhu.name/timestamp.html">Unix时间戳转换</a></h3><p>将Unix时间戳转成可读的时间格式,或通过年月日等输入获取对应的时间戳。</p>
+<h3 id="YAML-JSON转换"><a href="#YAML-JSON转换" class="headerlink" title="YAML&#x2F;JSON转换"></a><a href="https://labs.yzhu.name/yaml-json.html">YAML&#x2F;JSON转换</a></h3><p>在YAML和JSON两种格式之间双向转换,并同时支持格式化和语法验证。</p>
+<h3 id="转换图片为白地图"><a href="#转换图片为白地图" class="headerlink" title="转换图片为白地图"></a><a href="https://labs.yzhu.name/image-segment.html">转换图片为白地图</a></h3><p>快速扣除商品背景，将证件照换为白地图，等场景，能够对图片进行一键抠图，快速处理。</p>
+<p>这些工具的灵感大多来源于我们日常工作中的一些高频基本需求。核心目的是集中常用的小工具,提高这部分操作的效率。</p>
+<p>工具地址: <a href="https://labs.yzhu.name/">https://labs.yzhu.name</a></p>
+]]></content>
+  </entry>
+  <entry>
+    <title>跨境电商用户标签系统架构设计</title>
+    <url>/2023/12/10/User-Tag/</url>
+    <content><![CDATA[<h3 id="一、项目背景与业务价值"><a href="#一、项目背景与业务价值" class="headerlink" title="一、项目背景与业务价值"></a>一、项目背景与业务价值</h3><p>在竞争激烈的跨境电商领域，用户体验和精细化运营至关重要。为了实现<strong>精准营销、动态定价和运营分析</strong>等关键业务场景，我们需要更及时、更准确地理解用户行为<span id="more"></span>。</p>
+<p>然而，传统用户标签系统依赖离线计算，数据更新频率为<strong>每日一次</strong>，实时性不足，无法满足业务快速响应用户行为变化的需求。例如，<strong>新用户下单后无法立即享受老用户折扣</strong>，<strong>个性化推荐也存在滞后性</strong>。</p>
+<p>为了解决这些痛点，我们启动了<strong>实时用户标签系统</strong>项目，旨在构建一套<strong>高性能、低延迟、可扩展</strong>的用户标签基础设施，实现用户行为的<strong>实时采集、计算和应用</strong>，为业务增长提供有力的数据支撑。</p>
+<p>系统上线后，成功支撑<strong>日均三千万级</strong>用户行为数据处理，<strong>标签更新延迟控制在500ms内</strong>，为以下关键业务场景提供了有力支持：</p>
+<ul>
+<li><strong>精准营销</strong>：基于用户标签实现<strong>千人千面</strong>的商品推荐，提升点击率和转化率。</li>
+<li><strong>动态定价</strong>：根据用户标签（如新老用户）实施<strong>差异化价格策略</strong>，提升用户粘性和复购率。</li>
+<li><strong>运营分析</strong>：通过用户行为标签进行<strong>用户行为洞察和转化率优化</strong>，指导运营策略调整。</li>
+</ul>
+<h3 id="二、架构设计全景图"><a href="#二、架构设计全景图" class="headerlink" title="二、架构设计全景图"></a>二、架构设计全景图</h3><h4 id="1-整体架构"><a href="#1-整体架构" class="headerlink" title="1. 整体架构"></a>1. 整体架构</h4><pre class="mermaid">graph TD
+    AAW[App/Web] -->|HTTP上报| A[区域A数据采集系统]
+    ABK[后端系统] -->|SDK上报| A
+    BAW[App/Web] -->|HTT上报| B[区域B数据采集系统]
+    BBK[后端系统] -->|SDK上报| B
+    A -->|MQ| C[标签计算系统]
+    B -->|MQ| C
+    C --> Da[区域A数据库集群: MongoDB+MySQL+Redis]
+    C --> Db[区域B数据库集群: MySQL+Redis]
+    Ea[标签查询] --> Da
+    Fa[用户系统]-->Ea
+    Ga[订单系统]-->Ea
+    Ia[营销系统]-->Ea
+    Ha[其它...系统]-->Ea
+    Eb[标签查询] --> Db
+    Fb[用户系统]-->Eb
+    Gb[订单系统]-->Eb
+    Ib[营销系统]-->Eb
+    Hb[其它...系统]-->Eb</pre>
+
+
+<p><strong>数据流:</strong>  <code>App/Web/后端系统</code> → <code>HTTP/SDK上报</code> → <code>区域采集系统</code> → <code>RabbitMQ</code> → <code>标签计算系统</code> → <code>MongoDB/MySQL/Redis</code></p>
+<p><strong>分层架构:</strong></p>
+<ul>
+<li><strong>数据采集层</strong>：采用 <strong>Nginx+SpringCloud</strong> 技术栈，<strong>双区域独立部署</strong> (区域A和区域B数据采集系统)，支持 <strong>App&#x2F;Web&#x2F;API 多端统一接入</strong>。具备 <strong>高并发 HTTP 接入</strong> 能力和 <strong>区域路由</strong> 功能，确保数据就近接入，降低网络延迟。</li>
+<li><strong>消息中间件</strong>：复用现有 <strong>RabbitMQ 集群</strong>，降低运维成本。RabbitMQ 承担 <strong>数据缓冲和异步解耦</strong> 的作用，保障数据采集层和计算层之间的稳定通信。</li>
+<li><strong>计算存储层</strong>：<ul>
+<li><strong>标签计算系统</strong>：基于 <strong>Spring</strong> 构建，采用 <strong>轻量级规则引擎</strong> 框架，易于扩展和维护。</li>
+<li><strong>规则管理</strong>：<strong>MySQL</strong> 存储标签规则，实现 <strong>规则版本控制和回滚</strong>，方便规则迭代和管理。</li>
+<li><strong>标签存储</strong>：采用 <strong>MySQL+Redis</strong> 组合，<strong>MySQL</strong> 持久化存储标签规则与计算结果，<strong>Redis</strong> 提供 <strong>实时查询能力</strong>，支撑高并发的标签查询请求。</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-核心组件设计"><a href="#2-核心组件设计" class="headerlink" title="2. 核心组件设计"></a>2. 核心组件设计</h4><table>
+<thead>
+<tr>
+<th>模块</th>
+<th>技术选型</th>
+<th>设计要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>数据采集</td>
+<td>Nginx+SpringCloud</td>
+<td>高并发HTTP接入，区域路由</td>
+</tr>
+<tr>
+<td>消息队列</td>
+<td>RabbitMQ集群</td>
+<td>消息持久化，自动故障转移</td>
+</tr>
+<tr>
+<td>标签计算</td>
+<td>Spring</td>
+<td>轻量级规则引擎，易于扩展</td>
+</tr>
+<tr>
+<td>规则管理</td>
+<td>MySQL</td>
+<td>规则版本控制，支持回滚</td>
+</tr>
+<tr>
+<td>标签存储</td>
+<td>MySQL+Redis</td>
+<td>冷热数据分离存储策略</td>
+</tr>
+<tr>
+<td>用户行为存储</td>
+<td>MongoDB</td>
+<td>用户行为持久化</td>
+</tr>
+</tbody></table>
+<h3 id="三、核心设计决策"><a href="#三、核心设计决策" class="headerlink" title="三、核心设计决策"></a>三、核心设计决策</h3><h4 id="1-数据采集方案"><a href="#1-数据采集方案" class="headerlink" title="1. 数据采集方案"></a>1. 数据采集方案</h4><ul>
+<li><strong>多端统一接入</strong>：定义标准 <strong>HTTP 上报协议</strong>，统一 <code>App/Web/API</code> 多端数据接入方式，降低接入成本。</li>
+<li><strong>区域路由策略</strong>：基于 <strong>用户标识自动路由</strong> 到相应区域采集节点，提升数据上报效率，降低网络延迟。</li>
+<li><strong>数据校验机制</strong>：<ul>
+<li><strong>上报数据格式校验</strong>：在采集层进行数据格式校验，过滤无效数据。</li>
+<li><strong>去重处理</strong>：对重复上报数据进行 <strong>去重处理</strong>，保障数据质量，避免重复计算。</li>
+</ul>
+</li>
+</ul>
+<h4 id="2-消息中间件选型"><a href="#2-消息中间件选型" class="headerlink" title="2. 消息中间件选型"></a>2. 消息中间件选型</h4><table>
+<thead>
+<tr>
+<th>对比维度</th>
+<th>RabbitMQ优势</th>
+<th>设计考量点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>运维成本</td>
+<td>复用现有集群</td>
+<td><strong>无需额外运维投入</strong></td>
+</tr>
+<tr>
+<td>可靠性</td>
+<td>消息持久化+ACK机制</td>
+<td><strong>数据零丢失保障</strong></td>
+</tr>
+<tr>
+<td>扩展性</td>
+<td>集群模式支持水平扩展</td>
+<td><strong>满足未来增长需求</strong></td>
+</tr>
+</tbody></table>
+<p><strong>选型分析:</strong>  综合考虑 <strong>运维成本、可靠性和扩展性</strong> 等因素，<strong>复用现有 RabbitMQ 集群</strong> 是最优选择。RabbitMQ 集群具备良好的 <strong>消息持久化、ACK 机制和水平扩展能力</strong>，能够满足实时用户标签系统对消息队列的需求。</p>
+<h4 id="3-计算存储架构"><a href="#3-计算存储架构" class="headerlink" title="3. 计算存储架构"></a>3. 计算存储架构</h4><table>
+<thead>
+<tr>
+<th>数据类型</th>
+<th>存储方案</th>
+<th>设计考量点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>上报日志</td>
+<td>MongoDB分片集群</td>
+<td><strong>高吞吐写入，灵活 Schema</strong>，支持海量用户行为日志存储</td>
+</tr>
+<tr>
+<td>标签规则</td>
+<td>MySQL</td>
+<td><strong>事务支持，版本管理</strong>，保障规则数据一致性和可维护性</td>
+</tr>
+<tr>
+<td>标签结果</td>
+<td>MySQL+Redis</td>
+<td><strong>实时查询与持久化存储</strong>，兼顾实时查询性能和数据可靠性</td>
+</tr>
+</tbody></table>
+<p><strong>存储选型:</strong></p>
+<ul>
+<li><strong>MongoDB 分片集群</strong>：适用于存储 <strong>海量、Schema 灵活</strong> 的用户行为日志数据，满足高吞吐写入需求。</li>
+<li><strong>MySQL</strong>：适用于存储 <strong>结构化</strong> 的标签规则和标签结果数据，提供 <strong>事务支持和数据一致性</strong> 保障。</li>
+<li><strong>Redis</strong>：适用于缓存 <strong>热点标签数据</strong>，利用其 <strong>高性能内存数据库</strong> 特性，提升标签查询效率。</li>
+</ul>
+<h3 id="四、性能优化实践"><a href="#四、性能优化实践" class="headerlink" title="四、性能优化实践"></a>四、性能优化实践</h3><h4 id="1-采集层优化"><a href="#1-采集层优化" class="headerlink" title="1. 采集层优化"></a>1. 采集层优化</h4><ul>
+<li><strong>负载均衡</strong>：采用 <strong>Nginx 轮询 + 权重分配</strong> 策略，实现采集层负载均衡，<strong>单节点支持 10k QPS</strong> 高并发接入。</li>
+<li><strong>异步处理</strong>：数据上报请求 <strong>异步化处理</strong>，降低请求响应时间，<strong>响应时间 &lt;50ms</strong>。</li>
+<li><strong>数据压缩</strong>：采用 <strong>Gzip 压缩</strong> 技术，对上报数据进行压缩，<strong>降低 70% 网络传输量</strong>，提升传输效率。</li>
+</ul>
+<h4 id="2-容灾方案设计"><a href="#2-容灾方案设计" class="headerlink" title="2. 容灾方案设计"></a>2. 容灾方案设计</h4><ul>
+<li><strong>消息重试</strong>：RabbitMQ 启用 <strong>死信队列</strong>，处理标签计算失败消息，保障数据可靠性。</li>
+<li><strong>数据备份</strong>：MySQL 数据库进行 <strong>每日全量备份 + 增量备份</strong>，防止数据丢失。</li>
+<li><strong>故障切换</strong>：Redis 采用 <strong>主从模式</strong> 部署，实现 <strong>主从自动切换</strong>，<strong>切换时间 &lt;30s</strong>，保障缓存服务高可用。</li>
+</ul>
+<h3 id="五、标签体系设计"><a href="#五、标签体系设计" class="headerlink" title="五、标签体系设计"></a>五、标签体系设计</h3><h4 id="1-标签分类模型"><a href="#1-标签分类模型" class="headerlink" title="1. 标签分类模型"></a>1. 标签分类模型</h4><pre class="mermaid">graph TD
+    A[用户标签] --> B(基础标签)
+    A --> C(行为标签)
+    B --> D[用户属性]
+    B --> E[设备信息]
+    C --> F[购买行为]
+    C --> G[浏览偏好]</pre>
+
+<ul>
+<li><strong>基础标签</strong>：描述用户的<strong>静态属性</strong>，例如：用户属性（年龄、地域）、设备信息（设备类型、操作系统）。<strong>更新机制为批量每日更新</strong>。</li>
+<li><strong>行为标签</strong>：描述用户的<strong>动态行为</strong>，例如：购买行为（购买商品、订单金额）、浏览偏好（浏览商品类目、浏览时长）。<strong>更新机制为事件驱动实时更新</strong>。</li>
+</ul>
+<h4 id="2-典型场景实现：新用户转老用户逻辑"><a href="#2-典型场景实现：新用户转老用户逻辑" class="headerlink" title="2. 典型场景实现：新用户转老用户逻辑"></a>2. 典型场景实现：新用户转老用户逻辑</h4><p>以 <strong>新用户转老用户</strong> 标签更新场景为例，说明实时标签系统的应用流程：</p>
+<ol>
+<li><strong>监听下单事件</strong>：系统 <strong>实时监听</strong> 订单系统产生的下单事件。</li>
+<li><strong>校验历史订单数</strong>：标签计算系统接收到下单事件后，<strong>校验用户近一年内历史订单数是否为 1</strong>。</li>
+<li><strong>触发标签状态变更</strong>：若校验通过，则 <strong>触发用户标签状态变更</strong>，将用户标签从 “新用户” 更新为 “老用户”。</li>
+<li><strong>推送价格策略</strong>：标签计算系统将 <strong>新的用户标签推送至商品服务</strong>。商品服务 <strong>实时更新价格策略</strong>，使用户在 <strong>&lt;500ms 内</strong> 看到商品价格折扣。</li>
+</ol>
+<h3 id="六、总结与展望"><a href="#六、总结与展望" class="headerlink" title="六、总结与展望"></a>六、总结与展望</h3><p>实时用户标签系统的成功上线，显著提升了用户标签的<strong>实时性</strong>和<strong>应用效率</strong>，为业务的<strong>精细化运营</strong>提供了强有力的数据支撑。项目在<strong>高性能、高可靠、可扩展</strong>等方面做了深入设计和优化，为后续的迭代升级奠定了坚实基础。</p>
+<p>未来，我们将继续在以下方面进行探索和优化：</p>
+<ul>
+<li><strong>更智能的告警</strong>：引入 <strong>异常检测</strong> 等智能告警策略，提升问题发现和处理效率。</li>
+<li><strong>更丰富的标签类型</strong>：扩展 <strong>用户兴趣标签、用户偏好标签</strong> 等，构建更全面的用户画像。</li>
+<li><strong>更灵活的规则引擎</strong>：实现更负载的标签计算逻辑，提升系统灵活性。</li>
+</ul>
+<p>随着实时用户标签系统的不断完善，将为业务带来更大的价值，持续驱动业务增长。</p>
+]]></content>
+      <tags>
+        <tag>技术方案</tag>
+        <tag>分布式</tag>
+        <tag>微服务</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>如何提一个问题</title>
+    <url>/2018/12/23/how-to-question/</url>
+    <content><![CDATA[<p>在我们日常生活以及工作中经常会遇到提问题, 我们有没有想过如何提一个好问题？也许有人会说，「提问谁不回？会讲话的小孩子就会问为什么，这有什么值得说的？」没错，从这个角度上说机会每个人都会提问。但是，我们有没有想过，我们问问题的目的是什么？是得到对问题的解答。大家有没有遇到过这样的情况，自己问题发给对方后始终得不到回复，或者对方敷衍了事，更有甚者被对方怼回去。如果遇到这些情况，我们应该好好反思一下，我们是不是提了一个好问题；在说好问题之前结合个人的经历谈谈什么样的问题不是一个好问题。<span id="more"></span></p>
+<ol>
+<li>提问者在im上发一个截图，截图里面是一个异常栈，没有任何上下文，然后就没有然后了；解答者在那里等对方进一步的信息，结果什么也等到；过了很久(估计等很久没回复)，亲自过来说「帮我看看我的问题」；这个时候才开始沟通，问题是怎么出现的，什么环境，上下文，等… </li>
+<li>有些问题在技术文档，产品文档上都已经说的很清楚；但提问者不看文档，直接把问题抛过来；也许是提问者自己没有按照文档要求操作，或者真的是一个问题但文档FAQ部分已经解释的很清楚 ；</li>
+<li>提问者直接将问题抛出来，不做任何思考和尝试，只在那里等答案；不知道提问者有没有想过，解答者也要花费大量的时间去调研；</li>
+<li>提问者提问道时候，发的关键信息是一张截图，截图中可能有id之类的标示，此时解答者可能需要根据id搜索，只能手工输入，这样既浪费时间也容易出错；</li>
+</ol>
+<p>对于以上的案例，个人觉得提问者需要加强独立思考的能力，不然会给对方留下「伸手党」的感觉；个人觉得可以按照如下的方式考虑提问:</p>
+<ol>
+<li>对于技术问题或者产品问题，一般作者会提供相应的文档；首先我们应该阅读相关文档，特别注意FAQ部分；</li>
+<li>善于使用搜索引擎，具备基本的搜商(SQ) ,推荐用google(对技术工作者，这个不需要解释), 百度请忽略所有「广告」字样的文章，微信，知乎等工具;</li>
+<li>在以上两步都没有找到答案情况下，可以参考第二步搜索过程中出现的文章以及官方提供的文档尝试；比如是否可以升级软件版本，是否可以调整某些参数；相信在尝试过程中会加深自己对问题的理解以及提升自己解决问题的能力</li>
+<li>经过以上步骤能解决95%的问题了；如果还没有解决，这时候再提问，相信这个时候提出的问题质量是非常高的；比如: 该问题是如何出现的，什么环境，硬件型号是什么，软件版本是什么，我的操作步骤是什么，我做了哪些调研，尝试了哪些方式，得到结果是什么,等..</li>
+</ol>
+<p>那么提一个好问题有那么重要吗？我认为提一个好问题比解答一个问题更能体现一个人的真实水平，因为这证明提问者有独立思考的能力；比如在职场中一个常见的场景是这样的，面试最后部分面试官会问面试者有什么问题吗？这个时候如果提一个高质量的问题，相信会加深面试官的印象,在同等条件的候选者中相信胜出的概率会更高;</p>
+<p>最后关于什么是好问题，这里引用某大佬的一句话 「什么是好问题，你对某个领域有一定研究，你已经翻阅和查询了足够的资料，然后你基于你的理解，对这些资料中，某几个无法理解的细节提出来，希望专业人士给与解惑，而这个细节问题确实具有足够代表性，是理解一些关键问题的钥匙，这就是好问题。」</p>
+]]></content>
+  </entry>
+  <entry>
+    <title>Java与Go之间gRPC调用失败问题排查</title>
+    <url>/2019/06/02/gRPC-Go-Java/</url>
+    <content><![CDATA[<p>最近接手了一个新项目，被告知Java代码的gRPC客户端无法访问当前项目中Go代码的gRPC服务。通过问题的排查和部分代码改造个人对gRPC的理解更深入了一层.<span id="more"></span></p>
+<h3 id="项目背景："><a href="#项目背景：" class="headerlink" title="项目背景："></a>项目背景：</h3><p>接手该项目后跟该项目相关人员多次沟通后得到如下背景信息:</p>
+<ol>
+<li>该项目Go服务端采用的是2016年9月以前发布的gRPC ；</li>
+<li>项目组对官方提供的Go语言gRPC类库做了部分改造，但，由于改造该代码的工程师已经离职，目前没有人知道具体修改了什么​；</li>
+<li>由于项目周期紧张，没有富余的人力排查该问题；</li>
+<li>目前Java与Go互相交互的接口不到10个，双方先采用HTTP交互;</li>
+<li>服务端总是需要维护两套接口，HTTP和gRPC接口，链路跟踪等公共组件都要适配两套接口，增加了维护成本</li>
+</ol>
+<h3 id="问题重现"><a href="#问题重现" class="headerlink" title="问题重现"></a>问题重现</h3><ol>
+<li>采用Java版本gRPC-Java-1.18.0访问现有的Go服务，请求发出以后被hang住没有任何反馈直到客户端设置的连接超时后断开，Java客户端和Go服务端没有任何输出信息；</li>
+<li>抓包看包文发现在完成TCP的3次握手后，客户端发送了第一HTTP2的包文后，没有收到服务端的任何回复，整个过程被hang；初步估计是双方采用的HTTP2协议不兼容。</li>
+<li>采用低版本的Java gRPC, 调研发现Java的gRPC在2016年9月以前的最新版本是1.0.0，所以从1.0.0开始测试，最终发现0.9.0可以完成正常请求。</li>
+</ol>
+<h3 id="问题原因"><a href="#问题原因" class="headerlink" title="问题原因"></a>问题原因</h3><p>调研发现0.9.0版本的Java gRPC依赖了4.1.0.Beta6的Netty，该Netty版本发布与2015年9月， 而HTTP2在2015年有多次修订，版本号也升级到了17；我估计该版本的Netty是根据HTTP2修订版17以前的规范实现的,而且该版本为Beta版，导致跟其它语言的协议存在某些差异。</p>
+<h3 id="其它问题"><a href="#其它问题" class="headerlink" title="其它问题"></a>其它问题</h3><p>采用0.9.0版本的gRPC后会带来以下新问题：</p>
+<ol>
+<li>现有的Java项目框架采用springcloud2.0.0，该版本依赖了Netty的4.1.27.Final版本，项目集成后会出现版本冲突导致各种异常出现；</li>
+<li>0.9.0版本的gRPC缺少很多重要的特性，比如：nameresolver，负载均衡 等 …</li>
+<li>最终还是要升级到新版本</li>
+</ol>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案:"></a>解决方案:</h3><p>综合沟通下来最好的方案就是Go服务端升级gRPC到新版本 ，但是团队将官方代码改造后已经无法做到无缝升级，必须要做部分改造才能投入生产​；目前生产环境运行的Go服务超过50+，而且大部分是核心服务；改造后需要充分的测试，总体成本太大，而且目前没有更多的资源投入。最终决定才有用低版本的Java gRPC​，采用以下的措施应对低版本面临的问题:</p>
+<ol>
+<li>所有的Java项目提供统一的parent pom文件，所有的版本信息在parent pom的dependencyManagement中维护；</li>
+<li>增加新功能：nameresolver，负载均衡，兼容Go服务的服务发现，等…</li>
+</ol>
+<h3 id="一点思考"><a href="#一点思考" class="headerlink" title="一点思考"></a>一点思考</h3><p>我们在技术选型的不能过于保守也不能过于激进；太过保守不能充分利用新技术的优势，甚至会影响到团队士气；太过激进会遭遇太多的不确定性，面临着遇到问题没有先例可以参考，遭遇新的bug，等；所以，在团队没有足够的技术支撑的情况下，我不太建议生产环境采用1.0以下的版本。作为技术人员应该随时关注业界的新技术，但在生产环境采用新技术前必须考虑清楚所面对的各种风险，包括以后的升级能否做到无缝升级。​</p>
+<h5 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料:"></a>参考资料:</h5><p><a href="https://grpc.io/">https://grpc.io/</a><br><a href="https://github.com/grpc/grpc-java">https://github.com/grpc/grpc-java</a><br><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/">https://datatracker.ietf.org/doc/draft-ietf-httpbis-http2/history/</a></p>
+]]></content>
+      <tags>
+        <tag>微服务</tag>
+        <tag>RPC</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>海恩法则与生产Bug</title>
     <url>/2019/03/01/product-bug/</url>
     <content><![CDATA[<p><img src="/2019/03/01/product-bug/heinrich-law.jpeg"><br>「海恩法则」是航空涡轮发动机的发明者帕布斯·海恩提出一个在航空界关于飞行安全的法则。海恩指出：每一起严重事故的背后，必然有29次轻微事故和300起未遂先兆以及1000起事故隐患。法则强调两点：一是事故的发生是量的积累的结果；二是再好的技术，再完美的规章，在实际操作层面，也无法取代人自身的素质和责任心。「海恩法则」虽然针对的是飞行领域，在软件开发领域遭遇生产bug<span id="more"></span>，用「海恩法则」也可以解释。</p>
@@ -2624,44 +2486,6 @@
 ]]></content>
       <tags>
         <tag>线上问题</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>消息的可靠投递</title>
-    <url>/2021/04/13/reliable-message-delivery/</url>
-    <content><![CDATA[<p>在大型互联网项目中我们经常会用到消息队列(简称MQ)；主要用在异步消息，应用解耦，流量削锋等场景；在实际应用中经常需要保证消息的可靠投递<span id="more"></span>,即：不能丢消息。</p>
-<h3 id="MQ消费术语"><a href="#MQ消费术语" class="headerlink" title="MQ消费术语"></a>MQ消费术语</h3><pre><code>为了保证保证消息的可靠投递，先了解一下MQ的消费术语
-</code></pre>
-<ul>
-<li><p>At Lest Once(至少一次)<br> 消息在消费的过程中，至少被发送到一个consumer; 如果consumer处理失败，会再次发送到consumer； 所以消息可能会重复被消费，通常会要求consumer保证幂等性</p>
-</li>
-<li><p>At Most Once(至多一次)<br> 消息在消费的过程中，至多被一个consumer消费; 如果consumer处理失败，消息可能会丢失；只能用于可接受消息丢失的场景  </p>
-</li>
-<li><p>Exactly Once(仅有一次)<br>  发送到消息系统的消息只能被消费端处理且仅处理一次，即使生产端重试消息发送导致某消息重复投递，该消息在消费端也只被消费一次。常用MQ产品没有太多理想的实现 。</p>
-</li>
-</ul>
-<h3 id="消息的可靠投递"><a href="#消息的可靠投递" class="headerlink" title="消息的可靠投递"></a>消息的可靠投递</h3><p>我们以<a href="https://www.rabbitmq.com/">RabbitMQ</a>为例从以下几个方面保证说明如何实现消息的可靠投递</p>
-<h4 id="消息中间件可靠性"><a href="#消息中间件可靠性" class="headerlink" title="消息中间件可靠性"></a>消息中间件可靠性</h4><ul>
-<li>使用RabbitMQ的集群模式，basic模式和镜像模式都可以保证消息不丢失；根据业务特点在吞吐量和高可用之间权衡选择合适的集群模式</li>
-<li>确保exchange和queue的持久化</li>
-</ul>
-<h4 id="生产端可靠性"><a href="#生产端可靠性" class="headerlink" title="生产端可靠性"></a>生产端可靠性</h4><ul>
-<li>发送消息时候设置消息持久化属性<strong>DeliverModel</strong> </li>
-<li>消息持久化到数据库状态为发送中</li>
-<li>消息到达exchange开启confirm模式，生产者发送完消息后等待broker的ack，超过一定时间没有收到broker的ack后启动job重试，直到收到broker的ack，数据库消息状态更新为已发送</li>
-<li>消息未到达队列开启回退机制，如果消息从exchange无法投递到队列，回调通知调用者，调用者可以重试</li>
-</ul>
-<h4 id="消费端的可靠性"><a href="#消费端的可靠性" class="headerlink" title="消费端的可靠性"></a>消费端的可靠性</h4><ul>
-<li>消费端确保消息处理逻辑的幂等性</li>
-<li>关闭自动ack</li>
-<li>消费端每处理完一次消息后手动回复ack; 如果处理消息程失败回复nack, 默认情况下broker会继续下发消息直到消费成功；注意：消息处理失败必须回复nack，否则broker认为该consumer节点down，不再下发消息到该节点</li>
-</ul>
-<h4 id="监控报警"><a href="#监控报警" class="headerlink" title="监控报警"></a>监控报警</h4><p>对中间件，存储系统，应用等增加监控，在出现问题的时候能第一时间发现</p>
-<p>综上所述，为了保证消息的可靠投递我们需要从开发和运维的角度去考虑；确保每一个环节都能可靠。</p>
-]]></content>
-      <tags>
-        <tag>分布式</tag>
-        <tag>微服务</tag>
       </tags>
   </entry>
   <entry>
@@ -2735,6 +2559,100 @@
       <tags>
         <tag>微服务</tag>
       </tags>
+  </entry>
+  <entry>
+    <title>基于protobuf的定义在跨语言消息传递中的应用</title>
+    <url>/2021/09/21/message-dsl-base-protobuff/</url>
+    <content><![CDATA[<h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>在需要消息队列的场景中，生产端和消费端会事先就消息体格式达成共识确保生产端发送的消息在消费端能正常识别；如果生产端和消费都是Java项目，我们通常会定义消息体的Jar，让生产端和消费端都引用Jar确保消息的一致性；但在跨语言消息传递中<span id="more"></span>通常通过文档约定消息格式各自定义自己的消息体。在我们实际使用过程中发现不同语言之间传递信息还是会出现一些问题；比如：Java用fastjson输出复杂数据在Go项目解析失败，而且各语言在配置mq参数时候有各自的约定,人工操作容易引起误操作，所以我们希望能有一套跨语言的工具能分别生出各自语言的代码和配置。</p>
+<h3 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h3><p>现有系统跨语言之间RPC的调用我们采用了gRPC,很自然的想到可以借鉴gRPC Protobuf定义消息体。具体方法就是扩展<code>google.protobuf.MethodOptions</code>定义</p>
+<h5 id="方法"><a href="#方法" class="headerlink" title="方法"></a>方法</h5><p>下面以RabbitMQ为例，在Protobuf文件中定义MQ相关参数</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">extend google.protobuf.MethodOptions &#123;</span><br><span class="line">    </span><br><span class="line">    // exchange类型: topic direct fanout ,默认: direct</span><br><span class="line">    string routeType = 7010101;</span><br><span class="line"></span><br><span class="line">	// producer 发送到exchange上有效的routekey; 仅topic模式有效</span><br><span class="line">    repeated string routeKey = 7010102;</span><br><span class="line"></span><br><span class="line">    //consumer监听的队列名称，direct模式 该参数无效</span><br><span class="line">    repeated string listener = 7010103;</span><br><span class="line"></span><br><span class="line">   // 延迟队列的延迟时间</span><br><span class="line">   int32 delay = 6010106;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>说明</strong>: 如果exchange为topic模式，监听队列绑定的routekey必须根据此处定义的routKey定义设置;比如文件定义的routeKey是a.b.c则consumer端绑定到队列的routkey只能是 a.b.c, a.b.<em>, a.</em>, * 其中之一</p>
+<h5 id="生产Java代码"><a href="#生产Java代码" class="headerlink" title="生产Java代码"></a>生产Java代码</h5><p>通常在Maven工程中我们使用<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成gRPC的Java代码。现在我们可以扩展<a href="https://github.com/xolstice/protobuf-maven-plugin">protobuf-maven-plugin</a>插件生成MQ的代码。核心扩展点如下:</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"> @Mojo(</span><br><span class="line">        name = &quot;compile-mq&quot;,</span><br><span class="line">        defaultPhase = LifecyclePhase.GENERATE_SOURCES,</span><br><span class="line">        requiresDependencyResolution = ResolutionScope.COMPILE,</span><br><span class="line">        threadSafe = true</span><br><span class="line">)</span><br><span class="line">public class ProtocCompileMQMojo extends AbstractProtocCompileMojo&#123;</span><br><span class="line">    @Override</span><br><span class="line">    public void execute() throws MojoExecutionException, MojoFailureException &#123;</span><br><span class="line">        super.execute();  </span><br><span class="line">        // 利用 DescriptorProtos.FileDescriptorSet 读取proto文件的定义根据规范生出Java文件</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>最后配合MQ的SDK可以大大提高开发效率而且减低配置的复杂性。</p>
+]]></content>
+      <tags>
+        <tag>分布式</tag>
+        <tag>微服务</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>消息的可靠投递</title>
+    <url>/2021/04/13/reliable-message-delivery/</url>
+    <content><![CDATA[<p>在大型互联网项目中我们经常会用到消息队列(简称MQ)；主要用在异步消息，应用解耦，流量削锋等场景；在实际应用中经常需要保证消息的可靠投递<span id="more"></span>,即：不能丢消息。</p>
+<h3 id="MQ消费术语"><a href="#MQ消费术语" class="headerlink" title="MQ消费术语"></a>MQ消费术语</h3><pre><code>为了保证保证消息的可靠投递，先了解一下MQ的消费术语
+</code></pre>
+<ul>
+<li><p>At Lest Once(至少一次)<br> 消息在消费的过程中，至少被发送到一个consumer; 如果consumer处理失败，会再次发送到consumer； 所以消息可能会重复被消费，通常会要求consumer保证幂等性</p>
+</li>
+<li><p>At Most Once(至多一次)<br> 消息在消费的过程中，至多被一个consumer消费; 如果consumer处理失败，消息可能会丢失；只能用于可接受消息丢失的场景  </p>
+</li>
+<li><p>Exactly Once(仅有一次)<br>  发送到消息系统的消息只能被消费端处理且仅处理一次，即使生产端重试消息发送导致某消息重复投递，该消息在消费端也只被消费一次。常用MQ产品没有太多理想的实现 。</p>
+</li>
+</ul>
+<h3 id="消息的可靠投递"><a href="#消息的可靠投递" class="headerlink" title="消息的可靠投递"></a>消息的可靠投递</h3><p>我们以<a href="https://www.rabbitmq.com/">RabbitMQ</a>为例从以下几个方面保证说明如何实现消息的可靠投递</p>
+<h4 id="消息中间件可靠性"><a href="#消息中间件可靠性" class="headerlink" title="消息中间件可靠性"></a>消息中间件可靠性</h4><ul>
+<li>使用RabbitMQ的集群模式，basic模式和镜像模式都可以保证消息不丢失；根据业务特点在吞吐量和高可用之间权衡选择合适的集群模式</li>
+<li>确保exchange和queue的持久化</li>
+</ul>
+<h4 id="生产端可靠性"><a href="#生产端可靠性" class="headerlink" title="生产端可靠性"></a>生产端可靠性</h4><ul>
+<li>发送消息时候设置消息持久化属性<strong>DeliverModel</strong> </li>
+<li>消息持久化到数据库状态为发送中</li>
+<li>消息到达exchange开启confirm模式，生产者发送完消息后等待broker的ack，超过一定时间没有收到broker的ack后启动job重试，直到收到broker的ack，数据库消息状态更新为已发送</li>
+<li>消息未到达队列开启回退机制，如果消息从exchange无法投递到队列，回调通知调用者，调用者可以重试</li>
+</ul>
+<h4 id="消费端的可靠性"><a href="#消费端的可靠性" class="headerlink" title="消费端的可靠性"></a>消费端的可靠性</h4><ul>
+<li>消费端确保消息处理逻辑的幂等性</li>
+<li>关闭自动ack</li>
+<li>消费端每处理完一次消息后手动回复ack; 如果处理消息程失败回复nack, 默认情况下broker会继续下发消息直到消费成功；注意：消息处理失败必须回复nack，否则broker认为该consumer节点down，不再下发消息到该节点</li>
+</ul>
+<h4 id="监控报警"><a href="#监控报警" class="headerlink" title="监控报警"></a>监控报警</h4><p>对中间件，存储系统，应用等增加监控，在出现问题的时候能第一时间发现</p>
+<p>综上所述，为了保证消息的可靠投递我们需要从开发和运维的角度去考虑；确保每一个环节都能可靠。</p>
+]]></content>
+      <tags>
+        <tag>分布式</tag>
+        <tag>微服务</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Dify 源码改造：自定义品牌实践</title>
+    <url>/2025/09/20/dify-custom-brand/</url>
+    <content><![CDATA[<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>Dify 是一款开源的大语言模型（LLM）应用开发平台，凭借其灵活的插件机制和可视化编排能力，成为企业构建 AI 应用的热门选择。我们希望通过品牌(以品牌 <code>YZHU</code> 为例)定制让 Dify 平台融入其企业形象，强化用户对品牌的认知。<span id="more"></span></p>
+<p>本次变更聚焦于品牌定制，覆盖前端界面（标题、Logo）和嵌入式脚本（交互图标），形成了一套完整的品牌替换流程。这种场景在开源项目二次开发中非常常见：企业需要通过品牌替换和配置调整，让工具更贴合业务需求。本文记录了此次变更的实践细节，希望为其他开发者提供可复用的参考模板。</p>
+<h2 id="核心变更的技术细节"><a href="#核心变更的技术细节" class="headerlink" title="核心变更的技术细节"></a>核心变更的技术细节</h2><p>本次变更涉及 <strong>前端资源</strong> 和 <strong>嵌入式脚本</strong> 两个模块，围绕品牌定制目标展开。以下从技术视角逐一解析关键修改点。</p>
+<h3 id="前端资源"><a href="#前端资源" class="headerlink" title="前端资源"></a>前端资源</h3><p>前端资源是品牌定制的核心，目标是将 “Dify” 品牌替换为 “YZHU”，并优化视觉和无障碍体验。</p>
+<h4 id="1-页面标题"><a href="#1-页面标题" class="headerlink" title="1. 页面标题"></a>1. 页面标题</h4><p>修改 <code>web/hooks/use-document-title.ts</code> 中的标题拼接逻辑，将 <code>${prefix}Dify</code> 替换为 <code>${prefix}YZHU</code>，确保所有页面标题（如 “Home - Dify”）显示为 “Home - YZHU”：</p>
+<figure class="highlight diff"><table><tr><td class="code"><pre><span class="line">// web/hooks/use-document-title.ts</span><br><span class="line"><span class="deletion">- const title = `$&#123;prefix&#125;Dify`;</span></span><br><span class="line"><span class="addition">+ const title = `$&#123;prefix&#125;YZHU`;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>测试方法</strong>：运行 <code>npm run dev</code>，打开浏览器检查页面标题后缀是否正确更新为 “ - YZHU” 。</p>
+<h4 id="2-Logo-描述"><a href="#2-Logo-描述" class="headerlink" title="2. Logo 描述"></a>2. Logo 描述</h4><p>更新以下文件中 Logo 图片的 <code>alt</code> 属性，从 “Dify logo” 改为 “YZHU logo”，提升搜索引擎优化（SEO）和无障碍访问体验（屏幕阅读器会读取 <code>alt</code> 文本）：</p>
+<ul>
+<li><code>web/app/account/(commonLayout)/header.tsx</code></li>
+<li><code>web/app/components/base/logo/dify-logo.tsx</code></li>
+</ul>
+<figure class="highlight diff"><table><tr><td class="code"><pre><span class="line">// web/app/components/base/logo/dify-logo.tsx</span><br><span class="line"><span class="deletion">- &lt;img src=&quot;logo.svg&quot; alt=&quot;Dify logo&quot; /&gt;</span></span><br><span class="line"><span class="addition">+ &lt;img src=&quot;logo.svg&quot; alt=&quot;YZHU logo&quot; /&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>注意</strong>：<code>alt</code> 属性的修改需确保描述准确，反映品牌名称，有助于搜索引擎抓取和无障碍工具识别。</p>
+<h4 id="3-Logo-图片更新"><a href="#3-Logo-图片更新" class="headerlink" title="3. Logo 图片更新"></a>3. Logo 图片更新</h4><p>将 <code>web/app/components/base/logo/logo.svg</code> 替换为自定义的 YZHU Logo。确保新 SVG 文件的尺寸与原文件一致，以避免界面布局错乱。示例 SVG 结构：</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="comment">&lt;!-- web/app/components/base/logo/logo.svg --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">svg</span> <span class="attr">width</span>=<span class="string">&quot;200&quot;</span> <span class="attr">height</span>=<span class="string">&quot;50&quot;</span> <span class="attr">viewBox</span>=<span class="string">&quot;0 0 200 50&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">text</span> <span class="attr">x</span>=<span class="string">&quot;10&quot;</span> <span class="attr">y</span>=<span class="string">&quot;35&quot;</span> <span class="attr">font-size</span>=<span class="string">&quot;24&quot;</span> <span class="attr">fill</span>=<span class="string">&quot;#000&quot;</span>&gt;</span>YZHU<span class="tag">&lt;/<span class="name">text</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">svg</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>测试方法</strong>：在开发环境中检查 Logo 在不同页面和屏幕尺寸下的显示效果，确保无拉伸或模糊。</p>
+<h3 id="嵌入式脚本"><a href="#嵌入式脚本" class="headerlink" title="嵌入式脚本"></a>嵌入式脚本</h3><p>嵌入式脚本 <code>embed.js</code> 用于在网页中嵌入 Dify 的交互组件（如聊天窗口）。本次变更更新了脚本中使用的图标文件 <code>closeIcon.svg</code> 和 <code>openIcon.svg</code>，用于 “展开&#x2F;关闭” 交互按钮。</p>
+<h4 id="图标文件更新"><a href="#图标文件更新" class="headerlink" title="图标文件更新"></a>图标文件更新</h4><p>在<code>embed.js</code>将 <code>closeIcon.svg</code> 和 <code>openIcon.svg</code> 替换为自定义 SVG 图标。SVG 格式支持矢量缩放，适合高清屏幕，且可通过代码调整样式（例如颜色、大小）。示例：</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"><span class="comment">&lt;!-- closeIcon.svg --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">svg</span> <span class="attr">width</span>=<span class="string">&quot;24&quot;</span> <span class="attr">height</span>=<span class="string">&quot;24&quot;</span> <span class="attr">viewBox</span>=<span class="string">&quot;0 0 24 24&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">path</span> <span class="attr">fill</span>=<span class="string">&quot;#FF0000&quot;</span> <span class="attr">d</span>=<span class="string">&quot;M10 10L14 14M14 10L10 14&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">svg</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">&lt;!-- openIcon.svg --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">svg</span> <span class="attr">width</span>=<span class="string">&quot;24&quot;</span> <span class="attr">height</span>=<span class="string">&quot;24&quot;</span> <span class="attr">viewBox</span>=<span class="string">&quot;0 0 24 24&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">path</span> <span class="attr">fill</span>=<span class="string">&quot;#0000FF&quot;</span> <span class="attr">d</span>=<span class="string">&quot;M12 5V19M5 12H19&quot;</span> /&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">svg</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+
+<p><strong>优势</strong>：SVG 图标支持动态修改 <code>fill</code> 属性（例如，切换为暗模式时更改颜色），比字体图标更灵活。</p>
+<p><strong>测试方法</strong>：在网页中嵌入 <code>embed.js</code>，检查交互按钮的图标是否正确显示，点击时是否触发展开&#x2F;关闭功能。</p>
+<h3 id="后续优化建议"><a href="#后续优化建议" class="headerlink" title="后续优化建议"></a>后续优化建议</h3><p>新增品牌配置文件：当前品牌标识（如 “YZHU”）硬编码在代码中，后续修改需逐文件替换。建议新增 brand.config.js：</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">// web/brand.config.js</span></span><br><span class="line"><span class="keyword">export</span> <span class="keyword">const</span> brand = &#123;</span><br><span class="line">  <span class="attr">name</span>: <span class="string">&#x27;YZHU&#x27;</span>,</span><br><span class="line">  <span class="attr">logoPath</span>: <span class="string">&#x27;/path/to/logo.svg&#x27;</span>,</span><br><span class="line">  <span class="attr">altText</span>: <span class="string">&#x27;YZHU logo&#x27;</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>在代码中引用：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">import &#123; brand &#125; from &#x27;./brand.config.js&#x27;;</span><br><span class="line">const title = `$&#123;prefix&#125;$&#123;brand.name&#125;`;</span><br></pre></td></tr></table></figure>
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>开源项目的二次开发不一定需要改动核心功能，像本次 Dify 品牌定制这样，通过精细化的文本替换、视觉更新和部署优化，同样能让工具无缝融入企业业务场景。本文提供了一套可复用的品牌替换流程，涵盖前端资源和嵌入式脚本，适合中小型企业或初次接触 Dify 的开发者。</p>
+<p>如果你也在进行 Dify 的二次开发，欢迎分享你的经验！希望本文能为你的项目提供参考。</p>
+]]></content>
   </entry>
   <entry>
     <title>EspoCRM 选型记录：约束、PoC 与总成本核算</title>
@@ -3493,6 +3411,88 @@
         <tag>upgrade-safe</tag>
         <tag>module-architecture</tag>
         <tag>deployment</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>分布式事务实现</title>
+    <url>/2018/05/22/distributed-transaction/</url>
+    <content><![CDATA[<p>在分布式系统中，同时满足“CAP定律”中的“一致性”、“可用性”和“分区容错性”三者是不可能的。在互联网领域的绝大多数的场景，都需要牺牲强一致性来换取系统的高可用性，系统往往只需要保证“最终一致性”，只要这个最终时间是在用户可以接受的范围内即可。<span id="more"></span></p>
+<h3 id="XA"><a href="#XA" class="headerlink" title="XA"></a>XA</h3><p>XA规范主要定义了事务管理器(Transaction Manager)和资源管理器(Resource Manager)之间的接口. XA引入事务管理器是因为在分布式系统中，从理论上讲两台机器上无法达到一致的状态，需要引入一个外部点进行协调。事务管理器控制着全局事务，管理事务生命周期，并协调资源, 资源管理器负责控制和管理实际资源 。XA是一个两阶段提交协议，该协议分为以下两个阶段：</p>
+<ol>
+<li>事务协调器要求每个涉及到事务的数据库预提交，并反映是否可以提交 。</li>
+<li>事务协调器要求每个数据库提交数据 。</li>
+</ol>
+<p>如果有任何一个数据库否决此次提交，那么所有数据库都会被要求回滚它们在此事务中的那部分信息 。</p>
+<h3 id="JTA"><a href="#JTA" class="headerlink" title="JTA"></a>JTA</h3><p>JTA作为JAVA平台上的事务规范，同时定义了对XA事务的支持；在JTA中，事务管理器抽象为javax.transaction.TransactionManager接口，通过底层事务服务（即JTS）实现,JTA仅仅定义了接口，具体的实现则是由供应商(如J2EE厂商)负责提供，目前JTA的实现主要由J2EE容器所提供的JTA实现(如JBOSS)和独立的JTA实现(如JOTM，Atomikos)。</p>
+<blockquote>
+<p>JTA本质上是两阶段提交，实现复杂，牺牲了可用性，对性能影响较大, 适合对数据强一致(<strong>其实也不能100%保证强一致</strong>)要求很高的关键领域; 大部分互联网业务都不会采用两阶段提交的方式 。</p>
+</blockquote>
+<h3 id="链式事务管理"><a href="#链式事务管理" class="headerlink" title="链式事务管理"></a>链式事务管理</h3><p>这种方式也Spring提供的，可以将两个或多个数据库资源的事务串联到一起，公用一个TransactionManager来实现对多个资源的事务。配置方式如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">  &lt;bean id=&quot;transactionManager&quot; class=&quot;org.springframework.data.transaction.ChainedTransactionManager&quot;&gt;</span><br><span class="line">  &lt;property name=&quot;transactionManagers&quot;&gt;</span><br><span class="line">    &lt;list&gt;</span><br><span class="line">      &lt;bean</span><br><span class="line">        class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;</span><br><span class="line">        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource1&quot; /&gt;</span><br><span class="line">      &lt;/bean&gt;</span><br><span class="line">      &lt;bean</span><br><span class="line">        class=&quot;org.springframework.jdbc.datasource.DataSourceTransactionManager&quot;&gt;</span><br><span class="line">        &lt;property name=&quot;dataSource&quot; ref=&quot;dataSource2&quot; /&gt;</span><br><span class="line">      &lt;/bean&gt;</span><br><span class="line">    &lt;/list&gt;</span><br><span class="line">  &lt;/property&gt;</span><br><span class="line">&lt;/bean&gt;</span><br><span class="line"> &lt;/code&gt;</span><br></pre></td></tr></table></figure>
+<p>针对多个数据库实现事务。使用这种方式时，在Spring事务提交的时候，它会依次调用里面的多个dataSource的commit()方法，如果业务方法出错，就会按照相反的顺序调用rollback()方法。这种方法可能会出现先前的提交成功，之后的提交失败，所以还是会有事务失败的可能。</p>
+<blockquote>
+<p>实现简单，但可能会出现先前的提交成功，之后的提交失败，所以还是会有事务失败的可能</p>
+</blockquote>
+<h3 id="最大努力一次提交-Best-Efforts-1PC"><a href="#最大努力一次提交-Best-Efforts-1PC" class="headerlink" title="最大努力一次提交(Best Efforts 1PC)"></a>最大努力一次提交(Best Efforts 1PC)</h3><p>在一个系统中使用数据库和带事务功能的消息中间件，业务流程如下</p>
+<ol>
+<li>开始消息事务</li>
+<li>发送消息</li>
+<li>开始数据库事务</li>
+<li>更新数据库</li>
+<li>提交数据库事务</li>
+<li>提交消息事务</li>
+</ol>
+<p>有两个事务，分别是DB的和JMS的事务，事务的开启和提交都是相互独立的。依次提交这两个事务，只要第二个事务顺利提交，整个方法就能够保证数据的一致性。实际上，在绝大多数情况下，只要数据库和MQ能够正常访问，这也确实能够保证。所以，这种方式就叫’最大努力’一次提交。</p>
+<p>使用这种方式，事物提交的顺序是非常重要的。假设在提交messaging transaction的时候发生错误，这时数据库的事务已经提交，无法回滚，但是消息的事务被回滚，那么这一条消息会被重新放回队列中，该业务方法会被再次触发，再次在一个新的事务中处理。但是，这时数据的处理已经完成，只是最后JMS的事物提交出错，那么就需要通过防止重复提交的方式，来避免数据库的再次处理。</p>
+<h3 id="事务补偿型-TCC型事务–Try-Confirm-Cancel"><a href="#事务补偿型-TCC型事务–Try-Confirm-Cancel" class="headerlink" title="事务补偿型(TCC型事务–Try&#x2F;Confirm&#x2F;Cancel)"></a>事务补偿型(TCC型事务–Try&#x2F;Confirm&#x2F;Cancel)</h3><p>其核心思想是：针对每个操作，都要注册一个与其对应的确认和补偿（撤销）操作。它分为三个阶段：</p>
+<ul>
+<li>Try 阶段主要是对业务系统做检测及资源预留</li>
+<li>Confirm 阶段主要是对业务系统做确认提交，Try阶段执行成功并开始执行 Confirm阶段时，默认 Confirm阶段是不会出错的, 即：只要Try成功，Confirm一定成功</li>
+<li>Cancel 阶段主要是在业务执行错误，需要回滚的状态下执行的业务取消，预留资源释放</li>
+</ul>
+<p>在一个长事务，一个由两台服务器一起参与的事务，服务器A发起事务，服务器B参与事务，B所处理时间可能比较长。如果按照ACID的原则，要保持事务的隔离性、一致性，服务器A中发起的事务中使用到的事务资源将会被锁定，不允许其他应用访问到事务过程中的中间结果，直到整个事务被提交或者回滚。这就造成事务A中的资源被长时间锁定，系统的可用性将不可接受。服务器A的事务如果执行顺利，那么事务A就先行提交，如果事务B也执行顺利，则事务B也提交，整个事务就算完成。但是如果事务B执行失败，事务B本身回滚，这时事务A已经被提交，所以需要执行一个<strong>补偿</strong>操作，将已经提交的事务A执行的操作作反操作，恢复到未执行前事务A的状态。这样的事务模型，是牺牲了一定的隔离性和一致性的，但是提高了事务的可用性。</p>
+<blockquote>
+<p>与两阶段提交相比实现及流程相对简单，但应用层要写很多补偿代码(而且补偿也不能保证一定成功)</p>
+</blockquote>
+<h3 id="本地流水表实现最终一致性"><a href="#本地流水表实现最终一致性" class="headerlink" title="本地流水表实现最终一致性"></a>本地流水表实现最终一致性</h3><p>以电商下单场景为例，主要涉及到两个操作，<strong>扣减库存</strong>和<strong>生成订单</strong>,因为两个操作在不同的数据库，无法保证强一致性,可以通过本地流水表来实现最终一致性 ， 具体流程如下:</p>
+<ul>
+<li>生成交易操作唯一标示token</li>
+<li>事务一(库存系统): <ul>
+<li>冻结库存</li>
+<li>根据下单流水号生成商品的库存冻结记录,冻结记录主要包括<strong>skuId</strong>,<strong>token</strong>,<strong>冻结数量</strong>,<strong>状态</strong> .状态有3种状态: <strong>已冻结</strong>，<strong>下单成功扣减</strong>，<strong>下单失败释放</strong>,初始状态为已冻结</li>
+</ul>
+</li>
+<li>如果事务一失败，直接返回；如果成功进入事务二 </li>
+<li>事务二(订单系统, 本地事务)：根据token生成订单,订单的状态主要包括：<strong>未支付</strong>,<strong>已支付</strong>,<strong>超时未支付</strong>,订单的初始状态为<strong>未支付</strong></li>
+<li>事务二如果成功，则进行后续的流程,</li>
+<li>事务二如果失败，调用库存系统的回滚接口，返回下单失败;</li>
+<li>定时任务: 因为存在<strong>事务一成功</strong>而<strong>事务二</strong>失败的情况，这样会冻结商品的部分库存，所以可以捞取出创建超过一定时间状态为<strong>已冻结</strong>的所有冻结记录，根据每个冻结记录的token去订单表查询，若不存在对应的订单，则将冻结记录的状态更新为<strong>下单失败释放</strong>，并回滚商品库存数量</li>
+</ul>
+<h3 id="异步确保型"><a href="#异步确保型" class="headerlink" title="异步确保型"></a>异步确保型</h3><p>将一些有同步的事务操作变为异步操作，避免对数据库事务的争用；继续以以电商下单场景为例，支付成功后增加用户积分；</p>
+<ul>
+<li>事务一(订单系统)，订单状态修改为支付成功，发送支付成功消息</li>
+<li>事务二(用户系统)，用户系统接到支付成功消息后，增加用户积分</li>
+</ul>
+<h3 id="MQ事务消息"><a href="#MQ事务消息" class="headerlink" title="MQ事务消息"></a>MQ事务消息</h3><p>一些第支持事务消息MQ，比如RocketMQ，他们支持事务消息的方式也是类似于采用的二阶段提交，其思路大致为：</p>
+<ul>
+<li>第一阶段Prepared消息，会拿到消息的地址。</li>
+<li>第二阶段执行本地事务，第三阶段通过第一阶段拿到的地址去访问消息，并修改状态。</li>
+</ul>
+<p>在业务方法内要想消息队列提交两次请求，一次发送消息和一次确认消息。如果确认消息发送失败了RocketMQ会定期扫描消息集群中的事务消息，这时候发现了Prepared消息，它会向消息发送者确认，是回滚还是继续发送确认消息。这样就保证了消息发送保证与本地事务同时成功或同时失败 </p>
+<h3 id="分布式事务实现的原则"><a href="#分布式事务实现的原则" class="headerlink" title="分布式事务实现的原则"></a>分布式事务实现的原则</h3><ul>
+<li>大事务拆成小事务，每个小事务都是单机上的事务</li>
+<li>补偿 + 重试， 业务上设计补偿机制，而且保证补偿失败后有重试机制</li>
+<li>幂等, 保证每次事务操作是幂等的，保证幂等的方式可以采用：<ul>
+<li>状态值，每次写操作的时候检查状态值</li>
+<li>唯一标示，每次写操作都带入业务唯一标示</li>
+</ul>
+</li>
+</ul>
+]]></content>
+      <tags>
+        <tag>分布式</tag>
+        <tag>微服务</tag>
+        <tag>一致性</tag>
       </tags>
   </entry>
 </search>
