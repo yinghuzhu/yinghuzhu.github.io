@@ -52,7 +52,7 @@
   };
 </script>
 
-  <title>EspoCRM定制第1篇: 总纲——扩展点选择、模块架构与工程化 | yhzhu的随手记</title><meta name="robots" content="noindex">
+  <title>EspoCRM定制第1篇: 总纲——扩展点选择、模块架构与工程化 | yhzhu的随手记</title>
   <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
 <script>
@@ -339,13 +339,120 @@
 <h3 id="4-2-执行方式"><a href="#4-2-执行方式" class="headerlink" title="4.2 执行方式"></a>4.2 执行方式</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">CONTAINER_NAME=<span class="string">&quot;&lt;your-espocrm-container&gt;&quot;</span></span><br><span class="line">docker <span class="built_in">exec</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span> php /var/www/html/command.php rebuild</span><br><span class="line">docker <span class="built_in">exec</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span> php /var/www/html/command.php clear-cache</span><br></pre></td></tr></table></figure>
 
 <hr>
-<h2 id="5-部署与回滚"><a href="#5-部署与回滚" class="headerlink" title="5. 部署与回滚"></a>5. 部署与回滚</h2><h3 id="5-1-逐文件拷贝原则"><a href="#5-1-逐文件拷贝原则" class="headerlink" title="5.1 逐文件拷贝原则"></a>5.1 逐文件拷贝原则</h3><p><strong>禁止</strong>：目录拷贝（不要把整个 <code>custom/</code> 目录一次性扔进容器）</p>
+<h2 id="5-部署与回滚"><a href="#5-部署与回滚" class="headerlink" title="5. 部署与回滚"></a>5. 部署与回滚</h2><h3 id="5-1-容器化部署架构说明"><a href="#5-1-容器化部署架构说明" class="headerlink" title="5.1 容器化部署架构说明"></a>5.1 容器化部署架构说明</h3><pre class="mermaid">graph TD
+    subgraph Client [用户客户端]
+        A[Web 浏览器 / 移动端]
+    end
+
+    subgraph Docker_Environment [Docker  环境]
+        direction LR
+        subgraph EspoCRM_Monolith [EspoCRM 核心应用容器 Container]
+            C[Web Server : Nginx] --> D[PHP-FPM / EspoCRM Code]
+            D --> E[Cron Scheduler :Background Tasks]
+        end
+
+        Fsys[Filesystem Volume :持久化挂载]
+    end
+
+    subgraph External_Managed_Services [容器外公共托管服务]
+        G[Database :MySQL/ RDS]
+        H[Cache/Queue :Redis]
+        J[Identity Provider :Azure AD / LDAP]
+        K[Email Services :SMTP/IMAP]
+        L[AWS S3 :用户文件存储]
+    end
+
+    A -->|HTTPS/HTTP| C
+
+    D -->|SQL| G
+    D -->|Read/Write Logs| Fsys
+    D -->|S3 API / Uploaded Files| L
+
+    D -.->|API/Protocol| H
+    D -->|OIDC/SAML| J
+    D -->|SMTP/IMAP| K
+
+    E -->|Background Tasks| D
+    E -->|Data Access| G
+
+    style EspoCRM_Monolith fill:#FFF7E0,stroke:#333
+    style Docker_Environment fill:#E0FFEE,stroke:#333
+    style External_Managed_Services fill:#F0E6FF,stroke:#333</pre>
+
+<table>
+<thead>
+<tr>
+<th align="left">组件</th>
+<th align="left">部署位置</th>
+<th align="left">运维职责</th>
+<th align="left">依赖关系</th>
+<th align="left">备注（起步阶段）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Web Server &#x2F; PHP-FPM &#x2F; EspoCRM Code</td>
+<td align="left">Docker Container（容器内部）</td>
+<td align="left">开发团队负责构建和维护单一应用镜像</td>
+<td align="left">接收 Client 流量，连接外部服务（DB&#x2F;IDP&#x2F;Email）</td>
+<td align="left">核心组件，包含全部定制代码</td>
+</tr>
+<tr>
+<td align="left">Cron Scheduler</td>
+<td align="left">Docker Container（容器内部）</td>
+<td align="left">开发团队负责运行</td>
+<td align="left">依赖 PHP（执行任务）；访问 Database（获取任务数据）</td>
+<td align="left">核心组件，必须定期运行</td>
+</tr>
+<tr>
+<td align="left">Filesystem Volume</td>
+<td align="left">容器外部持久化卷（Volume）</td>
+<td align="left">运维团队负责管理与备份</td>
+<td align="left">供 PHP 读写代码&#x2F;配置与用户上传文件（<code>data/upload/</code>）</td>
+<td align="left">关键依赖，确保 PV 备份</td>
+</tr>
+<tr>
+<td align="left">Database（MySQL&#x2F;PostgreSQL）</td>
+<td align="left">容器外公共服务（Managed Service）</td>
+<td align="left">外部服务商管理（如 RDS）</td>
+<td align="left">被 PHP 与 Cron 访问，存储业务数据与元数据</td>
+<td align="left">必须依赖</td>
+</tr>
+<tr>
+<td align="left">Identity Provider（Azure AD&#x2F;LDAP）</td>
+<td align="left">容器外公共服务</td>
+<td align="left">外部服务商管理</td>
+<td align="left">被 PHP 通过 OIDC&#x2F;SAML 用于 SSO</td>
+<td align="left">必须依赖</td>
+</tr>
+<tr>
+<td align="left">Email Services（SMTP&#x2F;IMAP）</td>
+<td align="left">容器外公共服务</td>
+<td align="left">外部服务商管理</td>
+<td align="left">被 PHP 用于邮件发送与接收</td>
+<td align="left">必须依赖（实现邮件功能）</td>
+</tr>
+<tr>
+<td align="left">AWS S3</td>
+<td align="left">容器外公共服务</td>
+<td align="left">外部服务商管理</td>
+<td align="left">用户文件存储</td>
+<td align="left">必须依赖</td>
+</tr>
+<tr>
+<td align="left">Cache &amp; Search Engine</td>
+<td align="left">暂时不用（使用内部回退机制）</td>
+<td align="left">暂无独立运维职责</td>
+<td align="left">内部 PHP 使用文件系统或数据库做缓存&#x2F;搜索</td>
+<td align="left">现阶段可省略，用户增长后升级</td>
+</tr>
+</tbody></table>
+<h3 id="5-2-逐文件拷贝原则"><a href="#5-2-逐文件拷贝原则" class="headerlink" title="5.2 逐文件拷贝原则"></a>5.2 逐文件拷贝原则</h3><p><strong>禁止</strong>：目录拷贝（不要把整个 <code>custom/</code> 目录一次性扔进容器）</p>
 <p><strong>正确</strong>：逐文件拷贝</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># ✅ 正确：逐文件拷贝，可审计</span></span><br><span class="line">CONTAINER_NAME=<span class="string">&quot;&lt;your-espocrm-container&gt;&quot;</span></span><br><span class="line">docker <span class="built_in">cp</span> Module.php <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span>:/var/www/html/custom/Espo/Modules/MyModule/Module.php</span><br><span class="line">docker <span class="built_in">cp</span> MyEntity.json <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span>:/var/www/html/custom/Espo/Modules/MyModule/Resources/metadata/entityDefs/MyEntity.json</span><br><span class="line"><span class="comment"># ... 逐个文件</span></span><br></pre></td></tr></table></figure>
 
-<h3 id="5-2-部署检查清单"><a href="#5-2-部署检查清单" class="headerlink" title="5.2 部署检查清单"></a>5.2 部署检查清单</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">文件部署</span><br><span class="line">├── [ ] 所有 .php 文件已拷贝</span><br><span class="line">├── [ ] 所有 .json 元数据文件已拷贝</span><br><span class="line">├── [ ] 所有 .js 前端文件已拷贝</span><br><span class="line">└── [ ] 所有 .tpl 模板文件已拷贝</span><br><span class="line"></span><br><span class="line">系统重建</span><br><span class="line">├── [ ] rebuild 已执行</span><br><span class="line">├── [ ] clear-cache 已执行</span><br><span class="line">└── [ ] 浏览器缓存已清空</span><br><span class="line"></span><br><span class="line">功能验证</span><br><span class="line">├── [ ] 新菜单项显示</span><br><span class="line">├── [ ] 新实体可创建/编辑</span><br><span class="line">├── [ ] 新 API 端点可访问</span><br><span class="line">├── [ ] ACL 权限正确</span><br><span class="line">└── [ ] 日志无错误</span><br><span class="line"></span><br><span class="line">备份确认</span><br><span class="line">├── [ ] 管理员配置已备份</span><br><span class="line">└── [ ] 数据库已备份</span><br></pre></td></tr></table></figure>
+<h3 id="5-3-部署检查清单"><a href="#5-3-部署检查清单" class="headerlink" title="5.3 部署检查清单"></a>5.3 部署检查清单</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">文件部署</span><br><span class="line">├── [ ] 所有 .php 文件已拷贝</span><br><span class="line">├── [ ] 所有 .json 元数据文件已拷贝</span><br><span class="line">├── [ ] 所有 .js 前端文件已拷贝</span><br><span class="line">└── [ ] 所有 .tpl 模板文件已拷贝</span><br><span class="line"></span><br><span class="line">系统重建</span><br><span class="line">├── [ ] rebuild 已执行</span><br><span class="line">├── [ ] clear-cache 已执行</span><br><span class="line">└── [ ] 浏览器缓存已清空</span><br><span class="line"></span><br><span class="line">功能验证</span><br><span class="line">├── [ ] 新菜单项显示</span><br><span class="line">├── [ ] 新实体可创建/编辑</span><br><span class="line">├── [ ] 新 API 端点可访问</span><br><span class="line">├── [ ] ACL 权限正确</span><br><span class="line">└── [ ] 日志无错误</span><br><span class="line"></span><br><span class="line">备份确认</span><br><span class="line">├── [ ] 管理员配置已备份</span><br><span class="line">└── [ ] 数据库已备份</span><br></pre></td></tr></table></figure>
 
-<h3 id="5-3-回滚策略"><a href="#5-3-回滚策略" class="headerlink" title="5.3 回滚策略"></a>5.3 回滚策略</h3><p><strong>代码回滚</strong>：</p>
+<h3 id="5-4-回滚策略"><a href="#5-4-回滚策略" class="headerlink" title="5.4 回滚策略"></a>5.4 回滚策略</h3><p><strong>代码回滚</strong>：</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 1) 在宿主机源码里回滚到上一个可用版本（示例：Git）</span></span><br><span class="line">git checkout &lt;last-good-tag-or-commit&gt; -- custom/Espo/Modules/MyModule/</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2) 按“逐文件拷贝”重新部署到容器</span></span><br><span class="line">CONTAINER_NAME=<span class="string">&quot;&lt;your-espocrm-container&gt;&quot;</span></span><br><span class="line">docker <span class="built_in">cp</span> custom/Espo/Modules/MyModule/Module.php \</span><br><span class="line">  <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span>:/var/www/html/custom/Espo/Modules/MyModule/Module.php</span><br><span class="line">docker <span class="built_in">cp</span> custom/Espo/Modules/MyModule/Resources/metadata/entityDefs/MyEntity.json \</span><br><span class="line">  <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span>:/var/www/html/custom/Espo/Modules/MyModule/Resources/metadata/entityDefs/MyEntity.json</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3) rebuild 生效</span></span><br><span class="line">docker <span class="built_in">exec</span> <span class="string">&quot;<span class="variable">$CONTAINER_NAME</span>&quot;</span> php /var/www/html/command.php rebuild</span><br></pre></td></tr></table></figure>
 
 <p><strong>数据回滚</strong>：</p>
@@ -361,7 +468,7 @@
 <li>对“新增表&#x2F;中间表&#x2F;索引”的清理，采用显式的反向 SQL（DROP TABLE&#x2F;INDEX），并在测试库验证后再执行到生产</li>
 <li>对“新增列&#x2F;字段”的回滚，优先走“弃用而非删除”：保留列与数据，仅从界面与业务逻辑中移除；确需删除时使用 hard rebuild 或反向 SQL，并明确数据保留&#x2F;迁移方案</li>
 </ol>
-<h3 id="5-4-管理员配置备份"><a href="#5-4-管理员配置备份" class="headerlink" title="5.4 管理员配置备份"></a>5.4 管理员配置备份</h3><p>开发者代码在 Git 中有版本控制，但管理员配置（<code>custom/Espo/Custom/</code>）不在任何版本控制系统里。<strong>系统崩溃时，管理员配置会丢失</strong>。</p>
+<h3 id="5-5-管理员配置备份"><a href="#5-5-管理员配置备份" class="headerlink" title="5.5 管理员配置备份"></a>5.5 管理员配置备份</h3><p>开发者代码在 Git 中有版本控制，但管理员配置（<code>custom/Espo/Custom/</code>）不在任何版本控制系统里。<strong>系统崩溃时，管理员配置会丢失</strong>。</p>
 <p><strong>问题本质</strong>：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">开发者代码：Git 版本控制 → 随时恢复 ✅</span><br><span class="line">管理员配置：无版本控制 → 系统崩 = 配置丢 ❌</span><br></pre></td></tr></table></figure>
 
@@ -394,7 +501,7 @@
 <li>用 rebuild 纪律保证元数据生效</li>
 <li>用清单化部署把风险降到可控</li>
 </ul>
-<!-- flag of hidden posts -->
+
     </div>
 
     
@@ -414,6 +521,13 @@
 
 
         
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/11/12/OIDC-OAuth2-Need-Admin-Approval/" rel="prev" title="OIDC "Need Admin Approval" 故障排除与分析">
+      <i class="fa fa-chevron-left"></i> OIDC "Need Admin Approval" 故障排除与分析
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
       </footer>
     
   </article>
@@ -471,7 +585,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E6%89%A9%E5%B1%95%E7%82%B9%E9%87%91%E5%AD%97%E5%A1%94"><span class="nav-number">2.</span> <span class="nav-text">1. 扩展点金字塔</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-%E6%88%91%E4%BB%AC%E8%A7%A3%E5%86%B3%E7%9A%84%E4%B8%8D%E6%98%AF%E2%80%9D%E8%83%BD%E4%B8%8D%E8%83%BD%E6%94%B9%E2%80%9D%EF%BC%8C%E8%80%8C%E6%98%AF%E2%80%9D%E8%83%BD%E4%B8%8D%E8%83%BD%E9%95%BF%E6%9C%9F%E7%BB%B4%E6%8A%A4%E2%80%9D"><span class="nav-number">2.1.</span> <span class="nav-text">1.1 我们解决的不是”能不能改”，而是”能不能长期维护”</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-%E9%80%89%E6%8B%A9%E6%89%A9%E5%B1%95%E7%82%B9%E7%9A%84%E4%BC%98%E5%85%88%E7%BA%A7%EF%BC%88%E9%87%91%E5%AD%97%E5%A1%94%EF%BC%89"><span class="nav-number">2.2.</span> <span class="nav-text">1.2 选择扩展点的优先级（金字塔）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-3-%E7%BA%A2%E7%BA%BF%EF%BC%88%E8%BF%9D%E5%8F%8D%E5%B0%B1%E6%B3%A8%E5%AE%9A%E4%B8%8D%E5%8F%AF%E7%BB%B4%E6%8A%A4%EF%BC%89"><span class="nav-number">2.3.</span> <span class="nav-text">1.3 红线（违反就注定不可维护）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E6%A8%A1%E5%9D%97%E5%8C%96%E6%9E%B6%E6%9E%84"><span class="nav-number">3.</span> <span class="nav-text">2. 模块化架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-%E7%9B%AE%E5%BD%95%E5%88%86%E5%8C%BA%EF%BC%9A%E5%BC%80%E5%8F%91%E8%80%85%E6%A8%A1%E5%9D%97-vs-%E7%AE%A1%E7%90%86%E5%91%98%E9%85%8D%E7%BD%AE%E5%8C%BA"><span class="nav-number">3.1.</span> <span class="nav-text">2.1 目录分区：开发者模块 vs 管理员配置区</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-%E5%AE%8C%E6%95%B4%E5%90%8E%E7%AB%AF%E6%A8%A1%E5%9D%97%E7%BB%93%E6%9E%84"><span class="nav-number">3.2.</span> <span class="nav-text">2.2 完整后端模块结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-%E5%89%8D%E7%AB%AF%E6%A8%A1%E5%9D%97%E7%BB%93%E6%9E%84"><span class="nav-number">3.3.</span> <span class="nav-text">2.3 前端模块结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-%E7%AE%A1%E7%90%86%E5%91%98%E9%85%8D%E7%BD%AE%E5%8C%BA%EF%BC%88%E5%BC%80%E5%8F%91%E8%80%85%E4%B8%8D%E8%A6%81%E5%8A%A8%EF%BC%89"><span class="nav-number">3.4.</span> <span class="nav-text">2.4 管理员配置区（开发者不要动）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E5%90%84%E5%B1%82%E8%81%8C%E8%B4%A3%E5%88%86%E5%B7%A5"><span class="nav-number">4.</span> <span class="nav-text">3. 各层职责分工</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-Controller%EF%BC%9AAPI-%E5%85%A5%E5%8F%A3"><span class="nav-number">4.1.</span> <span class="nav-text">3.1 Controller：API 入口</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-Service%EF%BC%9A%E4%B8%9A%E5%8A%A1%E9%80%BB%E8%BE%91%E5%B1%82"><span class="nav-number">4.2.</span> <span class="nav-text">3.2 Service：业务逻辑层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-Hook%EF%BC%9A%E6%95%B0%E6%8D%AE%E4%B8%80%E8%87%B4%E6%80%A7%E4%BF%9D%E9%9A%9C"><span class="nav-number">4.3.</span> <span class="nav-text">3.3 Hook：数据一致性保障</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-Job%EF%BC%9A%E5%AE%9A%E6%97%B6%E5%90%8E%E5%8F%B0%E4%BB%BB%E5%8A%A1"><span class="nav-number">4.4.</span> <span class="nav-text">3.4 Job：定时后台任务</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-rebuild-%E4%B8%8E-clear-cache"><span class="nav-number">5.</span> <span class="nav-text">4. rebuild 与 clear-cache</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-%E6%8A%8A%E2%80%9D%E7%94%9F%E6%95%88%E6%9C%BA%E5%88%B6%E2%80%9D%E5%BD%93%E6%88%90%E5%B7%A5%E7%A8%8B%E4%BA%8B%E5%AE%9E"><span class="nav-number">5.1.</span> <span class="nav-text">4.1 把”生效机制”当成工程事实</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-%E6%89%A7%E8%A1%8C%E6%96%B9%E5%BC%8F"><span class="nav-number">5.2.</span> <span class="nav-text">4.2 执行方式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-%E9%83%A8%E7%BD%B2%E4%B8%8E%E5%9B%9E%E6%BB%9A"><span class="nav-number">6.</span> <span class="nav-text">5. 部署与回滚</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-%E9%80%90%E6%96%87%E4%BB%B6%E6%8B%B7%E8%B4%9D%E5%8E%9F%E5%88%99"><span class="nav-number">6.1.</span> <span class="nav-text">5.1 逐文件拷贝原则</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-%E9%83%A8%E7%BD%B2%E6%A3%80%E6%9F%A5%E6%B8%85%E5%8D%95"><span class="nav-number">6.2.</span> <span class="nav-text">5.2 部署检查清单</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-%E5%9B%9E%E6%BB%9A%E7%AD%96%E7%95%A5"><span class="nav-number">6.3.</span> <span class="nav-text">5.3 回滚策略</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-4-%E7%AE%A1%E7%90%86%E5%91%98%E9%85%8D%E7%BD%AE%E5%A4%87%E4%BB%BD"><span class="nav-number">6.4.</span> <span class="nav-text">5.4 管理员配置备份</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E6%80%BB%E7%BB%93"><span class="nav-number">7.</span> <span class="nav-text">6. 总结</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-%E4%B8%80%E5%A5%97%E5%8F%AF%E5%A4%8D%E7%94%A8%E7%9A%84%E5%B7%A5%E7%A8%8B%E6%A8%A1%E6%9D%BF"><span class="nav-number">7.1.</span> <span class="nav-text">6.1 一套可复用的工程模板</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-%E6%9C%80%E7%BB%88%E5%BB%BA%E8%AE%AE"><span class="nav-number">7.2.</span> <span class="nav-text">6.2 最终建议</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%B3%BB%E5%88%97%E5%BC%80%E7%AF%87"><span class="nav-number">8.</span> <span class="nav-text">系列开篇</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E6%89%A9%E5%B1%95%E7%82%B9%E9%87%91%E5%AD%97%E5%A1%94"><span class="nav-number">2.</span> <span class="nav-text">1. 扩展点金字塔</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-%E6%88%91%E4%BB%AC%E8%A7%A3%E5%86%B3%E7%9A%84%E4%B8%8D%E6%98%AF%E2%80%9D%E8%83%BD%E4%B8%8D%E8%83%BD%E6%94%B9%E2%80%9D%EF%BC%8C%E8%80%8C%E6%98%AF%E2%80%9D%E8%83%BD%E4%B8%8D%E8%83%BD%E9%95%BF%E6%9C%9F%E7%BB%B4%E6%8A%A4%E2%80%9D"><span class="nav-number">2.1.</span> <span class="nav-text">1.1 我们解决的不是”能不能改”，而是”能不能长期维护”</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-%E9%80%89%E6%8B%A9%E6%89%A9%E5%B1%95%E7%82%B9%E7%9A%84%E4%BC%98%E5%85%88%E7%BA%A7%EF%BC%88%E9%87%91%E5%AD%97%E5%A1%94%EF%BC%89"><span class="nav-number">2.2.</span> <span class="nav-text">1.2 选择扩展点的优先级（金字塔）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-3-%E7%BA%A2%E7%BA%BF%EF%BC%88%E8%BF%9D%E5%8F%8D%E5%B0%B1%E6%B3%A8%E5%AE%9A%E4%B8%8D%E5%8F%AF%E7%BB%B4%E6%8A%A4%EF%BC%89"><span class="nav-number">2.3.</span> <span class="nav-text">1.3 红线（违反就注定不可维护）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E6%A8%A1%E5%9D%97%E5%8C%96%E6%9E%B6%E6%9E%84"><span class="nav-number">3.</span> <span class="nav-text">2. 模块化架构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-%E7%9B%AE%E5%BD%95%E5%88%86%E5%8C%BA%EF%BC%9A%E5%BC%80%E5%8F%91%E8%80%85%E6%A8%A1%E5%9D%97-vs-%E7%AE%A1%E7%90%86%E5%91%98%E9%85%8D%E7%BD%AE%E5%8C%BA"><span class="nav-number">3.1.</span> <span class="nav-text">2.1 目录分区：开发者模块 vs 管理员配置区</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-%E5%AE%8C%E6%95%B4%E5%90%8E%E7%AB%AF%E6%A8%A1%E5%9D%97%E7%BB%93%E6%9E%84"><span class="nav-number">3.2.</span> <span class="nav-text">2.2 完整后端模块结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-%E5%89%8D%E7%AB%AF%E6%A8%A1%E5%9D%97%E7%BB%93%E6%9E%84"><span class="nav-number">3.3.</span> <span class="nav-text">2.3 前端模块结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-4-%E7%AE%A1%E7%90%86%E5%91%98%E9%85%8D%E7%BD%AE%E5%8C%BA%EF%BC%88%E5%BC%80%E5%8F%91%E8%80%85%E4%B8%8D%E8%A6%81%E5%8A%A8%EF%BC%89"><span class="nav-number">3.4.</span> <span class="nav-text">2.4 管理员配置区（开发者不要动）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E5%90%84%E5%B1%82%E8%81%8C%E8%B4%A3%E5%88%86%E5%B7%A5"><span class="nav-number">4.</span> <span class="nav-text">3. 各层职责分工</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-Controller%EF%BC%9AAPI-%E5%85%A5%E5%8F%A3"><span class="nav-number">4.1.</span> <span class="nav-text">3.1 Controller：API 入口</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-Service%EF%BC%9A%E4%B8%9A%E5%8A%A1%E9%80%BB%E8%BE%91%E5%B1%82"><span class="nav-number">4.2.</span> <span class="nav-text">3.2 Service：业务逻辑层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-Hook%EF%BC%9A%E6%95%B0%E6%8D%AE%E4%B8%80%E8%87%B4%E6%80%A7%E4%BF%9D%E9%9A%9C"><span class="nav-number">4.3.</span> <span class="nav-text">3.3 Hook：数据一致性保障</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-Job%EF%BC%9A%E5%AE%9A%E6%97%B6%E5%90%8E%E5%8F%B0%E4%BB%BB%E5%8A%A1"><span class="nav-number">4.4.</span> <span class="nav-text">3.4 Job：定时后台任务</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-rebuild-%E4%B8%8E-clear-cache"><span class="nav-number">5.</span> <span class="nav-text">4. rebuild 与 clear-cache</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-%E6%8A%8A%E2%80%9D%E7%94%9F%E6%95%88%E6%9C%BA%E5%88%B6%E2%80%9D%E5%BD%93%E6%88%90%E5%B7%A5%E7%A8%8B%E4%BA%8B%E5%AE%9E"><span class="nav-number">5.1.</span> <span class="nav-text">4.1 把”生效机制”当成工程事实</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-%E6%89%A7%E8%A1%8C%E6%96%B9%E5%BC%8F"><span class="nav-number">5.2.</span> <span class="nav-text">4.2 执行方式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-%E9%83%A8%E7%BD%B2%E4%B8%8E%E5%9B%9E%E6%BB%9A"><span class="nav-number">6.</span> <span class="nav-text">5. 部署与回滚</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-%E5%AE%B9%E5%99%A8%E5%8C%96%E9%83%A8%E7%BD%B2%E6%9E%B6%E6%9E%84%E8%AF%B4%E6%98%8E"><span class="nav-number">6.1.</span> <span class="nav-text">5.1 容器化部署架构说明</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-%E9%80%90%E6%96%87%E4%BB%B6%E6%8B%B7%E8%B4%9D%E5%8E%9F%E5%88%99"><span class="nav-number">6.2.</span> <span class="nav-text">5.2 逐文件拷贝原则</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-%E9%83%A8%E7%BD%B2%E6%A3%80%E6%9F%A5%E6%B8%85%E5%8D%95"><span class="nav-number">6.3.</span> <span class="nav-text">5.3 部署检查清单</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-4-%E5%9B%9E%E6%BB%9A%E7%AD%96%E7%95%A5"><span class="nav-number">6.4.</span> <span class="nav-text">5.4 回滚策略</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-5-%E7%AE%A1%E7%90%86%E5%91%98%E9%85%8D%E7%BD%AE%E5%A4%87%E4%BB%BD"><span class="nav-number">6.5.</span> <span class="nav-text">5.5 管理员配置备份</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E6%80%BB%E7%BB%93"><span class="nav-number">7.</span> <span class="nav-text">6. 总结</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-%E4%B8%80%E5%A5%97%E5%8F%AF%E5%A4%8D%E7%94%A8%E7%9A%84%E5%B7%A5%E7%A8%8B%E6%A8%A1%E6%9D%BF"><span class="nav-number">7.1.</span> <span class="nav-text">6.1 一套可复用的工程模板</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-%E6%9C%80%E7%BB%88%E5%BB%BA%E8%AE%AE"><span class="nav-number">7.2.</span> <span class="nav-text">6.2 最终建议</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%B3%BB%E5%88%97%E5%BC%80%E7%AF%87"><span class="nav-number">8.</span> <span class="nav-text">系列开篇</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -485,7 +599,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">33</span>
+          <span class="site-state-item-count">35</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
