@@ -1,30 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://www.yzhu.name/2025/12/20/espocrm/06-kanban-enhancement/</loc>
-    <lastmod>2025-12-20</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2025/12/13/espocrm/05-custom-job-development/</loc>
-    <lastmod>2025-12-13</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2025/12/06/espocrm/04-validation-dynamic-logic-hook/</loc>
-    <lastmod>2025-12-06</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2025/11/29/espocrm/03-metadata-driven-many-to-many/</loc>
-    <lastmod>2025-11-29</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2025/11/22/espocrm/02-external-integration/</loc>
-    <lastmod>2025-11-22</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2025/11/16/espocrm/01-upgrade-safe-customization-redlines/</loc>
-    <lastmod>2025-11-16</lastmod>
-  </url>
-  <url>
     <loc>https://www.yzhu.name/2025/11/12/OIDC-OAuth2-Need-Admin-Approval/</loc>
     <lastmod>2025-11-12</lastmod>
   </url>
@@ -37,7 +13,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2019/03/01/product-bug/</loc>
+    <loc>https://www.yzhu.name/2019/01/03/servcie-deploy-summary/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -45,7 +21,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2019/01/03/servcie-deploy-summary/</loc>
+    <loc>https://www.yzhu.name/2019/03/01/product-bug/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -57,19 +33,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2025/09/20/dify-custom-brand/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
     <loc>https://www.yzhu.name/2023/12/10/User-Tag/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2018/05/22/distributed-transaction/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2018/12/23/how-to-question/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -81,11 +45,23 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/09/24/Service-Split/</loc>
+    <loc>https://www.yzhu.name/2025/09/20/dify-custom-brand/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
+    <loc>https://www.yzhu.name/2018/05/22/distributed-transaction/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
+    <loc>https://www.yzhu.name/2018/12/23/how-to-question/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
     <loc>https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
+    <loc>https://www.yzhu.name/2018/09/24/Service-Split/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -105,11 +81,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/06/18/Parepare-Service/</loc>
+    <loc>https://www.yzhu.name/2018/12/01/OOM-Casue-Snowslide/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/12/01/OOM-Casue-Snowslide/</loc>
+    <loc>https://www.yzhu.name/2018/06/18/Parepare-Service/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -121,15 +97,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
     <loc>https://www.yzhu.name/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -137,11 +105,19 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
+    <loc>https://www.yzhu.name/2019/12/27/Jaeger-Thread/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
+    <loc>https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
     <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2019/12/27/Jaeger-Thread/</loc>
+    <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -155,9 +131,5 @@
   <url>
     <loc>https://www.yzhu.name/2018/07/06/Dubbo-Local-RPC-Switch/</loc>
     <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2025/10/26/espocrm/00-why-espocrm/</loc>
-    <lastmod>2025-10-26</lastmod>
   </url>
 </urlset> 
