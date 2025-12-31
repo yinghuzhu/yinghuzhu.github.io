@@ -5,6 +5,7 @@ Allow: /tags/
 Allow: /archives/
 Allow: /about/
 Disallow: /vendors/
+Disallow: /tools/
 Disallow: /js/
 Disallow: /css/
 Disallow: /fonts/
