@@ -171,6 +171,302 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN,en,default">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2025/12/28/espocrm/05-custom-job-development/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/12/28/espocrm/05-custom-job-development/" class="post-title-link" itemprop="url">EspoCRM定制篇自定义Job开发——到期提醒通用模板（批量 + 去重 + 发信）</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2025-12-28 09:25:00" itemprop="dateCreated datePublished" datetime="2025-12-28T09:25:00+08:00">2025-12-28</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/EspoCRM/" itemprop="url" rel="index"><span itemprop="name">EspoCRM</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>很多 CRM 需求需要“定时触发”：到期提醒、日报生成、数据同步、数据质量巡检。自定义 Job 是正确姿势。本文以通用“到期提醒”为例实现 JobDataLess 定时任务：依赖注入、批量查询、去重日志、邮件发送。给出调度配置、监控排障与发信要点，适用于同步/巡检/通知类任务。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2025/12/28/espocrm/05-custom-job-development/">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN,en,default">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2025/12/21/espocrm/04-validation-dynamic-logic-hook/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/12/21/espocrm/04-validation-dynamic-logic-hook/" class="post-title-link" itemprop="url">EspoCRM定制篇Dynamic Logic + BeforeSave Hook ——前后端双保险</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2025-12-21 09:20:00" itemprop="dateCreated datePublished" datetime="2025-12-21T09:20:00+08:00">2025-12-21</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/EspoCRM/" itemprop="url" rel="index"><span itemprop="name">EspoCRM</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>只做前端 required 的团队，迟早会被“脏数据”反噬。本文给出前后端双保险方案：Dynamic Logic 负责交互体验（实时提示），BeforeSave Hook 守住所有入口底线（API/导入/脚本无法绕过）。覆盖错误消息策略、测试矩阵与“坏人假设”，避免脏数据进入系统。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2025/12/21/espocrm/04-validation-dynamic-logic-hook/">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN,en,default">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2025/12/06/espocrm/03-metadata-driven-many-to-many/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/12/06/espocrm/03-metadata-driven-many-to-many/" class="post-title-link" itemprop="url">EspoCRM定制篇纯配置多对多——不写 SQL，让 rebuild 自动建表</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2025-12-06 09:10:00" itemprop="dateCreated datePublished" datetime="2025-12-06T09:10:00+08:00">2025-12-06</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/EspoCRM/" itemprop="url" rel="index"><span itemprop="name">EspoCRM</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>你以为多对多必须建中间表？在 EspoCRM 里，手写 SQL 往往是你自己给自己埋雷。本文演示用纯元数据定义多对多关系：entityDefs 的 links + relationName 驱动 rebuild 自动建表。同时补齐 scopes/clientDefs/layouts，让关系在 UI 可见可配可用</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2025/12/06/espocrm/03-metadata-driven-many-to-many/">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN,en,default">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2025/11/22/espocrm/02-external-integration/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2025/11/22/espocrm/02-external-integration/" class="post-title-link" itemprop="url">EspoCRM定制篇外部集成——Outlook双向同步实战</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2025-11-22 09:45:00" itemprop="dateCreated datePublished" datetime="2025-11-22T09:45:00+08:00">2025-11-22</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/EspoCRM/" itemprop="url" rel="index"><span itemprop="name">EspoCRM</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>外部集成的难点不是“调通 API”，而是“长期稳定运行”。本文以 Outlook/Graph 为例，讲清 OAuth 授权流程、ExternalAccount 存储、增量同步（deltaLink/skipToken）与失败恢复策略。覆盖 token 轮换、错误分类重试、幂等设计与英文日志，让集成长期稳定运行。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2025/11/22/espocrm/02-external-integration/">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN,en,default">
     <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2025/11/16/espocrm/01-upgrade-safe-customization-redlines/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -575,266 +871,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN,en,default">
-    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2024/11/15/First-Efficiency-Lab/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="yhzhu">
-      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="yhzhu的随手记">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2024/11/15/First-Efficiency-Lab/" class="post-title-link" itemprop="url">在线工具集合网站</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2024-11-15 22:16:33" itemprop="dateCreated datePublished" datetime="2024-11-15T22:16:33+08:00">2024-11-15</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>在日常开发项目中，我们经常需要处理格式转换、日期计算、编码解码等基础操作。这些任务要么需要在开发环境中编写代码实现，要么需要在网上搜索对应的在线工具。为了提高工作效率，我整合了一系列常用工具，并将它们集成到这个网站中：<a href="https://labs.yzhu.name/">https://labs.yzhu.name</a></p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2024/11/15/First-Efficiency-Lab/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN,en,default">
-    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2023/12/10/User-Tag/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="yhzhu">
-      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="yhzhu的随手记">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/12/10/User-Tag/" class="post-title-link" itemprop="url">跨境电商用户标签系统架构设计</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2023-12-10 18:25:21" itemprop="dateCreated datePublished" datetime="2023-12-10T18:25:21+08:00">2023-12-10</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h3 id="一、项目背景与业务价值"><a href="#一、项目背景与业务价值" class="headerlink" title="一、项目背景与业务价值"></a>一、项目背景与业务价值</h3><p>在竞争激烈的跨境电商领域，用户体验和精细化运营至关重要。为了实现<strong>精准营销、动态定价和运营分析</strong>等关键业务场景，我们需要更及时、更准确地理解用户行为</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2023/12/10/User-Tag/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN,en,default">
-    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="yhzhu">
-      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="yhzhu的随手记">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/" class="post-title-link" itemprop="url">Sharding-JDBC(ShardingSphere)SQL监控实践</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2023-11-25 15:54:41" itemprop="dateCreated datePublished" datetime="2023-11-25T15:54:41+08:00">2023-11-25</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>最近我们进行了一个项目的重构，其中一个重要目标是减少数据库访问的负载。由于核心数据库被多个应用程序访问，并且数据库服务器只能对整体数据库流量进行监控，我们需要在应用程序端监控不同应用程序的SQL请求，并将其与现有的指标集成在一起</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN,en,default">
-    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="yhzhu">
-      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="yhzhu的随手记">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/09/09/Data-Memcached-To-Redis/" class="post-title-link" itemprop="url">Data Memcached集群迁移至Redis集群</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2023-09-09 11:38:05" itemprop="dateCreated datePublished" datetime="2023-09-09T11:38:05+08:00">2023-09-09</time>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>随着业务规模的增长，我们的缓存系统面临扩展性和运维效率的挑战。近期我们团队将缓存系统从Memcached迁移到Redis集群。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2023/09/09/Data-Memcached-To-Redis/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -904,7 +940,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">35</span>
+          <span class="site-state-item-count">39</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

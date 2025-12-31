@@ -24,7 +24,7 @@
 
   <meta name="description" content="外部集成的难点不是“调通 API”，而是“长期稳定运行”。本文以 Outlook&#x2F;Graph 为例，讲清 OAuth 授权流程、ExternalAccount 存储、增量同步（deltaLink&#x2F;skipToken）与失败恢复策略。覆盖 token 轮换、错误分类重试、幂等设计与英文日志，让集成长期稳定运行。">
 <meta property="og:type" content="article">
-<meta property="og:title" content="EspoCRM定制第2篇: 外部集成——Outlook双向同步实战">
+<meta property="og:title" content="EspoCRM定制篇外部集成——Outlook双向同步实战">
 <meta property="og:url" content="https://www.yzhu.name/2025/11/22/espocrm/02-external-integration/index.html">
 <meta property="og:site_name" content="yhzhu的随手记">
 <meta property="og:description" content="外部集成的难点不是“调通 API”，而是“长期稳定运行”。本文以 Outlook&#x2F;Graph 为例，讲清 OAuth 授权流程、ExternalAccount 存储、增量同步（deltaLink&#x2F;skipToken）与失败恢复策略。覆盖 token 轮换、错误分类重试、幂等设计与英文日志，让集成长期稳定运行。">
@@ -52,7 +52,7 @@
   };
 </script>
 
-  <title>EspoCRM定制第2篇: 外部集成——Outlook双向同步实战 | yhzhu的随手记</title><meta name="robots" content="noindex">
+  <title>EspoCRM定制篇外部集成——Outlook双向同步实战 | yhzhu的随手记</title>
   <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
 <script>
@@ -192,7 +192,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          EspoCRM定制第2篇: 外部集成——Outlook双向同步实战
+          EspoCRM定制篇外部集成——Outlook双向同步实战
         </h1>
 
         <div class="post-meta">
@@ -287,7 +287,7 @@
   F --> G[开始同步数据]</pre>
 
 <h3 id="2-2-EspoCRM-中的-External-Account-机制"><a href="#2-2-EspoCRM-中的-External-Account-机制" class="headerlink" title="2.2 EspoCRM 中的 External Account 机制"></a>2.2 EspoCRM 中的 External Account 机制</h3><p>EspoCRM 提供了 <code>external_account</code> 实体来存储第三方系统的认证信息：</p>
-<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;xxx&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;userId&quot;</span><span class="punctuation">:</span> <span class="string">&quot;user_id&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;integration&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Outlook&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;accessToken&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&lt;ACCESS_TOKEN&gt;&quot;</span><span class="punctuation">,</span>  <span class="comment">// 访问令牌</span></span><br><span class="line">  <span class="attr">&quot;refreshToken&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&lt;REFRESH_TOKEN&gt;&quot;</span><span class="punctuation">,</span>    <span class="comment">// 刷新令牌</span></span><br><span class="line">  <span class="attr">&quot;expiresAt&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2025-01-27 10:00:00&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;xxx&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;userId&quot;</span><span class="punctuation">:</span> <span class="string">&quot;user_id&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;integration&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Outlook&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;accessToken&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&lt;ACCESS_TOKEN&gt;&quot;</span><span class="punctuation">,</span>  <span class="comment">// 访问令牌</span></span><br><span class="line">  <span class="attr">&quot;refreshToken&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&lt;REFRESH_TOKEN&gt;&quot;</span><span class="punctuation">,</span>    <span class="comment">// 刷新令牌</span></span><br><span class="line">  <span class="attr">&quot;expiresAt&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2025-08-27 10:00:00&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
 
 <h3 id="2-3-Token-刷新机制"><a href="#2-3-Token-刷新机制" class="headerlink" title="2.3 Token 刷新机制"></a>2.3 Token 刷新机制</h3><figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 伪代码</span></span><br><span class="line"><span class="keyword">if</span> (<span class="variable">$token</span>-&gt;<span class="title function_ invoke__">isExpired</span>()) &#123;</span><br><span class="line">    <span class="variable">$newToken</span> = <span class="variable language_">$this</span>-&gt;oauthHelper-&gt;<span class="title function_ invoke__">refresh</span>(<span class="variable">$token</span>-&gt;<span class="title function_ invoke__">getRefreshToken</span>());</span><br><span class="line">    <span class="variable">$externalAccount</span>-&gt;<span class="title function_ invoke__">set</span>(<span class="string">&#x27;accessToken&#x27;</span>, <span class="variable">$newToken</span>-&gt;access_token);</span><br><span class="line">    <span class="variable">$externalAccount</span>-&gt;<span class="title function_ invoke__">set</span>(<span class="string">&#x27;refreshToken&#x27;</span>, <span class="variable">$newToken</span>-&gt;refresh_token);</span><br><span class="line">    <span class="variable">$externalAccount</span>-&gt;<span class="title function_ invoke__">set</span>(<span class="string">&#x27;expiresAt&#x27;</span>, <span class="variable">$newToken</span>-&gt;expires_at);</span><br><span class="line">    <span class="variable language_">$this</span>-&gt;entityManager-&gt;<span class="title function_ invoke__">saveEntity</span>(<span class="variable">$externalAccount</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -409,7 +409,7 @@
 <li>Token 失效有恢复策略，同步失败不中断服务</li>
 <li>关键节点打英文日志，保证线上可定位</li>
 </ul>
-<!-- flag of hidden posts -->
+
     </div>
 
     
@@ -429,6 +429,16 @@
 
 
         
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/11/16/espocrm/01-upgrade-safe-customization-redlines/" rel="prev" title="EspoCRM定制篇总纲——扩展点选择、模块架构与工程化">
+      <i class="fa fa-chevron-left"></i> EspoCRM定制篇总纲——扩展点选择、模块架构与工程化
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/12/06/espocrm/03-metadata-driven-many-to-many/" rel="next" title="EspoCRM定制篇纯配置多对多——不写 SQL，让 rebuild 自动建表">
+      EspoCRM定制篇纯配置多对多——不写 SQL，让 rebuild 自动建表 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
       </footer>
     
   </article>
@@ -500,7 +510,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">35</span>
+          <span class="site-state-item-count">39</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
