@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Outlook 与 Gmail&#x2F;Google Calendar 的循环会议是集成中的“深水区”。本文介绍 EspoCRM 如何通过“窗口化展开”和“系列重建”策略，解决 Microsoft Graph API 增量同步失效、iCalUId 重复等核心难题，提供生产级工程实践方案。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="EspoCRM 与 Outlook 循环会议同步实践：窗口化展开 + 系列重建方案">
+<meta property="og:url" content="https://www.yzhu.name/2026/01/05/espocrm/08-outlook-recurring-sync/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="Outlook 与 Gmail&#x2F;Google Calendar 的循环会议是集成中的“深水区”。本文介绍 EspoCRM 如何通过“窗口化展开”和“系列重建”策略，解决 Microsoft Graph API 增量同步失效、iCalUId 重复等核心难题，提供生产级工程实践方案。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-01-05T14:00:00.000Z">
+<meta property="article:modified_time" content="2026-01-05T14:00:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="EspoCRM">
+<meta property="article:tag" content="Graph API">
+<meta property="article:tag" content="Outlook">
+<meta property="article:tag" content="Recurring Meetings">
+<meta property="article:tag" content="Sync">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2026/01/05/espocrm/08-outlook-recurring-sync/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>EspoCRM 与 Outlook 循环会议同步实践：窗口化展开 + 系列重建方案 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2026/01/05/espocrm/08-outlook-recurring-sync/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          EspoCRM 与 Outlook 循环会议同步实践：窗口化展开 + 系列重建方案
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2026-01-05 22:00:00" itemprop="dateCreated datePublished" datetime="2026-01-05T22:00:00+08:00">2026-01-05</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/EspoCRM/" itemprop="url" rel="index"><span itemprop="name">EspoCRM</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">Outlook 与 Gmail/Google Calendar 的循环会议是集成中的“深水区”。本文介绍 EspoCRM 如何通过“窗口化展开”和“系列重建”策略，解决 Microsoft Graph API 增量同步失效、iCalUId 重复等核心难题，提供生产级工程实践方案。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p><strong>前提知识</strong>：阅读本文前，假设您已了解 <a href="https://learn.microsoft.com/en-us/graph/overview">Microsoft Graph API</a> 的基础概念，并熟悉 EspoCRM 的 <a href="https://docs.espocrm.com/extensions/outlook-integration/">Outlook Integration</a> 扩展。</p>
+</blockquote>
+<p><strong>TL;DR (太长不看版)</strong></p>
+<ul>
+<li><strong>增量同步不可信</strong>：对于循环会议，Delta Sync 经常只返回 Master 变更，必须手动展开实例。</li>
+<li><strong>窗口化是唯一解</strong>：不要试图同步无限的未来，只维护 <code>[-7d, +90d]</code> 的滑动窗口。</li>
+<li><strong>iCalUId 有坑</strong>：同一个系列的所有实例共享同一个 iCalUId，严禁直接用作唯一键去重。</li>
+<li><strong>Quota 必须设</strong>：Graph API 有严格的 429 限制，必须限制每次 Job 处理的实例数量。</li>
+</ul>
+<p>在 CRM 业务系统与 Outlook&#x2F;Google 托管系统的跨系统同步中，“循环会议”（Recurring Meetings）往往是最大的拦路虎。很多系统选择直接忽略它，或者只同步第一条。</p>
+<p>但对于业务人员，周会、月度汇报是日程中最重要的一部分。如果 CRM 里看不到这些会议，日历集成的价值就打了一半折扣。本文将分享我们在 EspoCRM 中实现 Outlook 循环会议双向同步的填坑之路。</p>
+<h2 id="1-为什么循环会议这么难？"><a href="#1-为什么循环会议这么难？" class="headerlink" title="1. 为什么循环会议这么难？"></a>1. 为什么循环会议这么难？</h2><h3 id="1-1-Microsoft-Graph-的数据模型"><a href="#1-1-Microsoft-Graph-的数据模型" class="headerlink" title="1.1 Microsoft Graph 的数据模型"></a>1.1 Microsoft Graph 的数据模型</h3><p>在 Microsoft Graph API 中，循环会议并不是简单的“一条记录”。它被拆分为三种类型：</p>
+<ol>
+<li><strong>seriesMaster</strong>：循环系列的“母体”或“模板”。它定义了规则（例如：每周四下午 2 点，无限循环），但它本身通常<strong>不作为</strong>一个具体的时间占用显示在日历上。</li>
+<li><strong>occurrence</strong>：循环系列中的某一次具体实例（例如：2026年1月8日的周会）。它是根据 Master 动态计算出来的“虚拟”对象。</li>
+<li><strong>exception</strong>：当某一次实例被修改（比如改了时间、地点或主题）后，它就变成了 Exception，物理上独立存储。</li>
+</ol>
+<h3 id="1-2-同步的陷阱：为何标准-Delta-Sync-会失效？"><a href="#1-2-同步的陷阱：为何标准-Delta-Sync-会失效？" class="headerlink" title="1.2 同步的陷阱：为何标准 Delta Sync 会失效？"></a>1.2 同步的陷阱：为何标准 Delta Sync 会失效？</h3><p>当我们天真地使用 Graph API 的 Delta 接口（增量同步）时，通常会遭遇“静默失败”：</p>
+<ul>
+<li><strong>“隐身”的实例</strong>：你修改了系列的主规则（比如从“每周一”改为“每周二”），Delta 接口只会告诉你 seriesMaster 变了。它<strong>不会</strong>把未来半年的 24 个 occurrence 变更事件推送给你。如果你只依赖 Delta 数据更新数据库，你的 CRM 日历里，会议还停留在周一。</li>
+<li><strong>无限数据的黑洞</strong>：如果你试图展开一个 “No End Date”（无限循环）的会议，你会得到无限的数据，瞬间撑爆数据库。</li>
+<li><strong>iCalUId 的诱惑与背叛</strong>：这可能是最大的坑。很多开发者会惯性认为 <code>iCalUId</code> 是全球唯一的，但在 RFC 5545 标准里，<strong>同一个系列的所有实例共享同一个 <code>iCalUId</code></strong>！EspoCRM 默认逻辑喜欢用 <code>iCalUId</code> 来做去重（Fallback），这会导致所有周会都被合并成同一条记录——灾难。</li>
+</ul>
+<h3 id="1-3-常见失败模式"><a href="#1-3-常见失败模式" class="headerlink" title="1.3 常见失败模式"></a>1.3 常见失败模式</h3><p>在实际工程中，如果你看到以下现象，通常就是循环逻辑出了问题：</p>
+<ul>
+<li><strong>实例缺失</strong>：只处理了“主档”但没有展开；或者系列大改后没有触发重建。</li>
+<li><strong>实例重复</strong>：错误地使用了 <code>iCalUId</code> 作为唯一键；或者重建时没有先清理旧数据。</li>
+<li><strong>删除不同步</strong>：用户在 Outlook 删除了整个系列，CRM 里却只删除了 Master，留下一堆“孤儿”实例。</li>
+<li><strong>时区错位</strong>：按 UTC 展开导致本地时段漂移；All-day 事件在跨时区时出现 +&#x2F;- 1 天的误差。</li>
+</ul>
+<hr>
+<h2 id="2-解决方案：窗口化展开-系列重建"><a href="#2-解决方案：窗口化展开-系列重建" class="headerlink" title="2. 解决方案：窗口化展开 + 系列重建"></a>2. 解决方案：窗口化展开 + 系列重建</h2><p>为了解决上述问题，我们制定了**“窗口化（Windowed）”<strong>和</strong>“系列重建（Series Resync）”**的策略。</p>
+<h3 id="2-1-核心原则：窗口化-Windowed"><a href="#2-1-核心原则：窗口化-Windowed" class="headerlink" title="2.1 核心原则：窗口化 (Windowed)"></a>2.1 核心原则：窗口化 (Windowed)</h3><p>我们无法也不应该同步“无限”的未来。</p>
+<p><strong>“窗口化”<strong>的核心思想是：定义一个</strong>“关注窗口”</strong>（例如 <code>[Today - 7天, Today + 90天]</code>）。</p>
+<ul>
+<li>我们只关心落在这个窗口内的时间片。</li>
+<li>每天夜间任务会“滑动”这个窗口，把新进入窗口期（第 91 天）的会议实例实例化存入数据库。</li>
+<li>对于窗口外的历史数据，我们保持原样或归档；对于太远的未来，暂不处理。</li>
+</ul>
+<p>这样，无论会议是“未来 10 年”还是“无限循环”，对系统的负载都是可控的（常数级）。</p>
+<h4 id="直观理解：窗口滑动"><a href="#直观理解：窗口滑动" class="headerlink" title="直观理解：窗口滑动"></a>直观理解：窗口滑动</h4><p>为了防止把“窗口”误解为 UI 界面，我们可以这样想象：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">假设：</span><br><span class="line">  今天是 1月1日，窗口范围是 [1月1日, 4月1日] (+90天)。</span><br><span class="line">  系统会实例化：</span><br><span class="line">  - 1月1日 会议</span><br><span class="line">  - 1月8日 会议</span><br><span class="line">  ...</span><br><span class="line">  - 3月26日 会议</span><br><span class="line"></span><br><span class="line">等到 2月1日，系统自动“滑动”窗口：</span><br><span class="line">  新窗口范围是 [2月1日, 5月1日]。</span><br><span class="line">  系统会自动：</span><br><span class="line">  1. 忽略 1月份的历史会议（已归档或保持现状）。</span><br><span class="line">  2. 补齐 4月1日 至 5月1日 新进入范围的会议实例。</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-架构设计"><a href="#2-2-架构设计" class="headerlink" title="2.2 架构设计"></a>2.2 架构设计</h3><pre class="mermaid">flowchart TD
+    Start["开始同步"] --> GetDelta["Graph API: Delta Sync"]
+    GetDelta --> Loop{"遍历变更项"}
+
+    Loop -- "Type=seriesMaster" --> MarkResync["标记为'待重建'"]
+    Loop -- "Type=occurrence" --> SyncItem["同步单个实例 (禁用 iCalUId Fallback)"]
+    Loop -- "Type=singleInstance" --> SyncNormal["标准同步逻辑"]
+
+    MarkResync --> TriggerResync["触发系列重建流程"]
+
+    subgraph SeriesResync ["系列重建 (Series Resync)"]
+        Fetch["Graph API: List Instances (Windowed)"]
+        Upsert["批量更新/创建实例"]
+        Cleanup["清理窗口内已消失的实例"]
+    end</pre>
+
+<hr>
+<h2 id="3-数据模型设计"><a href="#3-数据模型设计" class="headerlink" title="3. 数据模型设计"></a>3. 数据模型设计</h2><h3 id="3-1-核心数据模型与实体设计"><a href="#3-1-核心数据模型与实体设计" class="headerlink" title="3.1 核心数据模型与实体设计"></a>3.1 核心数据模型与实体设计</h3><p>不同系统的物理表结构虽有差异，但“系列&#x3D;配置、实例&#x3D;事实”的二元模型是通用的。在 EspoCRM 的工程实践中，我们通过扩展实体来桥接这一模型。</p>
+<p>以 Outlook 集成为例，我们需要一个桥接实体 <code>OutlookCalendarEvent</code> 来存储外部状态，并与内部实体 <code>Meeting</code> (Internal Event) 建立映射。</p>
+<pre class="mermaid">erDiagram
+  OUTLOOK_CALENDAR_USER ||--o{ OUTLOOK_CALENDAR_SERIES : "tracks"
+  OUTLOOK_CALENDAR_USER ||--o{ OUTLOOK_CALENDAR_EVENT : "owns"
+  INTERNAL_EVENT ||--o{ OUTLOOK_CALENDAR_EVENT : "linked-by"
+
+  OUTLOOK_CALENDAR_USER {
+    string id PK
+    string deltaToken
+  }
+
+  OUTLOOK_CALENDAR_SERIES {
+    string id PK
+    string seriesMasterEventId
+    boolean resyncRequested
+  }
+
+  OUTLOOK_CALENDAR_EVENT {
+    string id PK
+    string eventId "Outlook ID (Immutable)"
+    string iCalUId "Shared by Series"
+    string eventType "occurrence/master/exception"
+    string seriesMasterEventId
+    string otherMeta "Other Sync Meta"
+  }</pre>
+
+<ul>
+<li><strong>OUTLOOK_CALENDAR_SERIES</strong>: 对应 <code>seriesMaster</code>，只负责记录系列的元数据（如 Sync State）。</li>
+<li><strong>OUTLOOK_CALENDAR_EVENT</strong>: 对应 <code>occurrence</code> 或 <code>exception</code>，存储具体的会议实例信息，并通过 <code>eventId</code> 与 Outlook 严格绑定。</li>
+<li><strong>INTERNAL_EVENT</strong>: EspoCRM 原生的 <code>Meeting</code> 实体，用户在界面上实际看到的数据。</li>
+</ul>
+<h3 id="3-2-⚠️-警惕-iCalUId-的陷阱"><a href="#3-2-⚠️-警惕-iCalUId-的陷阱" class="headerlink" title="3.2 ⚠️ 警惕 iCalUId 的陷阱"></a>3.2 ⚠️ 警惕 iCalUId 的陷阱</h3><blockquote>
+<p><strong>WARNING &#x2F; 警告：</strong> 这是 99% 的开发者都会踩的坑，请务必反复阅读本节！</p>
+</blockquote>
+<p><strong>RFC 5545 标准规定：</strong> 对于 Recurring Event，整个系列的所有实例（Occurrence）共享同一个 <code>UID</code> (<code>iCalUId</code>)。</p>
+<p>EspoCRM 的默认逻辑通常是：如果用 <code>(calendarId, eventId)</code> 找不到记录，就尝试用 <code>iCalUId</code> 兜底查找。这对于普通会议是很好的容错，但对于循环会议是<strong>致命</strong>的。这会导致你同步下来的 10 个周会，全部被关联到了数据库里的同一条记录上。</p>
+<p><strong>修正逻辑</strong>：</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 伪代码逻辑</span></span><br><span class="line"><span class="keyword">if</span> (<span class="variable">$eventType</span> === <span class="string">&#x27;occurrence&#x27;</span> || <span class="variable">$eventType</span> === <span class="string">&#x27;exception&#x27;</span>) &#123;</span><br><span class="line">    <span class="comment">// 严禁使用 iCalUId 查找旧记录！</span></span><br><span class="line">    <span class="comment">// 必须严格匹配 eventId (Outlook ID)</span></span><br><span class="line">    <span class="variable">$meeting</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">findByEventId</span>(<span class="variable">$eventId</span>);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// 普通会议可以使用 iCalUId 作为兜底</span></span><br><span class="line">    <span class="variable">$meeting</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">findByEventId</span>(<span class="variable">$eventId</span>) ?? <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">findByICalUId</span>(<span class="variable">$iCalUId</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-系列重建-Series-Resync"><a href="#3-3-系列重建-Series-Resync" class="headerlink" title="3.3 系列重建 (Series Resync)"></a>3.3 系列重建 (Series Resync)</h3><p>当检测到 Master 变更时，我们不直接处理 Master，而是触发一个子任务：</p>
+<ol>
+<li><strong>调用 Instances 接口</strong>：<code>/me/events/{masterId}/instances?startDateTime=...&amp;endDateTime=...</code></li>
+<li><strong>设定窗口</strong>：通常取 <code>[今天 - 7天, 今天 + 90天]</code>。</li>
+<li><strong>全量比对</strong>：<ul>
+<li>API 返回了但 DB 没有 -&gt; <strong>创建</strong>。</li>
+<li>API 返回了且 DB 也有 -&gt; <strong>更新</strong>。</li>
+<li>DB 有但 API 没返回（且在窗口内） -&gt; <strong>删除</strong>（说明该次实例被取消了，或者规则变更导致该日期不再有会议）。</li>
+</ul>
+</li>
+</ol>
+<p>这一步保证了无论 Master 规则怎么变，CRM 里的实例永远与 Outlook&#x2F;Google 的视图保持一致。</p>
+<hr>
+<h2 id="4-同步流程（时序图）"><a href="#4-同步流程（时序图）" class="headerlink" title="4. 同步流程（时序图）"></a>4. 同步流程（时序图）</h2><pre class="mermaid">sequenceDiagram
+  participant S as Scheduler/Job
+  participant SS as SyncService
+  participant P as Provider(Outlook/Google)
+  participant W as WindowExpander
+  participant DB as Database
+
+  S->>SS: Trigger user sync
+  SS->>P: Fetch delta (token/page)
+  alt Series master changed
+    SS->>W: Mark series for rebuild
+    W->>P: List instances (window: -7d .. +90d)
+    W->>DB: Upsert created/updated
+    W->>DB: Delete window-missing
+  else Occurrence/Exception changed
+    SS->>DB: Upsert occurrence (no iCalUId fallback)
+  end
+  SS-->>S: Report metrics (created/updated/deleted)</pre>
+
+<hr>
+<h2 id="5-Outlook-vs-Google：核心差异对比"><a href="#5-Outlook-vs-Google：核心差异对比" class="headerlink" title="5. Outlook vs Google：核心差异对比"></a>5. Outlook vs Google：核心差异对比</h2><p>虽然原理相似，但 Google Calendar 和 Microsoft Outlook 在实现细节上有显著差异。</p>
+<table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left">Microsoft Graph (Outlook)</th>
+<th align="left">Google Calendar API</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>循环模型</strong></td>
+<td align="left"><strong>Master + Exception 分离模型</strong><br>Master 是一条记录，Exception 是独立记录。Occurrence 是虚拟计算的。</td>
+<td align="left"><strong>Event + Recurrence</strong><br>支持 <code>singleEvents=true</code> 参数，API 直接帮你展开成扁平的实例列表。</td>
+</tr>
+<tr>
+<td align="left"><strong>增量同步 (Delta)</strong></td>
+<td align="left"><strong>Master 变更通常只返回 Master</strong><br>需要客户端自己去 fetch instances。</td>
+<td align="left"><strong>可选择</strong><br>如果 <code>singleEvents=true</code>，Master 变更会直接返回所有受影响的实例变更。</td>
+</tr>
+<tr>
+<td align="left"><strong>ID 关联</strong></td>
+<td align="left"><code>seriesMasterId</code> 关联实例</td>
+<td align="left"><code>recurringEventId</code> 关联原事件</td>
+</tr>
+<tr>
+<td align="left"><strong>删除逻辑</strong></td>
+<td align="left">物理删除或即时状态变更</td>
+<td align="left">经常通过 <code>status: cancelled</code> 标记逻辑删除</td>
+</tr>
+<tr>
+<td align="left"><strong>复杂度</strong></td>
+<td align="left">⭐⭐⭐⭐⭐ (需手动计算&#x2F;展开)</td>
+<td align="left">⭐⭐⭐ (API 可帮忙展开)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="6-生产级工程实践"><a href="#6-生产级工程实践" class="headerlink" title="6. 生产级工程实践"></a>6. 生产级工程实践</h2><h3 id="6-1-配额与流控-Quota"><a href="#6-1-配额与流控-Quota" class="headerlink" title="6.1 配额与流控 (Quota)"></a>6.1 配额与流控 (Quota)</h3><p>循环会议会产生大量记录。如果一个用户有 10 个周会，同步未来 3 个月，瞬间就会产生 120 条记录。</p>
+<ul>
+<li><strong>Max Instances Per Run</strong>：每次 Job 最多处理 <strong>200 个实例</strong>，超出的留到下次。这不仅是性能问题，更是防止触发微软 Graph API 的 <strong>429 (Too Many Requests)</strong> 限制的关键。</li>
+<li><strong>Max Series Resync</strong>：每次 Job 最多重建 <strong>5 个系列</strong>，避免突发流量压垮系统。</li>
+</ul>
+<h3 id="6-2-令牌失效与分页"><a href="#6-2-令牌失效与分页" class="headerlink" title="6.2 令牌失效与分页"></a>6.2 令牌失效与分页</h3><p>Graph API 的 Delta Token 是有有效期的。</p>
+<ul>
+<li><strong>Token 失效</strong>：必须具备“捕获失效异常 -&gt; 自动切换到全量同步”的兜底机制。</li>
+<li><strong>分页处理</strong>：必须完整迭代完所有 <code>nextLink</code> 后，才能保存最后的 <code>deltaLink</code>。</li>
+</ul>
+<h3 id="6-3-时区与-DST-的噩梦"><a href="#6-3-时区与-DST-的噩梦" class="headerlink" title="6.3 时区与 DST 的噩梦"></a>6.3 时区与 DST 的噩梦</h3><ul>
+<li><strong>存储</strong>：建议同时存储“本地时段”+“时区 ID”。</li>
+<li><strong>DST</strong>：夏令时切换会导致 UTC 时间平移，如果只存 UTC，可能会导致会议在本地时间显示错位（比如差 1 小时）。在展开实例时，务必使用正确的时区库（如 PHP 的 <code>DateTimeZone</code>）。</li>
+<li><strong>全天事件 (All-day Events)</strong>：全天事件通常没有时区概念（或者说是“浮动时间”），在跨系统同步时，应忽略时区偏移，严格按照 <code>YYYY-MM-DD</code> 处理。否则很容易因为时区转换导致事件变成跨越两天的事件（例如从 <code>00:00 - 24:00</code> 变成前一天的 <code>23:00</code> 到当天的 <code>23:00</code>）。</li>
+</ul>
+<h3 id="6-4-测试清单"><a href="#6-4-测试清单" class="headerlink" title="6.4 测试清单"></a>6.4 测试清单</h3><p>上线前，请务必覆盖以下场景：</p>
+<ol>
+<li><strong>DST 跨越</strong>：创建一个跨越夏令时切换日（如 3 月或 11 月）的周会，检查时间是否正确。</li>
+<li><strong>例外处理</strong>：修改某一个实例的时间，然后修改整个系列的主题，检查该实例是否保持了特定的时间修改。</li>
+<li><strong>删除测试</strong>：在 Outlook 删除未来一个实例，检查 CRM 是否同步删除；删除整个系列，检查 CRM 是否清理干净。</li>
+<li><strong>长周期</strong>：创建一个每月的会议，持续 2 年，检查窗口化逻辑是否只同步了最近 3 个月。</li>
+</ol>
+<hr>
+<h2 id="7-总结与最佳实践"><a href="#7-总结与最佳实践" class="headerlink" title="7. 总结与最佳实践"></a>7. 总结与最佳实践</h2><p>Outlook&#x2F;Gmail 循环会议同步的核心在于**“承认差异，中间转换”**。</p>
+<ol>
+<li><strong>不要把 “增量&#x3D;事实”当假设</strong>：对于循环会议，增量只是一个信号，必须配合 <strong>窗口化回查</strong>。</li>
+<li><strong>统一语义</strong>：在内部模型中，把 Series 当作配置，把 Occurrence 当作事实。</li>
+<li><strong>防守性编程</strong>：iCalUId 只能信一半，Quota 必须设上限，日志必须可追溯。</li>
+</ol>
+<p>通过“窗口化展开 + 系列重建”的方案，我们成功在 EspoCRM 中解决了这一难题，为用户提供了稳定一致的日历视图。希望这套方案对你的工程实践也有所启发。</p>
+<p><strong>相关资源</strong>：</p>
+<ul>
+<li><a href="https://learn.microsoft.com/en-us/graph/api/resources/event?view=graph-rest-1.0">Microsoft Graph API Documentation</a></li>
+<li><a href="https://docs.espocrm.com/">EspoCRM Documentation</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc5545">RFC 5545: Internet Calendaring and Scheduling Core Object Specification</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/EspoCRM/" rel="tag"># EspoCRM</a>
+              <a href="/tags/Outlook/" rel="tag"># Outlook</a>
+              <a href="/tags/Graph-API/" rel="tag"># Graph API</a>
+              <a href="/tags/Recurring-Meetings/" rel="tag"># Recurring Meetings</a>
+              <a href="/tags/Sync/" rel="tag"># Sync</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2025/12/28/espocrm/05-custom-job-development/" rel="prev" title="EspoCRM定制篇自定义Job开发——到期提醒通用模板（批量 + 去重 + 发信）">
+      <i class="fa fa-chevron-left"></i> EspoCRM定制篇自定义Job开发——到期提醒通用模板（批量 + 去重 + 发信）
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%BE%AA%E7%8E%AF%E4%BC%9A%E8%AE%AE%E8%BF%99%E4%B9%88%E9%9A%BE%EF%BC%9F"><span class="nav-number">1.</span> <span class="nav-text">1. 为什么循环会议这么难？</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-Microsoft-Graph-%E7%9A%84%E6%95%B0%E6%8D%AE%E6%A8%A1%E5%9E%8B"><span class="nav-number">1.1.</span> <span class="nav-text">1.1 Microsoft Graph 的数据模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-%E5%90%8C%E6%AD%A5%E7%9A%84%E9%99%B7%E9%98%B1%EF%BC%9A%E4%B8%BA%E4%BD%95%E6%A0%87%E5%87%86-Delta-Sync-%E4%BC%9A%E5%A4%B1%E6%95%88%EF%BC%9F"><span class="nav-number">1.2.</span> <span class="nav-text">1.2 同步的陷阱：为何标准 Delta Sync 会失效？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-3-%E5%B8%B8%E8%A7%81%E5%A4%B1%E8%B4%A5%E6%A8%A1%E5%BC%8F"><span class="nav-number">1.3.</span> <span class="nav-text">1.3 常见失败模式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88%EF%BC%9A%E7%AA%97%E5%8F%A3%E5%8C%96%E5%B1%95%E5%BC%80-%E7%B3%BB%E5%88%97%E9%87%8D%E5%BB%BA"><span class="nav-number">2.</span> <span class="nav-text">2. 解决方案：窗口化展开 + 系列重建</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-%E6%A0%B8%E5%BF%83%E5%8E%9F%E5%88%99%EF%BC%9A%E7%AA%97%E5%8F%A3%E5%8C%96-Windowed"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 核心原则：窗口化 (Windowed)</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%9B%B4%E8%A7%82%E7%90%86%E8%A7%A3%EF%BC%9A%E7%AA%97%E5%8F%A3%E6%BB%91%E5%8A%A8"><span class="nav-number">2.1.1.</span> <span class="nav-text">直观理解：窗口滑动</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 架构设计</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-%E6%95%B0%E6%8D%AE%E6%A8%A1%E5%9E%8B%E8%AE%BE%E8%AE%A1"><span class="nav-number">3.</span> <span class="nav-text">3. 数据模型设计</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E6%A8%A1%E5%9E%8B%E4%B8%8E%E5%AE%9E%E4%BD%93%E8%AE%BE%E8%AE%A1"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 核心数据模型与实体设计</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-%E2%9A%A0%EF%B8%8F-%E8%AD%A6%E6%83%95-iCalUId-%E7%9A%84%E9%99%B7%E9%98%B1"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 ⚠️ 警惕 iCalUId 的陷阱</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-%E7%B3%BB%E5%88%97%E9%87%8D%E5%BB%BA-Series-Resync"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 系列重建 (Series Resync)</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-%E5%90%8C%E6%AD%A5%E6%B5%81%E7%A8%8B%EF%BC%88%E6%97%B6%E5%BA%8F%E5%9B%BE%EF%BC%89"><span class="nav-number">4.</span> <span class="nav-text">4. 同步流程（时序图）</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-Outlook-vs-Google%EF%BC%9A%E6%A0%B8%E5%BF%83%E5%B7%AE%E5%BC%82%E5%AF%B9%E6%AF%94"><span class="nav-number">5.</span> <span class="nav-text">5. Outlook vs Google：核心差异对比</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-%E7%94%9F%E4%BA%A7%E7%BA%A7%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5"><span class="nav-number">6.</span> <span class="nav-text">6. 生产级工程实践</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-%E9%85%8D%E9%A2%9D%E4%B8%8E%E6%B5%81%E6%8E%A7-Quota"><span class="nav-number">6.1.</span> <span class="nav-text">6.1 配额与流控 (Quota)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-%E4%BB%A4%E7%89%8C%E5%A4%B1%E6%95%88%E4%B8%8E%E5%88%86%E9%A1%B5"><span class="nav-number">6.2.</span> <span class="nav-text">6.2 令牌失效与分页</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-%E6%97%B6%E5%8C%BA%E4%B8%8E-DST-%E7%9A%84%E5%99%A9%E6%A2%A6"><span class="nav-number">6.3.</span> <span class="nav-text">6.3 时区与 DST 的噩梦</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-4-%E6%B5%8B%E8%AF%95%E6%B8%85%E5%8D%95"><span class="nav-number">6.4.</span> <span class="nav-text">6.4 测试清单</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-%E6%80%BB%E7%BB%93%E4%B8%8E%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5"><span class="nav-number">7.</span> <span class="nav-text">7. 总结与最佳实践</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">40</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">46</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>
