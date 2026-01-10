@@ -49,19 +49,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2020/04/11/ShardingSphere-Springboot/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2020/09/05/The-Silence-City/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
     <loc>https://www.yzhu.name/2019/04/27/Tech-VS-Biz/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2025/09/20/dify-custom-brand/</loc>
+    <loc>https://www.yzhu.name/2020/04/11/ShardingSphere-Springboot/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -69,11 +61,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/05/22/distributed-transaction/</loc>
+    <loc>https://www.yzhu.name/2025/09/20/dify-custom-brand/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
+    <loc>https://www.yzhu.name/2018/05/22/distributed-transaction/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -81,15 +73,23 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
+    <loc>https://www.yzhu.name/2020/09/05/The-Silence-City/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
+    <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
     <loc>https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/09/24/Service-Split/</loc>
+    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
+    <loc>https://www.yzhu.name/2018/09/24/Service-Split/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -117,11 +117,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
+    <loc>https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2020/03/29/JVM-NEW/</loc>
+    <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -129,15 +129,19 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
+    <loc>https://www.yzhu.name/2020/03/29/JVM-NEW/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
     <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/</loc>
+    <loc>https://www.yzhu.name/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2023/05/13/Gray-Scale-Deployment-Cache-Consistency/</loc>
+    <loc>https://www.yzhu.name/2025/04/26/Biometric-Based-Payment-Product/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -146,10 +150,6 @@
   </url>
   <url>
     <loc>https://www.yzhu.name/2018/07/06/Dubbo-Local-RPC-Switch/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2025/04/26/Biometric-Based-Payment-Product/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
