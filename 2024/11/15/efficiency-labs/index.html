@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="整合了日期计算、单位转换、JSON格式化、编解码、时间戳转换、YAML&#x2F;JSON转换、图片背景移除、颜色混合等8个开发者常用在线工具，提高工作效率">
+<meta property="og:type" content="article">
+<meta property="og:title" content="效率实验室：8个开发者必备的在线工具集合">
+<meta property="og:url" content="https://www.yzhu.name/2024/11/15/efficiency-labs/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="整合了日期计算、单位转换、JSON格式化、编解码、时间戳转换、YAML&#x2F;JSON转换、图片背景移除、颜色混合等8个开发者常用在线工具，提高工作效率">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2024-11-15T14:16:33.000Z">
+<meta property="article:modified_time" content="2025-01-10T04:00:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="JSON格式化">
+<meta property="article:tag" content="在线工具">
+<meta property="article:tag" content="工具">
+<meta property="article:tag" content="开发工具">
+<meta property="article:tag" content="效率">
+<meta property="article:tag" content="时间戳转换">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2024/11/15/efficiency-labs/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>效率实验室：8个开发者必备的在线工具集合 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2024/11/15/efficiency-labs/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          效率实验室：8个开发者必备的在线工具集合
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2024-11-15 22:16:33" itemprop="dateCreated datePublished" datetime="2024-11-15T22:16:33+08:00">2024-11-15</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%B7%A5%E5%85%B7%E7%AB%99/" itemprop="url" rel="index"><span itemprop="name">工具站</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">整合了日期计算、单位转换、JSON格式化、编解码、时间戳转换、YAML/JSON转换、图片背景移除、颜色混合等8个开发者常用在线工具，提高工作效率</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在日常开发工作中，我们经常需要处理格式转换、日期计算、编码解码等基础操作。这些任务要么需要在开发环境中编写代码实现，要么需要在网上搜索对应的在线工具。为了提高工作效率，我整合了一系列常用工具，并将它们集成到 <a href="https://labs.yzhu.name" target="_blank"><strong>效率实验室</strong></a> 中。</p>
+<span id="more"></span>
+
+<h2 id="工具列表"><a href="#工具列表" class="headerlink" title="工具列表"></a>工具列表</h2><p>目前该工具站提供以下 8 个在线工具，全部免费使用，无需注册：</p>
+<h3 id="1-日期计算器"><a href="#1-日期计算器" class="headerlink" title="1. 日期计算器"></a>1. 日期计算器</h3><p><a href="https://labs.yzhu.name/date-calculator" target="_blank">https://labs.yzhu.name/date-calculator</a></p>
+<p><strong>使用场景</strong>：计算项目周期、账单日期、会员到期时间等</p>
+<p><strong>主要功能</strong>：</p>
+<ul>
+<li>计算两个日期之间的天数差</li>
+<li>日期加&#x2F;减天数计算</li>
+<li>支持直观的日期选择器</li>
+</ul>
+<h3 id="2-单位转换器"><a href="#2-单位转换器" class="headerlink" title="2. 单位转换器"></a>2. 单位转换器</h3><p><a href="https://labs.yzhu.name/unit-converter" target="_blank">https://labs.yzhu.name/unit-converter</a></p>
+<p><strong>使用场景</strong>：处理跨国项目时的单位换算，如美国项目常用的英制单位转换</p>
+<p><strong>主要功能</strong>：</p>
+<ul>
+<li>长度转换：米、千米、厘米、毫米、英尺、英寸、码、英里</li>
+<li>重量转换：千克、克、磅、盎司等</li>
+<li>体积转换：升、毫升、加仑、品脱等</li>
+<li>温度转换：摄氏度、华氏度、开尔文</li>
+</ul>
+<h3 id="3-JSON-格式化与验证"><a href="#3-JSON-格式化与验证" class="headerlink" title="3. JSON 格式化与验证"></a>3. JSON 格式化与验证</h3><p><a href="https://labs.yzhu.name/json-formatter" target="_blank">https://labs.yzhu.name/json-formatter</a></p>
+<p><strong>使用场景</strong>：调试 API 返回结果、配置文件格式化</p>
+<p><strong>主要功能</strong>：</p>
+<ul>
+<li>JSON 格式化（带缩进和语法高亮）</li>
+<li>JSON 压缩（单行输出）</li>
+<li>JSON 语法验证，快速定位错误位置</li>
+</ul>
+<h3 id="4-编码-解码工具"><a href="#4-编码-解码工具" class="headerlink" title="4. 编码&#x2F;解码工具"></a>4. 编码&#x2F;解码工具</h3><p><a href="https://labs.yzhu.name/encoder-decoder" target="_blank">https://labs.yzhu.name/encoder-decoder</a></p>
+<p><strong>使用场景</strong>：数据传输编码、密码哈希生成、URL 编码处理</p>
+<p><strong>主要功能</strong>：</p>
+<ul>
+<li>Base64 编码&#x2F;解码</li>
+<li>URL 编码&#x2F;解码</li>
+<li>MD5 哈希生成</li>
+<li>SHA-1、SHA-256 哈希生成</li>
+<li>DES 加密&#x2F;解密</li>
+</ul>
+<h3 id="5-Unix-时间戳转换"><a href="#5-Unix-时间戳转换" class="headerlink" title="5. Unix 时间戳转换"></a>5. Unix 时间戳转换</h3><p><a href="https://labs.yzhu.name/timestamp-converter" target="_blank">https://labs.yzhu.name/timestamp-converter</a></p>
+<p><strong>使用场景</strong>：日志时间解析、数据库时间字段转换、API 调试</p>
+<p><strong>主要功能</strong>：</p>
+<ul>
+<li>实时显示当前 Unix 时间戳</li>
+<li>时间戳转日期时间</li>
+<li>日期时间转时间戳</li>
+<li>支持多种常用日期格式显示</li>
+</ul>
+<h3 id="6-YAML-JSON-转换"><a href="#6-YAML-JSON-转换" class="headerlink" title="6. YAML&#x2F;JSON 转换"></a>6. YAML&#x2F;JSON 转换</h3><p><a href="https://labs.yzhu.name/yaml-json-converter" target="_blank">https://labs.yzhu.name/yaml-json-converter</a></p>
+<p><strong>使用场景</strong>：Kubernetes 配置转换、CI&#x2F;CD 流水线配置迁移</p>
+<p><strong>主要功能</strong>：</p>
+<ul>
+<li>YAML 转 JSON</li>
+<li>JSON 转 YAML</li>
+<li>实时转换，边输入边转换</li>
+<li>支持格式化和语法验证</li>
+</ul>
+<h3 id="7-图片背景移除"><a href="#7-图片背景移除" class="headerlink" title="7. 图片背景移除"></a>7. 图片背景移除</h3><p><a href="https://labs.yzhu.name/image-background-removal" target="_blank">https://labs.yzhu.name/image-background-removal</a></p>
+<p><strong>使用场景</strong>：电商产品图处理、证件照背景处理、PPT 素材制作</p>
+<p><strong>主要功能</strong>：</p>
+<ul>
+<li>一键自动移除图片背景</li>
+<li>转换为白底图片</li>
+<li>支持 PNG、JPG、JPEG 格式</li>
+<li>最大支持 5MB 图片</li>
+</ul>
+<h3 id="8-颜色工具（反向计算与混合）"><a href="#8-颜色工具（反向计算与混合）" class="headerlink" title="8. 颜色工具（反向计算与混合）"></a>8. 颜色工具（反向计算与混合）</h3><p><a href="https://labs.yzhu.name/color-reverse-calculator" target="_blank">https://labs.yzhu.name/color-reverse-calculator</a></p>
+<p><strong>使用场景</strong>：UI 设计、品牌配色、前端开发</p>
+<p><strong>主要功能</strong>：</p>
+<ul>
+<li>颜色反向计算：已知固定颜色和目标颜色，计算需要混合的中间色</li>
+<li>颜色混合器：按比例混合多种颜色</li>
+<li>RGB&#x2F;HEX 颜色值转换</li>
+<li>最近似 Pantone 色号匹配（支持 Coated 系列）</li>
+</ul>
+<hr>
+<h2 id="设计理念"><a href="#设计理念" class="headerlink" title="设计理念"></a>设计理念</h2><p>这些工具的灵感来源于日常工作中的一些高频需求。核心原则是：</p>
+<ol>
+<li><strong>简单易用</strong>：无需注册，打开即用</li>
+<li><strong>纯前端处理</strong>：数据不上传服务器，保护隐私</li>
+<li><strong>响应式设计</strong>：支持桌面和移动设备</li>
+<li><strong>即时反馈</strong>：操作结果实时显示</li>
+</ol>
+<h2 id="工具地址"><a href="#工具地址" class="headerlink" title="工具地址"></a>工具地址</h2><p><a href="https://labs.yzhu.name" target="_blank"><strong>https://labs.yzhu.name</strong></a></p>
+<blockquote>
+<p>后续会根据实际需求持续添加新的工具，欢迎收藏使用。</p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E5%B7%A5%E5%85%B7/" rel="tag"># 工具</a>
+              <a href="/tags/%E6%95%88%E7%8E%87/" rel="tag"># 效率</a>
+              <a href="/tags/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/" rel="tag"># 开发工具</a>
+              <a href="/tags/%E5%9C%A8%E7%BA%BF%E5%B7%A5%E5%85%B7/" rel="tag"># 在线工具</a>
+              <a href="/tags/JSON%E6%A0%BC%E5%BC%8F%E5%8C%96/" rel="tag"># JSON格式化</a>
+              <a href="/tags/%E6%97%B6%E9%97%B4%E6%88%B3%E8%BD%AC%E6%8D%A2/" rel="tag"># 时间戳转换</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/12/10/User-Tag/" rel="prev" title="跨境电商用户标签系统架构设计">
+      <i class="fa fa-chevron-left"></i> 跨境电商用户标签系统架构设计
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2025/04/26/Biometric-Based-Payment-Product/" rel="next" title="Biometric-Based Payment Product">
+      Biometric-Based Payment Product <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B7%A5%E5%85%B7%E5%88%97%E8%A1%A8"><span class="nav-number">1.</span> <span class="nav-text">工具列表</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E6%97%A5%E6%9C%9F%E8%AE%A1%E7%AE%97%E5%99%A8"><span class="nav-number">1.1.</span> <span class="nav-text">1. 日期计算器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-%E5%8D%95%E4%BD%8D%E8%BD%AC%E6%8D%A2%E5%99%A8"><span class="nav-number">1.2.</span> <span class="nav-text">2. 单位转换器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-JSON-%E6%A0%BC%E5%BC%8F%E5%8C%96%E4%B8%8E%E9%AA%8C%E8%AF%81"><span class="nav-number">1.3.</span> <span class="nav-text">3. JSON 格式化与验证</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-%E7%BC%96%E7%A0%81-%E8%A7%A3%E7%A0%81%E5%B7%A5%E5%85%B7"><span class="nav-number">1.4.</span> <span class="nav-text">4. 编码&#x2F;解码工具</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-Unix-%E6%97%B6%E9%97%B4%E6%88%B3%E8%BD%AC%E6%8D%A2"><span class="nav-number">1.5.</span> <span class="nav-text">5. Unix 时间戳转换</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-YAML-JSON-%E8%BD%AC%E6%8D%A2"><span class="nav-number">1.6.</span> <span class="nav-text">6. YAML&#x2F;JSON 转换</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-%E5%9B%BE%E7%89%87%E8%83%8C%E6%99%AF%E7%A7%BB%E9%99%A4"><span class="nav-number">1.7.</span> <span class="nav-text">7. 图片背景移除</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#8-%E9%A2%9C%E8%89%B2%E5%B7%A5%E5%85%B7%EF%BC%88%E5%8F%8D%E5%90%91%E8%AE%A1%E7%AE%97%E4%B8%8E%E6%B7%B7%E5%90%88%EF%BC%89"><span class="nav-number">1.8.</span> <span class="nav-text">8. 颜色工具（反向计算与混合）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%AE%BE%E8%AE%A1%E7%90%86%E5%BF%B5"><span class="nav-number">2.</span> <span class="nav-text">设计理念</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B7%A5%E5%85%B7%E5%9C%B0%E5%9D%80"><span class="nav-number">3.</span> <span class="nav-text">工具地址</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">40</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">51</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>
