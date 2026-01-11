@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Recurring meetings break standard delta sync logic. Learn how to synchronize Outlook recurring events with EspoCRM using windowed expansion and series rebuild strategies—a production-grade solution fo">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Synchronizing Recurring Outlook Meetings with EspoCRM">
+<meta property="og:url" content="https://www.yzhu.name/2026/01/10/espocrm/08-outlook-recurring-sync-en/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="Recurring meetings break standard delta sync logic. Learn how to synchronize Outlook recurring events with EspoCRM using windowed expansion and series rebuild strategies—a production-grade solution fo">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-01-10T06:00:00.000Z">
+<meta property="article:modified_time" content="2026-01-11T01:03:18.298Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="Delta Sync">
+<meta property="article:tag" content="EspoCRM">
+<meta property="article:tag" content="Microsoft Graph API">
+<meta property="article:tag" content="Outlook Integration">
+<meta property="article:tag" content="Recurring Events">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2026/01/10/espocrm/08-outlook-recurring-sync-en/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en-US'
+  };
+</script>
+
+  <title>Synchronizing Recurring Outlook Meetings with EspoCRM | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en-US">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2026/01/10/espocrm/08-outlook-recurring-sync-en/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Synchronizing Recurring Outlook Meetings with EspoCRM
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2026-01-10 14:00:00" itemprop="dateCreated datePublished" datetime="2026-01-10T14:00:00+08:00">2026-01-10</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Integration/" itemprop="url" rel="index"><span itemprop="name">Integration</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">Recurring meetings break standard delta sync logic. Learn how to synchronize Outlook recurring events with EspoCRM using windowed expansion and series rebuild strategies—a production-grade solution for Microsoft Graph API integration.</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p><strong>🌐 Language</strong>: <strong>English Version</strong> | <a href="/2026/01/05/espocrm/08-outlook-recurring-sync/">中文版</a></p>
+</blockquote>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p>If you’re building Outlook Calendar integration with EspoCRM, <strong>recurring meetings will break your standard delta sync logic</strong>. This article presents a production-grade solution using:</p>
+<ul>
+<li><strong>Windowed Expansion</strong>: Only sync instances within <code>[Today - 7d, Today + 90d]</code></li>
+<li><strong>Series Rebuild</strong>: When seriesMaster changes, fetch all instances via the Instances API</li>
+<li><strong>Bootstrap State Machine</strong>: Handle cold-start with explicit initialization scan</li>
+<li><strong>Critical Warning</strong>: Never use <code>iCalUId</code> as a unique key for recurring instances</li>
+</ul>
+<hr>
+<h2 id="The-Problem-Why-Delta-Sync-Fails-for-Recurring-Meetings"><a href="#The-Problem-Why-Delta-Sync-Fails-for-Recurring-Meetings" class="headerlink" title="The Problem: Why Delta Sync Fails for Recurring Meetings"></a>The Problem: Why Delta Sync Fails for Recurring Meetings</h2><p>Most developers assume Microsoft Graph’s Delta Sync API will notify them of every calendar change. This works fine for single events. For recurring meetings, it breaks down.</p>
+<h3 id="Microsoft’s-Data-Model"><a href="#Microsoft’s-Data-Model" class="headerlink" title="Microsoft’s Data Model"></a>Microsoft’s Data Model</h3><p>In Microsoft Graph API, a recurring meeting isn’t a single record. It’s split into three types:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Description</th>
+<th>Stored in Outlook</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>seriesMaster</strong></td>
+<td>The template defining recurrence rules (e.g., “every Thursday at 2 PM”)</td>
+<td>Physical record</td>
+</tr>
+<tr>
+<td><strong>occurrence</strong></td>
+<td>A specific instance (e.g., “Jan 8, 2026 at 2 PM”)</td>
+<td>Virtual, computed from Master</td>
+</tr>
+<tr>
+<td><strong>exception</strong></td>
+<td>A modified instance (e.g., “Just this one, move to 3 PM”)</td>
+<td>Physical record</td>
+</tr>
+</tbody></table>
+<h3 id="The-Delta-Sync-Trap"><a href="#The-Delta-Sync-Trap" class="headerlink" title="The Delta Sync Trap"></a>The Delta Sync Trap</h3><p>When you modify a seriesMaster (e.g., change “weekly Monday” to “weekly Tuesday”), the Delta API returns only the seriesMaster change. <strong>It does NOT return the 20+ occurrence changes</strong> for future instances.</p>
+<p>Your CRM continues showing meetings on Mondays. Users complain. Debugging reveals no sync errors—the delta data simply never contained those changes.</p>
+<h3 id="Common-Failure-Patterns"><a href="#Common-Failure-Patterns" class="headerlink" title="Common Failure Patterns"></a>Common Failure Patterns</h3><table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Root Cause</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Missing instances</td>
+<td>Only processed seriesMaster, never expanded occurrences</td>
+</tr>
+<tr>
+<td>Duplicate instances</td>
+<td>Used <code>iCalUId</code> as dedupe key (same for entire series)</td>
+</tr>
+<tr>
+<td>Orphaned instances</td>
+<td>Deleted series in Outlook, only Master removed from CRM</td>
+</tr>
+<tr>
+<td>Time drift</td>
+<td>Expanded in UTC without proper timezone handling</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="The-Solution-Windowed-Expansion-Series-Rebuild"><a href="#The-Solution-Windowed-Expansion-Series-Rebuild" class="headerlink" title="The Solution: Windowed Expansion + Series Rebuild"></a>The Solution: Windowed Expansion + Series Rebuild</h2><h3 id="Core-Principle-The-Window"><a href="#Core-Principle-The-Window" class="headerlink" title="Core Principle: The Window"></a>Core Principle: The Window</h3><p><strong>Never sync infinite future.</strong> Define a “window of interest” such as <code>[Today - 7d, Today + 90d]</code>.</p>
+<p>This makes any recurring series—even “no end date” ones—produce a constant, bounded number of instances.</p>
+<pre class="mermaid">gantt
+    title Window Sliding Over Time
+    dateFormat  YYYY-MM-DD
+    axisFormat  %m/%d
+    section Window (90d)
+    Initial window  :a1, 2026-01-01, 90d
+    Slid window     :a2, 2026-02-01, 90d
+    section Series
+    Weekly instances :crit, 2026-01-01, 180d</pre>
+
+<h3 id="Architecture-Overview"><a href="#Architecture-Overview" class="headerlink" title="Architecture Overview"></a>Architecture Overview</h3><pre class="mermaid">flowchart TD
+    Start["Start Sync"] --> GetDelta["Graph API: Delta Sync"]
+    GetDelta --> Loop{"Process Changes"}
+
+    Loop -- "Type=seriesMaster" --> MarkResync["Mark for Rebuild"]
+    Loop -- "Type=occurrence" --> SyncItem["Sync Instance (No iCalUId Fallback)"]
+    Loop -- "Type=singleInstance" --> SyncNormal["Standard Sync"]
+
+    MarkResync --> TriggerResync["Trigger Series Rebuild"]
+
+    subgraph SeriesResync ["Series Rebuild"]
+        Fetch["Graph API: List Instances (Windowed)"]
+        Upsert["Bulk Upsert Instances"]
+        Cleanup["Clean Removed Instances"]
+    end</pre>
+
+<hr>
+<h2 id="Implementation-Details"><a href="#Implementation-Details" class="headerlink" title="Implementation Details"></a>Implementation Details</h2><h3 id="1-The-Bootstrap-State-Machine"><a href="#1-The-Bootstrap-State-Machine" class="headerlink" title="1. The Bootstrap State Machine"></a>1. The Bootstrap State Machine</h3><p>Delta Sync is “change-driven,” not “presence-driven.” Meetings created years ago with no recent changes won’t appear in delta results. This causes silent missing data on first sync.</p>
+<p><strong>Solution</strong>: Track bootstrap state per user calendar:</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">OutlookCalendarService</span></span></span><br><span class="line"><span class="class"></span>&#123;</span><br><span class="line">    <span class="keyword">const</span> <span class="variable constant_">STATUS_PENDING</span> = <span class="string">&#x27;Pending&#x27;</span>;</span><br><span class="line">    <span class="keyword">const</span> <span class="variable constant_">STATUS_COMPLETED</span> = <span class="string">&#x27;Completed&#x27;</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">syncUserCalendar</span>(<span class="params"><span class="keyword">string</span> <span class="variable">$userId</span></span>): <span class="title">void</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="variable">$calendar</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">getCalendar</span>(<span class="variable">$userId</span>);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (<span class="variable">$calendar</span>-&gt;<span class="title function_ invoke__">getBootstrapStatus</span>() === <span class="built_in">self</span>::<span class="variable constant_">STATUS_PENDING</span>) &#123;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">runBootstrapScan</span>(<span class="variable">$calendar</span>);</span><br><span class="line">            <span class="variable">$calendar</span>-&gt;<span class="title function_ invoke__">setBootstrapStatus</span>(<span class="built_in">self</span>::<span class="variable constant_">STATUS_COMPLETED</span>);</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;em-&gt;<span class="title function_ invoke__">save</span>(<span class="variable">$calendar</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">runDeltaSync</span>(<span class="variable">$calendar</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="function"><span class="keyword">function</span> <span class="title">runBootstrapScan</span>(<span class="params">OutlookCalendar <span class="variable">$calendar</span></span>): <span class="title">void</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="variable">$windowStart</span> = <span class="keyword">new</span> <span class="title class_">\DateTime</span>(<span class="string">&#x27;-7 days&#x27;</span>);</span><br><span class="line">        <span class="variable">$windowEnd</span> = <span class="keyword">new</span> <span class="title class_">\DateTime</span>(<span class="string">&#x27;+90 days&#x27;</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Get ALL seriesMasters in window, not just changed ones</span></span><br><span class="line">        <span class="variable">$masters</span> = <span class="variable language_">$this</span>-&gt;graphClient-&gt;<span class="title function_ invoke__">getCalendarView</span>(</span><br><span class="line">            <span class="variable">$calendar</span>-&gt;<span class="title function_ invoke__">getExternalAccountId</span>(),</span><br><span class="line">            <span class="variable">$windowStart</span>,</span><br><span class="line">            <span class="variable">$windowEnd</span>,</span><br><span class="line">            [<span class="string">&#x27;$filter&#x27;</span> =&gt; <span class="string">&quot;type eq &#x27;seriesMaster&#x27;&quot;</span>]</span><br><span class="line">        );</span><br><span class="line"></span><br><span class="line">        <span class="keyword">foreach</span> (<span class="variable">$masters</span> <span class="keyword">as</span> <span class="variable">$master</span>) &#123;</span><br><span class="line">            <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">rebuildSeries</span>(<span class="variable">$master</span>[<span class="string">&#x27;id&#x27;</span>], <span class="variable">$windowStart</span>, <span class="variable">$windowEnd</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-Series-Rebuild-Strategy"><a href="#2-Series-Rebuild-Strategy" class="headerlink" title="2. Series Rebuild Strategy"></a>2. Series Rebuild Strategy</h3><p>When seriesMaster changes, trigger instance rebuild:</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"><span class="keyword">private</span> <span class="function"><span class="keyword">function</span> <span class="title">rebuildSeries</span>(<span class="params"><span class="keyword">string</span> <span class="variable">$masterId</span>, \DateTime <span class="variable">$start</span>, \DateTime <span class="variable">$end</span></span>): <span class="title">void</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">// Fetch all instances in window</span></span><br><span class="line">    <span class="variable">$instances</span> = <span class="variable language_">$this</span>-&gt;graphClient-&gt;<span class="title function_ invoke__">getInstances</span>(<span class="variable">$masterId</span>, <span class="variable">$start</span>, <span class="variable">$end</span>);</span><br><span class="line"></span><br><span class="line">    <span class="variable">$apiInstanceIds</span> = <span class="title function_ invoke__">array_column</span>(<span class="variable">$instances</span>, <span class="string">&#x27;id&#x27;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Get existing CRM instances for this series</span></span><br><span class="line">    <span class="variable">$existing</span> = <span class="variable language_">$this</span>-&gt;em-&gt;<span class="title function_ invoke__">getRepository</span>(<span class="title class_">OutlookEvent</span>::<span class="variable language_">class</span>)</span><br><span class="line">        -&gt;<span class="title function_ invoke__">findBy</span>([<span class="string">&#x27;seriesMasterId&#x27;</span> =&gt; <span class="variable">$masterId</span>]);</span><br><span class="line"></span><br><span class="line">    <span class="variable">$existingIds</span> = <span class="title function_ invoke__">array_map</span>(fn(<span class="variable">$e</span>) =&gt; <span class="variable">$e</span>-&gt;<span class="title function_ invoke__">getEventId</span>(), <span class="variable">$existing</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Diff: Create new, Update existing, Delete missing</span></span><br><span class="line">    <span class="keyword">foreach</span> (<span class="variable">$instances</span> <span class="keyword">as</span> <span class="variable">$instance</span>) &#123;</span><br><span class="line">        <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">syncInstance</span>(<span class="variable">$instance</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Delete instances that disappeared from API (but within window)</span></span><br><span class="line">    <span class="keyword">foreach</span> (<span class="variable">$existing</span> <span class="keyword">as</span> <span class="variable">$event</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (!<span class="title function_ invoke__">in_array</span>(<span class="variable">$event</span>-&gt;<span class="title function_ invoke__">getEventId</span>(), <span class="variable">$apiInstanceIds</span>)) &#123;</span><br><span class="line">            <span class="keyword">if</span> (<span class="variable">$event</span>-&gt;<span class="title function_ invoke__">getStart</span>()-&gt;<span class="title function_ invoke__">between</span>(<span class="variable">$start</span>, <span class="variable">$end</span>)) &#123;</span><br><span class="line">                <span class="variable language_">$this</span>-&gt;em-&gt;<span class="title function_ invoke__">remove</span>(<span class="variable">$event</span>);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-The-iCalUId-Trap-CRITICAL"><a href="#3-The-iCalUId-Trap-CRITICAL" class="headerlink" title="3. The iCalUId Trap (CRITICAL!)"></a>3. The iCalUId Trap (CRITICAL!)</h3><p><strong>RFC 5545 specifies that ALL occurrences in a recurring series share the same UID.</strong></p>
+<p>This means <code>iCalUId</code> is <strong>NOT unique</strong> for recurring instances. Using it for deduplication will merge all your weekly meetings into one record.</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"><span class="comment">// WRONG: This will break recurring meetings</span></span><br><span class="line"><span class="variable">$meeting</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">findByEventId</span>(<span class="variable">$eventId</span>)</span><br><span class="line">    ?? <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">findByICalUId</span>(<span class="variable">$iCalUId</span>);  <span class="comment">// ❌ DO NOT DO THIS</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// CORRECT: Never use iCalUId fallback for recurring instances</span></span><br><span class="line"><span class="keyword">if</span> (<span class="variable">$eventType</span> === <span class="string">&#x27;occurrence&#x27;</span> || <span class="variable">$eventType</span> === <span class="string">&#x27;exception&#x27;</span>) &#123;</span><br><span class="line">    <span class="variable">$meeting</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">findByEventId</span>(<span class="variable">$eventId</span>);  <span class="comment">// ✅ Use eventId only</span></span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="variable">$meeting</span> = <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">findByEventId</span>(<span class="variable">$eventId</span>)</span><br><span class="line">        ?? <span class="variable language_">$this</span>-&gt;<span class="title function_ invoke__">findByICalUId</span>(<span class="variable">$iCalUId</span>);  <span class="comment">// ✅ OK for single events</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-Complete-Sync-Sequence"><a href="#4-Complete-Sync-Sequence" class="headerlink" title="4. Complete Sync Sequence"></a>4. Complete Sync Sequence</h3><pre class="mermaid">sequenceDiagram
+  participant S as Scheduler/Job
+  participant SS as SyncService
+  participant DB as Database
+  participant P as Provider(Outlook/Google)
+  participant W as WindowExpander
+
+  S->>SS: Trigger user sync
+  SS->>DB: Check bootstrapStatus
+
+  alt Status is Pending (Cold Start)
+    SS->>W: Force Windowed Scan (-7d..+90d)
+    W->>P: List all instances in window
+    W->>DB: Initialize Series & Instances
+    SS->>DB: Update bootstrapStatus = Completed
+  else Status is Completed (Incremental)
+    SS->>P: Fetch delta (token/page)
+    alt Series master changed
+      SS->>W: Mark series for rebuild
+      W->>P: List instances (window: -7d..+90d)
+      W->>DB: Upsert created/updated
+      W->>DB: Delete window-missing
+    else Occurrence/Exception changed
+      SS->>DB: Upsert occurrence (no iCalUId fallback)
+    end
+  end
+  SS-->>S: Report metrics</pre>
+
+<h3 id="5-Quota-Management"><a href="#5-Quota-Management" class="headerlink" title="5. Quota Management"></a>5. Quota Management</h3><p>Recurring series generate massive record counts. One user with 10 weekly meetings &#x3D; ~120 instances per quarter.</p>
+<p><strong>Protect against API throttling:</strong></p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SyncLimits</span></span></span><br><span class="line"><span class="class"></span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">const</span> <span class="variable constant_">MAX_INSTANCES_PER_RUN</span> = <span class="number">200</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">const</span> <span class="variable constant_">MAX_SERIES_REBUILD_PER_RUN</span> = <span class="number">5</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="variable">$instancesProcessed</span> = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">private</span> <span class="variable">$seriesRebuilt</span> = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">shouldProcessMoreInstances</span>(<span class="params"></span>): <span class="title">bool</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;instancesProcessed &lt; <span class="built_in">self</span>::<span class="variable constant_">MAX_INSTANCES_PER_RUN</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">shouldRebuildMoreSeries</span>(<span class="params"></span>): <span class="title">bool</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="variable language_">$this</span>-&gt;seriesRebuilt &lt; <span class="built_in">self</span>::<span class="variable constant_">MAX_SERIES_REBUILD_PER_RUN</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">recordInstance</span>(<span class="params"></span>): <span class="title">void</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="variable language_">$this</span>-&gt;instancesProcessed++;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="function"><span class="keyword">function</span> <span class="title">recordSeriesRebuild</span>(<span class="params"></span>): <span class="title">void</span></span></span><br><span class="line"><span class="function">    </span>&#123;</span><br><span class="line">        <span class="variable language_">$this</span>-&gt;seriesRebuilt++;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="Production-Checklist"><a href="#Production-Checklist" class="headerlink" title="Production Checklist"></a>Production Checklist</h2><p>Before deploying to production, verify:</p>
+<ul>
+<li><input disabled type="checkbox"> <strong>DST Handling</strong>: Create a weekly meeting spanning DST transition (March&#x2F;November). Verify times don’t drift</li>
+<li><input disabled type="checkbox"> <strong>Exception Preservation</strong>: Modify one instance’s time, then change series subject. Verify the modified instance keeps its time</li>
+<li><input disabled type="checkbox"> <strong>Deletion Sync</strong>: Delete one future instance in Outlook. Confirm CRM removes it. Delete entire series. Confirm all instances are removed</li>
+<li><input disabled type="checkbox"> <strong>Long-running Series</strong>: Create a monthly meeting for 2 years. Verify only ~90 days are synced</li>
+<li><input disabled type="checkbox"> <strong>All-day Events</strong>: Create all-day recurring event. Verify it doesn’t span two days due to timezone conversion</li>
+<li><input disabled type="checkbox"> <strong>Token Recovery</strong>: Simulate delta token expiration. Verify system falls back to full sync</li>
+<li><input disabled type="checkbox"> <strong>Logging</strong>: All sync operations log (seriesMasterId, instanceId, operation) for debugging</li>
+</ul>
+<hr>
+<h2 id="Comparison-Outlook-vs-Google-Calendar"><a href="#Comparison-Outlook-vs-Google-Calendar" class="headerlink" title="Comparison: Outlook vs Google Calendar"></a>Comparison: Outlook vs Google Calendar</h2><table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Microsoft Graph (Outlook)</th>
+<th>Google Calendar API</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Recurring Model</strong></td>
+<td>Master + Exception (occurrences are virtual)</td>
+<td>Event + Recurrence (can expand with singleEvents&#x3D;true)</td>
+</tr>
+<tr>
+<td><strong>Delta Behavior</strong></td>
+<td>Master change returns only Master</td>
+<td>Master change can return all affected instances</td>
+</tr>
+<tr>
+<td><strong>ID Reference</strong></td>
+<td><code>seriesMasterId</code></td>
+<td><code>recurringEventId</code></td>
+</tr>
+<tr>
+<td><strong>Deletion</strong></td>
+<td>Physical delete or status change</td>
+<td>Often <code>status: cancelled</code></td>
+</tr>
+<tr>
+<td><strong>Complexity</strong></td>
+<td>⭐⭐⭐⭐⭐</td>
+<td>⭐⭐⭐</td>
+</tr>
+</tbody></table>
+<p>Google’s <code>singleEvents=true</code> parameter makes expansion easier, but the windowed approach remains necessary for performance.</p>
+<hr>
+<h2 id="Key-Takeaways"><a href="#Key-Takeaways" class="headerlink" title="Key Takeaways"></a>Key Takeaways</h2><ol>
+<li><strong>Never trust Delta Sync alone</strong> for recurring meetings. Use delta as a signal, not as truth.</li>
+<li><strong>Windowed expansion is essential</strong>. Infinite series must be bounded to a constant number of instances.</li>
+<li><strong>iCalUId is half-truth</strong>. Same for all occurrences—dangerous as a unique key.</li>
+<li><strong>Bootstrap state matters</strong>. Explicit initialization scan prevents “cold start” data gaps.</li>
+<li><strong>Log everything</strong>. When debugging sync issues, you’ll need the history.</li>
+</ol>
+<hr>
+<h2 id="Data-Model-Reference"><a href="#Data-Model-Reference" class="headerlink" title="Data Model Reference"></a>Data Model Reference</h2><pre class="mermaid">erDiagram
+    OUTLOOK_CALENDAR_USER ||--o{ OUTLOOK_CALENDAR_SERIES : tracks
+    OUTLOOK_CALENDAR_USER ||--o{ OUTLOOK_CALENDAR_EVENT : owns
+    INTERNAL_EVENT ||--o{ OUTLOOK_CALENDAR_EVENT : linked-by
+
+    OUTLOOK_CALENDAR_USER {
+        string id PK
+        string deltaToken
+        string bootstrapStatus
+    }
+
+    OUTLOOK_CALENDAR_SERIES {
+        string id PK
+        string seriesMasterEventId
+        boolean resyncRequested
+    }
+
+    OUTLOOK_CALENDAR_EVENT {
+        string id PK
+        string eventId "Immutable Outlook ID"
+        string iCalUId "Shared by Series - NOT unique!"
+        string eventType "occurrence/master/exception"
+        string seriesMasterEventId
+        datetime windowStart
+        datetime windowEnd
+    }
+
+    INTERNAL_EVENT {
+        string id PK
+        string subject
+        datetime start
+        datetime end
+    }</pre>
+
+<hr>
+<h2 id="Resources"><a href="#Resources" class="headerlink" title="Resources"></a>Resources</h2><ul>
+<li><a href="https://learn.microsoft.com/en-us/graph/delta-query-events">Microsoft Graph Delta Query Documentation</a></li>
+<li><a href="https://learn.microsoft.com/en-us/graph/delta-query-events">Get incremental changes to events in a calendar view</a></li>
+<li><a href="https://learn.microsoft.com/en-us/graph/best-practices-concept">Best practices for working with Microsoft Graph</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc5545">RFC 5545: iCalendar Specification</a></li>
+</ul>
+<hr>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/EspoCRM/" rel="tag"># EspoCRM</a>
+              <a href="/tags/Microsoft-Graph-API/" rel="tag"># Microsoft Graph API</a>
+              <a href="/tags/Outlook-Integration/" rel="tag"># Outlook Integration</a>
+              <a href="/tags/Recurring-Events/" rel="tag"># Recurring Events</a>
+              <a href="/tags/Delta-Sync/" rel="tag"># Delta Sync</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2026/01/05/espocrm/08-outlook-recurring-sync/" rel="prev" title="EspoCRM 与 Outlook 循环会议同步实践：窗口化展开 + 系列重建方案">
+      <i class="fa fa-chevron-left"></i> EspoCRM 与 Outlook 循环会议同步实践：窗口化展开 + 系列重建方案
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#The-Problem-Why-Delta-Sync-Fails-for-Recurring-Meetings"><span class="nav-number">2.</span> <span class="nav-text">The Problem: Why Delta Sync Fails for Recurring Meetings</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Microsoft%E2%80%99s-Data-Model"><span class="nav-number">2.1.</span> <span class="nav-text">Microsoft’s Data Model</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#The-Delta-Sync-Trap"><span class="nav-number">2.2.</span> <span class="nav-text">The Delta Sync Trap</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Common-Failure-Patterns"><span class="nav-number">2.3.</span> <span class="nav-text">Common Failure Patterns</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#The-Solution-Windowed-Expansion-Series-Rebuild"><span class="nav-number">3.</span> <span class="nav-text">The Solution: Windowed Expansion + Series Rebuild</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Core-Principle-The-Window"><span class="nav-number">3.1.</span> <span class="nav-text">Core Principle: The Window</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Architecture-Overview"><span class="nav-number">3.2.</span> <span class="nav-text">Architecture Overview</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Implementation-Details"><span class="nav-number">4.</span> <span class="nav-text">Implementation Details</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-The-Bootstrap-State-Machine"><span class="nav-number">4.1.</span> <span class="nav-text">1. The Bootstrap State Machine</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-Series-Rebuild-Strategy"><span class="nav-number">4.2.</span> <span class="nav-text">2. Series Rebuild Strategy</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-The-iCalUId-Trap-CRITICAL"><span class="nav-number">4.3.</span> <span class="nav-text">3. The iCalUId Trap (CRITICAL!)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-Complete-Sync-Sequence"><span class="nav-number">4.4.</span> <span class="nav-text">4. Complete Sync Sequence</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-Quota-Management"><span class="nav-number">4.5.</span> <span class="nav-text">5. Quota Management</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Production-Checklist"><span class="nav-number">5.</span> <span class="nav-text">Production Checklist</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Comparison-Outlook-vs-Google-Calendar"><span class="nav-number">6.</span> <span class="nav-text">Comparison: Outlook vs Google Calendar</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Key-Takeaways"><span class="nav-number">7.</span> <span class="nav-text">Key Takeaways</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Data-Model-Reference"><span class="nav-number">8.</span> <span class="nav-text">Data Model Reference</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Resources"><span class="nav-number">9.</span> <span class="nav-text">Resources</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">41</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">55</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
+  <script>
+    if (window.mermaid) {
+      mermaid.initialize(JSON.stringify());
+    }
+  </script>
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>
