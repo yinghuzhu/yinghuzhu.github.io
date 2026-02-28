@@ -251,7 +251,7 @@
 <ul>
 <li><strong>“隐身”的实例</strong>：你修改了系列的主规则（比如从“每周一”改为“每周二”），Delta 接口只会告诉你 seriesMaster 变了。它<strong>不会</strong>把未来半年的 24 个 occurrence 变更事件推送给你。如果你只依赖 Delta 数据更新数据库，你的 CRM 日历里，会议还停留在周一。</li>
 <li><strong>无限数据的黑洞</strong>：如果你试图展开一个 “No End Date”（无限循环）的会议，你会得到无限的数据，瞬间撑爆数据库。</li>
-<li><strong>iCalUId 的诱惑与背叛</strong>：这可能是最大的坑。很多开发者会惯性认为 <code>iCalUId</code> 是全球唯一的，但在 RFC 5545 标准里，<strong>同一个系列的所有实例共享同一个 <code>iCalUId</code></strong>！EspoCRM 默认逻辑喜欢用 <code>iCalUId</code> 来做去重（Fallback），这会导致所有周会都被合并成同一条记录——灾难。</li>
+<li><strong>iCalUId 的诱惑与背叛</strong>：这可能是最大的坑。很多开发者会惯性认为 <code>iCalUId</code> 是全球唯一的，但在 RFC 5545 标准里，**同一个系列的所有实例共享同一个 <code>iCalUId</code>**！EspoCRM 默认逻辑喜欢用 <code>iCalUId</code> 来做去重（Fallback），这会导致所有周会都被合并成同一条记录——灾难。</li>
 </ul>
 <h3 id="常见失败模式"><a href="#常见失败模式" class="headerlink" title="常见失败模式"></a>常见失败模式</h3><p>在实际工程中，如果你看到以下现象，通常就是循环逻辑出了问题：</p>
 <ul>
@@ -261,9 +261,9 @@
 <li><strong>时区错位</strong>：按 UTC 展开导致本地时段漂移；All-day 事件在跨时区时出现 +&#x2F;- 1 天的误差。</li>
 </ul>
 <hr>
-<h2 id="解决方案：窗口化展开-系列重建"><a href="#解决方案：窗口化展开-系列重建" class="headerlink" title="解决方案：窗口化展开 + 系列重建"></a>解决方案：窗口化展开 + 系列重建</h2><p>为了解决上述问题，我们制定了**“窗口化（Windowed）”<strong>和</strong>“系列重建（Series Resync）”**的策略。</p>
+<h2 id="解决方案：窗口化展开-系列重建"><a href="#解决方案：窗口化展开-系列重建" class="headerlink" title="解决方案：窗口化展开 + 系列重建"></a>解决方案：窗口化展开 + 系列重建</h2><p>为了解决上述问题，我们制定了<strong>“窗口化（Windowed）”</strong>和<strong>“系列重建（Series Resync）”</strong>的策略。</p>
 <h3 id="核心原则：窗口化-Windowed"><a href="#核心原则：窗口化-Windowed" class="headerlink" title="核心原则：窗口化 (Windowed)"></a>核心原则：窗口化 (Windowed)</h3><p>我们无法也不应该同步“无限”的未来。</p>
-<p><strong>“窗口化”<strong>的核心思想是：定义一个</strong>“关注窗口”</strong>（例如 <code>[Today - 7天, Today + 90天]</code>）。</p>
+<p><strong>“窗口化”</strong>的核心思想是：定义一个<strong>“关注窗口”</strong>（例如 <code>[Today - 7天, Today + 90天]</code>）。</p>
 <ul>
 <li>我们只关心落在这个窗口内的时间片。</li>
 <li>每天夜间任务会“滑动”这个窗口，把新进入窗口期（第 91 天）的会议实例实例化存入数据库。</li>
@@ -352,7 +352,7 @@
 <li>这就导致了“<strong>静默缺失</strong>”：系统认为同步完成了，但日历上空空如也，只有最近新建的会议被同步了。</li>
 </ul>
 </blockquote>
-<p>为此，我们引入了**“初始化状态机”**机制，将同步流程分为“初始化（Bootstrap）”和“增量（Incremental）”两个阶段：</p>
+<p>为此，我们引入了<strong>“初始化状态机”</strong>机制，将同步流程分为“初始化（Bootstrap）”和“增量（Incremental）”两个阶段：</p>
 <ol>
 <li><strong>引入状态位</strong>：在用户日历配置中增加 <code>bootstrapStatus</code> 字段 (<code>Pending</code> &#x2F; <code>Completed</code>)。</li>
 <li><strong>强制扫描</strong>：每次同步任务启动时，先检查该状态。<ul>
@@ -450,7 +450,7 @@
 <h3 id="时区与-DST-的噩梦"><a href="#时区与-DST-的噩梦" class="headerlink" title="时区与 DST 的噩梦"></a>时区与 DST 的噩梦</h3><ul>
 <li><strong>存储</strong>：建议同时存储“本地时段”+“时区 ID”。</li>
 <li><strong>DST</strong>：夏令时切换会导致 UTC 时间平移，如果只存 UTC，可能会导致会议在本地时间显示错位（比如差 1 小时）。在展开实例时，务必使用正确的时区库（如 PHP 的 <code>DateTimeZone</code>）。</li>
-<li><strong>全天事件 (All-day Events)</strong>：全天事件通常没有时区概念（或者说是“浮动时间”），在跨系统同步时，应忽略时区偏移，严格按照 <code>YYYY-MM-DD</code> 处理。否则很容易因为时区转换导致事件变成跨越两天的事件（例如从 <code>00:00 - 24:00</code> 变成前一天的 <code>23:00</code> 到当天的 <code>23:00</code>）。</li>
+<li>**全天事件 (All-day Events)**：全天事件通常没有时区概念（或者说是“浮动时间”），在跨系统同步时，应忽略时区偏移，严格按照 <code>YYYY-MM-DD</code> 处理。否则很容易因为时区转换导致事件变成跨越两天的事件（例如从 <code>00:00 - 24:00</code> 变成前一天的 <code>23:00</code> 到当天的 <code>23:00</code>）。</li>
 </ul>
 <h3 id="测试清单"><a href="#测试清单" class="headerlink" title="测试清单"></a>测试清单</h3><p>上线前，请务必覆盖以下场景：</p>
 <ol>
@@ -460,7 +460,7 @@
 <li><strong>长周期</strong>：创建一个每月的会议，持续 2 年，检查窗口化逻辑是否只同步了最近 3 个月。</li>
 </ol>
 <hr>
-<h2 id="总结与最佳实践"><a href="#总结与最佳实践" class="headerlink" title="总结与最佳实践"></a>总结与最佳实践</h2><p>Outlook&#x2F;Gmail 循环会议同步的核心在于**“承认差异，中间转换”**。</p>
+<h2 id="总结与最佳实践"><a href="#总结与最佳实践" class="headerlink" title="总结与最佳实践"></a>总结与最佳实践</h2><p>Outlook&#x2F;Gmail 循环会议同步的核心在于<strong>“承认差异，中间转换”</strong>。</p>
 <ol>
 <li><strong>不要把 “增量&#x3D;事实”当假设</strong>：对于循环会议，增量只是一个信号，必须配合 <strong>窗口化回查</strong>。</li>
 <li><strong>统一语义</strong>：在内部模型中，把 Series 当作配置，把 Occurrence 当作事实。</li>
@@ -574,7 +574,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">41</span>
+          <span class="site-state-item-count">43</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -585,7 +585,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">55</span>
+        <span class="site-state-item-count">62</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -629,13 +629,6 @@
   <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
   </div>
 
-
-  <script src='https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js'></script>
-  <script>
-    if (window.mermaid) {
-      mermaid.initialize(JSON.stringify());
-    }
-  </script>
 
 
         
@@ -705,7 +698,7 @@ document.querySelectorAll('.pdfobject-container').forEach(element => {
 
 <script>
 if (document.querySelectorAll('pre.mermaid').length) {
-  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
     mermaid.initialize({
       theme    : 'default',
       logLevel : 3,
