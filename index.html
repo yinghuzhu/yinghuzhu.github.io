@@ -274,7 +274,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>随着业务发展，登录入口逐渐增多，如用户名、邮箱、手机号，以及 Google、GitHub、微信等社交账号，构建一套可控、安全、可演进的统一账号体系面临诸多挑战。本文将探讨一种支持多种标识符登录及社交账号绑定的统一认证方案，内容涵盖其核心设计约束、领域模型、登录绑定流程，并着重阐述关键的安全与风控策略。</p>
+          <p>随着业务发展，登录入口逐渐增多：用户名、邮箱、手机号，以及 Google、GitHub、微信等社交账号。传统的”大宽表”用户设计在面对这种多样性时，往往陷入两难：要么不断添加字段导致表结构臃肿，要么限制登录方式失去灵活性。本文将探讨一种通过 <strong>AuthIdentity 与 User 分离</strong> 的领域模型，来构建可扩展的统一认证体系。</p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/2026/02/07/unified-login-multi-identifier-social-binding/#more" rel="contents">
