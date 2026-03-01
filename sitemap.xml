@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>https://www.yzhu.name/2026/02/14/unified-login-multi-identifier-social-binding-en/</loc>
+    <loc>https://www.yzhu.name/2026/02/07/unified-login-multi-identifier-social-binding-en/</loc>
     
     <lastmod>2026-03-01</lastmod>
     
@@ -155,7 +155,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tools/shipping-cost.html</loc>
+    <loc>https://www.yzhu.name/tools/asi-converter.html</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -164,7 +164,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tools/asi-converter.html</loc>
+    <loc>https://www.yzhu.name/tools/shipping-cost.html</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -200,7 +200,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2019/03/01/product-bug/</loc>
+    <loc>https://www.yzhu.name/2019/01/03/servcie-deploy-summary/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -209,7 +209,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2019/01/03/servcie-deploy-summary/</loc>
+    <loc>https://www.yzhu.name/2019/03/01/product-bug/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -227,7 +227,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2020/09/05/The-Silence-City/</loc>
+    <loc>https://www.yzhu.name/2019/04/27/Tech-VS-Biz/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -245,7 +245,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2019/04/27/Tech-VS-Biz/</loc>
+    <loc>https://www.yzhu.name/2020/09/05/The-Silence-City/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -255,6 +255,15 @@
   
   <url>
     <loc>https://www.yzhu.name/2025/09/20/dify-custom-brand/</loc>
+    
+    <lastmod>2025-11-11</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -281,7 +290,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
+    <loc>https://www.yzhu.name/2018/09/24/Service-Split/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -291,15 +300,6 @@
   
   <url>
     <loc>https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/</loc>
-    
-    <lastmod>2025-11-11</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/2018/09/24/Service-Split/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -344,7 +344,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2018/12/01/OOM-Casue-Snowslide/</loc>
+    <loc>https://www.yzhu.name/2018/06/18/Parepare-Service/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -353,7 +353,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2018/06/18/Parepare-Service/</loc>
+    <loc>https://www.yzhu.name/2018/12/01/OOM-Casue-Snowslide/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -698,21 +698,21 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/validation/</loc>
+    <loc>https://www.yzhu.name/tags/integration/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/dynamic-logic/</loc>
+    <loc>https://www.yzhu.name/tags/outlook/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/hook/</loc>
+    <loc>https://www.yzhu.name/tags/sync/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -768,21 +768,42 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/integration/</loc>
+    <loc>https://www.yzhu.name/tags/validation/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/outlook/</loc>
+    <loc>https://www.yzhu.name/tags/dynamic-logic/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/sync/</loc>
+    <loc>https://www.yzhu.name/tags/hook/</loc>
+    <lastmod>2026-03-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/job/</loc>
+    <lastmod>2026-03-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/automation/</loc>
+    <lastmod>2026-03-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/scheduled-task/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -824,49 +845,28 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/job/</loc>
+    <loc>https://www.yzhu.name/tags/lead/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/automation/</loc>
+    <loc>https://www.yzhu.name/tags/opportunity/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/scheduled-task/</loc>
+    <loc>https://www.yzhu.name/tags/sales-funnel/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/Microsoft-Graph-API/</loc>
-    <lastmod>2026-03-01</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/Outlook-Integration/</loc>
-    <lastmod>2026-03-01</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/Recurring-Events/</loc>
-    <lastmod>2026-03-01</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/Delta-Sync/</loc>
+    <loc>https://www.yzhu.name/tags/conversion/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -901,28 +901,28 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/lead/</loc>
+    <loc>https://www.yzhu.name/tags/Microsoft-Graph-API/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/opportunity/</loc>
+    <loc>https://www.yzhu.name/tags/Outlook-Integration/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/sales-funnel/</loc>
+    <loc>https://www.yzhu.name/tags/Recurring-Events/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/conversion/</loc>
+    <loc>https://www.yzhu.name/tags/Delta-Sync/</loc>
     <lastmod>2026-03-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
