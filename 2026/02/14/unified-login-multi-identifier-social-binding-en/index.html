@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Traditional &#39;wide table&#39; user designs struggle with diverse login methods. Learn how separating AuthIdentity from User entities enables flexible, scalable authentication supporting email, mobile, soci">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Multi-Identifier Unified Login &amp; Social Binding: Building a Scalable Authentication System">
+<meta property="og:url" content="https://www.yzhu.name/2026/02/14/unified-login-multi-identifier-social-binding-en/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="Traditional &#39;wide table&#39; user designs struggle with diverse login methods. Learn how separating AuthIdentity from User entities enables flexible, scalable authentication supporting email, mobile, soci">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-02-14T04:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-01T17:33:26.315Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="authentication">
+<meta property="article:tag" content="iam">
+<meta property="article:tag" content="identity-management">
+<meta property="article:tag" content="oauth">
+<meta property="article:tag" content="security">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2026/02/14/unified-login-multi-identifier-social-binding-en/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en-US'
+  };
+</script>
+
+  <title>Multi-Identifier Unified Login & Social Binding: Building a Scalable Authentication System | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en-US">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2026/02/14/unified-login-multi-identifier-social-binding-en/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Multi-Identifier Unified Login & Social Binding: Building a Scalable Authentication System
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2026-02-14 12:00:00" itemprop="dateCreated datePublished" datetime="2026-02-14T12:00:00+08:00">2026-02-14</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Security/" itemprop="url" rel="index"><span itemprop="name">Security</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">Traditional 'wide table' user designs struggle with diverse login methods. Learn how separating AuthIdentity from User entities enables flexible, scalable authentication supporting email, mobile, social logins, and SSO without schema migrations.</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p><strong>🌐 Language</strong>: <strong>English Version</strong> | <a href="/2026/02/07/unified-login-multi-identifier-social-binding/">中文版</a></p>
+</blockquote>
+<p>As products evolve, login options multiply: username, email, phone number, plus Google, GitHub, WeChat, and enterprise SSO. Traditional “wide table” user designs face a dilemma: constantly adding fields leads to bloated schemas, or limiting login methods sacrifices user experience. This article explores a domain model that separates <strong>AuthIdentity from User</strong> to build an extensible, unified authentication system.</p>
+<span id="more"></span>
+
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li><strong>Separate concerns</strong>: Split “who the user is” (User) from “how to prove it” (AuthIdentity)</li>
+<li><strong>Zero schema changes</strong>: Adding new login methods only requires INSERT, not ALTER TABLE</li>
+<li><strong>Flexible progression</strong>: Support “passwordless” users who add credentials over time</li>
+<li><strong>Natural conflict prevention</strong>: Composite unique index <code>(identity_type, identifier)</code> prevents duplicate bindings</li>
+</ul>
+<hr>
+<h2 id="1-From-“Wide-Table”-to-“Separation-Model”"><a href="#1-From-“Wide-Table”-to-“Separation-Model”" class="headerlink" title="1. From “Wide Table” to “Separation Model”"></a>1. From “Wide Table” to “Separation Model”</h2><h3 id="1-1-The-Pain-of-Traditional-Design"><a href="#1-1-The-Pain-of-Traditional-Design" class="headerlink" title="1.1 The Pain of Traditional Design"></a>1.1 The Pain of Traditional Design</h3><p>Early user tables typically looked like this:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE TABLE</span> users (</span><br><span class="line">    id <span class="type">BIGINT</span> <span class="keyword">PRIMARY KEY</span>,</span><br><span class="line">    username <span class="type">VARCHAR</span>(<span class="number">50</span>) <span class="keyword">UNIQUE</span>,</span><br><span class="line">    email <span class="type">VARCHAR</span>(<span class="number">100</span>) <span class="keyword">UNIQUE</span>,</span><br><span class="line">    mobile <span class="type">VARCHAR</span>(<span class="number">20</span>) <span class="keyword">UNIQUE</span>,</span><br><span class="line">    password_hash <span class="type">VARCHAR</span>(<span class="number">255</span>),</span><br><span class="line">    google_id <span class="type">VARCHAR</span>(<span class="number">100</span>),</span><br><span class="line">    wechat_openid <span class="type">VARCHAR</span>(<span class="number">100</span>),</span><br><span class="line">    github_id <span class="type">VARCHAR</span>(<span class="number">100</span>),</span><br><span class="line">    <span class="comment">-- Add a new column for every login method</span></span><br><span class="line">    created_at <span class="type">TIMESTAMP</span></span><br><span class="line">);</span><br></pre></td></tr></table></figure>
+
+<p>The problems are obvious:</p>
+<ul>
+<li><strong>Poor extensibility</strong>: Adding login methods requires schema changes—risky for large production tables</li>
+<li><strong>Tight coupling</strong>: Password field is mandatory for all users, blocking “SMS-only” or “social-only” scenarios</li>
+<li><strong>Chaotic uniqueness</strong>: <code>username</code>, <code>email</code>, <code>mobile</code> each have unique constraints, but social IDs scatter across different fields</li>
+<li><strong>Data redundancy</strong>: Passwordless users have empty <code>password_hash</code>; users without email have empty <code>email</code></li>
+</ul>
+<h3 id="1-2-Core-Idea-of-the-Separation-Model"><a href="#1-2-Core-Idea-of-the-Separation-Model" class="headerlink" title="1.2 Core Idea of the Separation Model"></a>1.2 Core Idea of the Separation Model</h3><p>Completely decouple “who the user is” (User) from “how to prove you’re you” (AuthIdentity):</p>
+<ul>
+<li><strong>User</strong>: Only cares about basic user info, not login methods</li>
+<li><strong>AuthIdentity</strong>: Only cares about authentication credentials, not other user data</li>
+<li><strong>UserPassword</strong>: Password as an independent entity, supporting “passwordless user” scenarios</li>
+</ul>
+<p>The immediate benefit: <strong>Adding a new login method only requires inserting one AuthIdentity record—no schema changes needed</strong>.</p>
+<hr>
+<h2 id="2-Domain-Model-Design"><a href="#2-Domain-Model-Design" class="headerlink" title="2. Domain Model Design"></a>2. Domain Model Design</h2><h3 id="2-1-Core-Entity-Relationships"><a href="#2-1-Core-Entity-Relationships" class="headerlink" title="2.1 Core Entity Relationships"></a>2.1 Core Entity Relationships</h3><pre class="mermaid">classDiagram
+    class User {
+        +Long id
+        +String nickname
+        +String avatar
+        +String status
+        +datetime created_at
+    }
+
+    class AuthIdentity {
+        +Long id
+        +Long user_id
+        +String identity_type
+        +String identifier
+        +datetime verified_at
+    }
+
+    class UserPassword {
+        +Long user_id
+        +String password_hash
+    }
+
+    User "1" --> "n" AuthIdentity : has
+    User "1" --> "0..1" UserPassword : has</pre>
+
+<h3 id="2-2-Entity-Responsibility-Boundaries"><a href="#2-2-Entity-Responsibility-Boundaries" class="headerlink" title="2.2 Entity Responsibility Boundaries"></a>2.2 Entity Responsibility Boundaries</h3><h4 id="User-The-User-Aggregate-Root"><a href="#User-The-User-Aggregate-Root" class="headerlink" title="User: The User Aggregate Root"></a>User: The User Aggregate Root</h4><p>The User entity stores only <strong>business-agnostic basic information</strong>:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">User</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> Long id;</span><br><span class="line">    <span class="keyword">private</span> String nickname;</span><br><span class="line">    <span class="keyword">private</span> String avatar;</span><br><span class="line">    <span class="keyword">private</span> UserStatus status; <span class="comment">// ACTIVE, SUSPENDED, etc.</span></span><br><span class="line">    <span class="keyword">private</span> LocalDateTime createdAt;</span><br><span class="line">    <span class="comment">// Note: no password, email, or mobile fields</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Design Intent</strong>: The User table should be stable. Regardless of how many login methods are supported later, this table never needs changes. It answers “does this user exist?” not “how does this user log in?”</p>
+<h4 id="AuthIdentity-Authentication-Identity"><a href="#AuthIdentity-Authentication-Identity" class="headerlink" title="AuthIdentity: Authentication Identity"></a>AuthIdentity: Authentication Identity</h4><p>AuthIdentity records <strong>all login credentials</strong> a user possesses—one record per login method:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">AuthIdentity</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> Long id;</span><br><span class="line">    <span class="keyword">private</span> Long userId;          <span class="comment">// Links to User</span></span><br><span class="line">    <span class="keyword">private</span> String identityType;  <span class="comment">// &quot;email&quot;, &quot;mobile&quot;, &quot;username&quot;, &quot;google&quot;, &quot;wechat&quot;</span></span><br><span class="line">    <span class="keyword">private</span> String identifier;    <span class="comment">// The actual value: email address, phone, username, OpenID</span></span><br><span class="line">    <span class="keyword">private</span> LocalDateTime verifiedAt;     <span class="comment">// Verification time (for email/phone)</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Key Design Points</strong>:</p>
+<ul>
+<li><strong>Composite unique index</strong>: <code>(identity_type, identifier)</code> ensures one email can’t bind to two accounts</li>
+<li><strong>Flexible identifier</strong>: <code>13800138000</code> can be a mobile-type identifier or a username-type identifier—no conflict</li>
+<li><strong>Minimal core fields</strong>: AuthIdentity stores only the minimum info needed to locate users; extended data can be stored separately</li>
+</ul>
+<h4 id="UserPassword-Independent-Password-Entity"><a href="#UserPassword-Independent-Password-Entity" class="headerlink" title="UserPassword: Independent Password Entity"></a>UserPassword: Independent Password Entity</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">UserPassword</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> Long userId;          <span class="comment">// One-to-one with User</span></span><br><span class="line">    <span class="keyword">private</span> String passwordHash;  <span class="comment">// Argon2id hash</span></span><br><span class="line">    <span class="keyword">private</span> LocalDateTime updatedAt;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Why a separate table?</strong></p>
+<ol>
+<li><strong>Support passwordless users</strong>: Users with only SMS or social login have no UserPassword record</li>
+<li><strong>Independent password policy</strong>: Can apply stronger security controls (stricter access control, audit logs)</li>
+<li><strong>Password history</strong>: If you need “can’t reuse last 5 passwords” policy, can extend to one-to-many relationship</li>
+</ol>
+<hr>
+<h2 id="3-Model-in-Action"><a href="#3-Model-in-Action" class="headerlink" title="3. Model in Action"></a>3. Model in Action</h2><h3 id="3-1-Scenario-1-User-Registration"><a href="#3-1-Scenario-1-User-Registration" class="headerlink" title="3.1 Scenario 1: User Registration"></a>3.1 Scenario 1: User Registration</h3><p><strong>Email registration</strong>:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 1. Create User</span></span><br><span class="line"><span class="keyword">INSERT INTO</span> users (id, nickname, status, created_at) </span><br><span class="line"><span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">&#x27;John Doe&#x27;</span>, <span class="string">&#x27;ACTIVE&#x27;</span>, NOW());</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 2. Create AuthIdentity (email)</span></span><br><span class="line"><span class="keyword">INSERT INTO</span> auth_identities (user_id, identity_type, identifier, verified_at)</span><br><span class="line"><span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">&#x27;email&#x27;</span>, <span class="string">&#x27;john@example.com&#x27;</span>, NOW());</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 3. Create UserPassword</span></span><br><span class="line"><span class="keyword">INSERT INTO</span> user_passwords (user_id, password_hash)</span><br><span class="line"><span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">&#x27;$argon2id$v=19$m=65536,t=3,p=4$...&#x27;</span>);</span><br></pre></td></tr></table></figure>
+
+<p><strong>WeChat one-click registration</strong> (passwordless user):</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 1. Create User</span></span><br><span class="line"><span class="keyword">INSERT INTO</span> users (id, nickname, avatar, status, created_at) </span><br><span class="line"><span class="keyword">VALUES</span> (<span class="number">2</span>, <span class="string">&#x27;WeChat User&#x27;</span>, <span class="string">&#x27;https://wx.qq.com/avatar.jpg&#x27;</span>, <span class="string">&#x27;ACTIVE&#x27;</span>, NOW());</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 2. Create AuthIdentity (wechat)</span></span><br><span class="line"><span class="keyword">INSERT INTO</span> auth_identities (user_id, identity_type, identifier)</span><br><span class="line"><span class="keyword">VALUES</span> (<span class="number">2</span>, <span class="string">&#x27;wechat&#x27;</span>, <span class="string">&#x27;oABCD1234567890&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">-- <span class="doctag">Note:</span> no user_passwords record</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-Scenario-2-Adding-Login-Methods"><a href="#3-2-Scenario-2-Adding-Login-Methods" class="headerlink" title="3.2 Scenario 2: Adding Login Methods"></a>3.2 Scenario 2: Adding Login Methods</h3><p>User originally logs in with email, now wants to bind mobile:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- Just insert one record—no changes to users table</span></span><br><span class="line"><span class="keyword">INSERT INTO</span> auth_identities (user_id, identity_type, identifier, verified_at)</span><br><span class="line"><span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">&#x27;mobile&#x27;</span>, <span class="string">&#x27;+1234567890&#x27;</span>, NOW());</span><br></pre></td></tr></table></figure>
+
+<p>User wants to also bind GitHub:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">INSERT INTO</span> auth_identities (user_id, identity_type, identifier)</span><br><span class="line"><span class="keyword">VALUES</span> (<span class="number">1</span>, <span class="string">&#x27;github&#x27;</span>, <span class="string">&#x27;12345678&#x27;</span>);</span><br></pre></td></tr></table></figure>
+
+<p><strong>Feel the extensibility</strong>: Each new login method is just one INSERT. In system code, it’s just adding one enum value for <code>identity_type</code>.</p>
+<h3 id="3-3-Scenario-3-Login-Flow-Collaboration"><a href="#3-3-Scenario-3-Login-Flow-Collaboration" class="headerlink" title="3.3 Scenario 3: Login Flow Collaboration"></a>3.3 Scenario 3: Login Flow Collaboration</h3><p>User enters <code>john@example.com</code> + password to log in:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> LoginResult <span class="title function_">login</span><span class="params">(String input, String password)</span> &#123;</span><br><span class="line">    <span class="comment">// 1. Find AuthIdentity</span></span><br><span class="line">    <span class="type">AuthIdentity</span> <span class="variable">identity</span> <span class="operator">=</span> authIdentityRepo</span><br><span class="line">        .findByTypeAndIdentifier(<span class="string">&quot;email&quot;</span>, input)</span><br><span class="line">        .orElseThrow(() -&gt; <span class="keyword">new</span> <span class="title class_">IdentityNotFoundException</span>());</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 2. Find associated User</span></span><br><span class="line">    <span class="type">User</span> <span class="variable">user</span> <span class="operator">=</span> userRepo.findById(identity.getUserId())</span><br><span class="line">        .orElseThrow(() -&gt; <span class="keyword">new</span> <span class="title class_">UserNotFoundException</span>());</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 3. Verify password (from independent UserPassword table)</span></span><br><span class="line">    <span class="type">UserPassword</span> <span class="variable">userPwd</span> <span class="operator">=</span> userPasswordRepo.findByUserId(user.getId())</span><br><span class="line">        .orElseThrow(() -&gt; <span class="keyword">new</span> <span class="title class_">PasswordNotSetException</span>());</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">if</span> (!passwordEncoder.matches(password, userPwd.getPasswordHash())) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">InvalidPasswordException</span>();</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 4. Issue token</span></span><br><span class="line">    <span class="keyword">return</span> issueToken(user);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Note the query path</strong>: AuthIdentity → User → UserPassword. Each entity has its own responsibility.</p>
+<h3 id="3-4-Scenario-4-Social-Account-Binding-Conflict"><a href="#3-4-Scenario-4-Social-Account-Binding-Conflict" class="headerlink" title="3.4 Scenario 4: Social Account Binding Conflict"></a>3.4 Scenario 4: Social Account Binding Conflict</h3><p>User A is logged in, tries to bind a WeChat already bound to User B:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">bindSocialAccount</span><span class="params">(Long currentUserId, String wechatOpenid)</span> &#123;</span><br><span class="line">    <span class="comment">// 1. Check if this WeChat is already bound</span></span><br><span class="line">    Optional&lt;AuthIdentity&gt; existing = authIdentityRepo</span><br><span class="line">        .findByTypeAndIdentifier(<span class="string">&quot;wechat&quot;</span>, wechatOpenid);</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">if</span> (existing.isPresent()) &#123;</span><br><span class="line">        <span class="type">Long</span> <span class="variable">boundUserId</span> <span class="operator">=</span> existing.get().getUserId();</span><br><span class="line">        <span class="keyword">if</span> (!boundUserId.equals(currentUserId)) &#123;</span><br><span class="line">            <span class="comment">// Already bound to another user—reject</span></span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">IdentityAlreadyBoundException</span>(</span><br><span class="line">                <span class="string">&quot;This WeChat is already bound to user &quot;</span> + boundUserId);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// Already bound to current user—idempotent return</span></span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 2. Create new AuthIdentity</span></span><br><span class="line">    <span class="type">AuthIdentity</span> <span class="variable">newIdentity</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">AuthIdentity</span>();</span><br><span class="line">    newIdentity.setUserId(currentUserId);</span><br><span class="line">    newIdentity.setIdentityType(<span class="string">&quot;wechat&quot;</span>);</span><br><span class="line">    newIdentity.setIdentifier(wechatOpenid);</span><br><span class="line">    authIdentityRepo.save(newIdentity);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>Key Point</strong>: The <code>(identity_type, identifier)</code> unique constraint naturally prevents duplicate bindings. Conflict handling just needs simple logic.</p>
+<hr>
+<h2 id="4-Architectural-Advantages"><a href="#4-Architectural-Advantages" class="headerlink" title="4. Architectural Advantages"></a>4. Architectural Advantages</h2><h3 id="4-1-Extensibility-Zero-Schema-Changes-for-New-Login-Methods"><a href="#4-1-Extensibility-Zero-Schema-Changes-for-New-Login-Methods" class="headerlink" title="4.1 Extensibility: Zero Schema Changes for New Login Methods"></a>4.1 Extensibility: Zero Schema Changes for New Login Methods</h3><p>Compare with traditional design:</p>
+<table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Cost of Adding Login Method</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Wide Table</td>
+<td>ALTER TABLE to add column—high risk for large tables, requires gradual rollout</td>
+</tr>
+<tr>
+<td>Separation Model</td>
+<td>INSERT one record, add enum value in code—pure business logic change</td>
+</tr>
+</tbody></table>
+<h3 id="4-2-Flexibility-Support-“Progressive”-Authentication"><a href="#4-2-Flexibility-Support-“Progressive”-Authentication" class="headerlink" title="4.2 Flexibility: Support “Progressive” Authentication"></a>4.2 Flexibility: Support “Progressive” Authentication</h3><p>Users can start with a “passwordless” account (social login only), then add password and bind mobile later:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- Initial state: only WeChat login</span></span><br><span class="line"><span class="keyword">SELECT</span> <span class="operator">*</span> <span class="keyword">FROM</span> auth_identities <span class="keyword">WHERE</span> user_id <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"><span class="comment">-- user_id | identity_type | identifier</span></span><br><span class="line"><span class="comment">-- 1       | wechat        | oABCD123...</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- Later bind mobile</span></span><br><span class="line"><span class="keyword">INSERT INTO</span> auth_identities ... (<span class="string">&#x27;mobile&#x27;</span>, <span class="string">&#x27;+1234567890&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">-- Later set password</span></span><br><span class="line"><span class="keyword">INSERT INTO</span> user_passwords ... (<span class="number">1</span>, <span class="string">&#x27;password_hash&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">-- Final state: three login options</span></span><br><span class="line"><span class="keyword">SELECT</span> identity_type, identifier <span class="keyword">FROM</span> auth_identities <span class="keyword">WHERE</span> user_id <span class="operator">=</span> <span class="number">1</span>;</span><br><span class="line"><span class="comment">-- wechat | oABCD123...</span></span><br><span class="line"><span class="comment">-- mobile | +1234567890</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-3-Data-Consistency-Unbinding-Doesn’t-Lose-User-Data"><a href="#4-3-Data-Consistency-Unbinding-Doesn’t-Lose-User-Data" class="headerlink" title="4.3 Data Consistency: Unbinding Doesn’t Lose User Data"></a>4.3 Data Consistency: Unbinding Doesn’t Lose User Data</h3><p>Unbinding mobile just deletes one AuthIdentity record:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">DELETE</span> <span class="keyword">FROM</span> auth_identities </span><br><span class="line"><span class="keyword">WHERE</span> user_id <span class="operator">=</span> <span class="number">1</span> <span class="keyword">AND</span> identity_type <span class="operator">=</span> <span class="string">&#x27;mobile&#x27;</span> <span class="keyword">AND</span> identifier <span class="operator">=</span> <span class="string">&#x27;+1234567890&#x27;</span>;</span><br></pre></td></tr></table></figure>
+
+<p>The User entity is unaffected—user’s orders, posts, comments remain. As long as at least one AuthIdentity remains, the user can still log in.</p>
+<hr>
+<h2 id="5-Implementation-Notes"><a href="#5-Implementation-Notes" class="headerlink" title="5. Implementation Notes"></a>5. Implementation Notes</h2><h3 id="5-1-Index-Design"><a href="#5-1-Index-Design" class="headerlink" title="5.1 Index Design"></a>5.1 Index Design</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- Core query: find user by login method</span></span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">UNIQUE</span> INDEX idx_auth_identity_type_identifier </span><br><span class="line"><span class="keyword">ON</span> auth_identities(identity_type, identifier);</span><br><span class="line"></span><br><span class="line"><span class="comment">-- Admin scenario: view all user&#x27;s login methods</span></span><br><span class="line"><span class="keyword">CREATE</span> INDEX idx_auth_identity_user_id </span><br><span class="line"><span class="keyword">ON</span> auth_identities(user_id);</span><br><span class="line"></span><br><span class="line"><span class="comment">-- Password query</span></span><br><span class="line"><span class="keyword">CREATE</span> <span class="keyword">UNIQUE</span> INDEX idx_user_password_user_id </span><br><span class="line"><span class="keyword">ON</span> user_passwords(user_id);</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-2-Transaction-Boundaries"><a href="#5-2-Transaction-Boundaries" class="headerlink" title="5.2 Transaction Boundaries"></a>5.2 Transaction Boundaries</h3><p>Creating a user requires consistency across three tables:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Transactional</span></span><br><span class="line"><span class="keyword">public</span> User <span class="title function_">createUserWithEmail</span><span class="params">(String email, String password)</span> &#123;</span><br><span class="line">    <span class="comment">// 1. Create User</span></span><br><span class="line">    <span class="type">User</span> <span class="variable">user</span> <span class="operator">=</span> userRepo.save(<span class="keyword">new</span> <span class="title class_">User</span>());</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 2. Create AuthIdentity</span></span><br><span class="line">    authIdentityRepo.save(<span class="keyword">new</span> <span class="title class_">AuthIdentity</span>(user.getId(), <span class="string">&quot;email&quot;</span>, email));</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 3. Create UserPassword</span></span><br><span class="line">    userPasswordRepo.save(<span class="keyword">new</span> <span class="title class_">UserPassword</span>(user.getId(), hash(password)));</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">return</span> user;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-3-Security-Considerations"><a href="#5-3-Security-Considerations" class="headerlink" title="5.3 Security Considerations"></a>5.3 Security Considerations</h3><ul>
+<li><strong>Verification codes</strong>: Used to verify phone&#x2F;email ownership; mark <code>verified_at</code> after verification</li>
+<li><strong>Password policy</strong>: Use Argon2id, recommended parameters <code>m=65536, t=3, p=4</code></li>
+<li><strong>Token storage</strong>: Social account AccessTokens should be stored separately and encrypted</li>
+<li><strong>Brute force protection</strong>: Rate limit by <code>identifier</code> + <code>identity_type</code> dimension, not just IP</li>
+</ul>
+<hr>
+<h2 id="6-Comparison-When-to-Use-This-Model"><a href="#6-Comparison-When-to-Use-This-Model" class="headerlink" title="6. Comparison: When to Use This Model"></a>6. Comparison: When to Use This Model</h2><table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Wide Table</th>
+<th>Separation Model</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Only username + password</td>
+<td>✅ Simple</td>
+<td>Overkill</td>
+</tr>
+<tr>
+<td>Username + email + mobile</td>
+<td>⚠️ Manageable</td>
+<td>✅ Better</td>
+</tr>
+<tr>
+<td>Multiple social logins + SSO</td>
+<td>❌ Painful</td>
+<td>✅ Essential</td>
+</tr>
+<tr>
+<td>Need passwordless option</td>
+<td>❌ Hard</td>
+<td>✅ Natural</td>
+</tr>
+<tr>
+<td>Frequent login method changes</td>
+<td>❌ Schema migrations</td>
+<td>✅ Just INSERT</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="7-Key-Takeaways"><a href="#7-Key-Takeaways" class="headerlink" title="7. Key Takeaways"></a>7. Key Takeaways</h2><p>The core value of separating AuthIdentity from User: <strong>decouple “identity” from “authentication method”</strong>.</p>
+<p>This design enables systems to:</p>
+<ol>
+<li><strong>Scale flexibly</strong>: Add login methods with just records, no schema changes</li>
+<li><strong>Evolve progressively</strong>: Support users moving from “social login” to “multi-factor authentication”</li>
+<li><strong>Protect data</strong>: Unbinding login methods doesn’t lose user business data</li>
+<li><strong>Maintain clarity</strong>: Each entity has single responsibility, code is easier to maintain</li>
+</ol>
+<p>When your product evolves from “username&#x2F;password only” to “supporting phone, email, WeChat, GitHub, enterprise SSO”, this separation model saves you from painful schema migrations and makes authentication a truly evolvable business capability.</p>
+<hr>
+<h2 id="Related-Resources"><a href="#Related-Resources" class="headerlink" title="Related Resources"></a>Related Resources</h2><ul>
+<li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html">OWASP Authentication Cheat Sheet</a></li>
+<li><a href="https://pages.nist.gov/800-63-3/">NIST Digital Identity Guidelines</a></li>
+<li><a href="https://github.com/P-H-C/phc-winner-argon2">Argon2 Password Hashing</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/authentication/" rel="tag"># authentication</a>
+              <a href="/tags/iam/" rel="tag"># iam</a>
+              <a href="/tags/security/" rel="tag"># security</a>
+              <a href="/tags/oauth/" rel="tag"># oauth</a>
+              <a href="/tags/identity-management/" rel="tag"># identity-management</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2026/02/07/unified-login-multi-identifier-social-binding/" rel="prev" title="多标识符统一登录与社交绑定：构建安全可扩展的认证体系">
+      <i class="fa fa-chevron-left"></i> 多标识符统一登录与社交绑定：构建安全可扩展的认证体系
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2026/02/27/microservice-gateway-oauth2-routing-en/" rel="next" title="Microservice Gateway Routing: OAuth2 Redirects and Service Decomposition">
+      Microservice Gateway Routing: OAuth2 Redirects and Service Decomposition <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-From-%E2%80%9CWide-Table%E2%80%9D-to-%E2%80%9CSeparation-Model%E2%80%9D"><span class="nav-number">2.</span> <span class="nav-text">1. From “Wide Table” to “Separation Model”</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-The-Pain-of-Traditional-Design"><span class="nav-number">2.1.</span> <span class="nav-text">1.1 The Pain of Traditional Design</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-Core-Idea-of-the-Separation-Model"><span class="nav-number">2.2.</span> <span class="nav-text">1.2 Core Idea of the Separation Model</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-Domain-Model-Design"><span class="nav-number">3.</span> <span class="nav-text">2. Domain Model Design</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-Core-Entity-Relationships"><span class="nav-number">3.1.</span> <span class="nav-text">2.1 Core Entity Relationships</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-Entity-Responsibility-Boundaries"><span class="nav-number">3.2.</span> <span class="nav-text">2.2 Entity Responsibility Boundaries</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#User-The-User-Aggregate-Root"><span class="nav-number">3.2.1.</span> <span class="nav-text">User: The User Aggregate Root</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#AuthIdentity-Authentication-Identity"><span class="nav-number">3.2.2.</span> <span class="nav-text">AuthIdentity: Authentication Identity</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#UserPassword-Independent-Password-Entity"><span class="nav-number">3.2.3.</span> <span class="nav-text">UserPassword: Independent Password Entity</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-Model-in-Action"><span class="nav-number">4.</span> <span class="nav-text">3. Model in Action</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-Scenario-1-User-Registration"><span class="nav-number">4.1.</span> <span class="nav-text">3.1 Scenario 1: User Registration</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-Scenario-2-Adding-Login-Methods"><span class="nav-number">4.2.</span> <span class="nav-text">3.2 Scenario 2: Adding Login Methods</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-Scenario-3-Login-Flow-Collaboration"><span class="nav-number">4.3.</span> <span class="nav-text">3.3 Scenario 3: Login Flow Collaboration</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-4-Scenario-4-Social-Account-Binding-Conflict"><span class="nav-number">4.4.</span> <span class="nav-text">3.4 Scenario 4: Social Account Binding Conflict</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-Architectural-Advantages"><span class="nav-number">5.</span> <span class="nav-text">4. Architectural Advantages</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-Extensibility-Zero-Schema-Changes-for-New-Login-Methods"><span class="nav-number">5.1.</span> <span class="nav-text">4.1 Extensibility: Zero Schema Changes for New Login Methods</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-Flexibility-Support-%E2%80%9CProgressive%E2%80%9D-Authentication"><span class="nav-number">5.2.</span> <span class="nav-text">4.2 Flexibility: Support “Progressive” Authentication</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-Data-Consistency-Unbinding-Doesn%E2%80%99t-Lose-User-Data"><span class="nav-number">5.3.</span> <span class="nav-text">4.3 Data Consistency: Unbinding Doesn’t Lose User Data</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-Implementation-Notes"><span class="nav-number">6.</span> <span class="nav-text">5. Implementation Notes</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-Index-Design"><span class="nav-number">6.1.</span> <span class="nav-text">5.1 Index Design</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-Transaction-Boundaries"><span class="nav-number">6.2.</span> <span class="nav-text">5.2 Transaction Boundaries</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-Security-Considerations"><span class="nav-number">6.3.</span> <span class="nav-text">5.3 Security Considerations</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-Comparison-When-to-Use-This-Model"><span class="nav-number">7.</span> <span class="nav-text">6. Comparison: When to Use This Model</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-Key-Takeaways"><span class="nav-number">8.</span> <span class="nav-text">7. Key Takeaways</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Related-Resources"><span class="nav-number">9.</span> <span class="nav-text">Related Resources</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">63</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="A practical guide to designing API gateway routing for OAuth2 authentication flows in microservices. Learn how to handle redirects, configure Context-Path, and implement BFF patterns for seamless serv">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Microservice Gateway Routing: OAuth2 Redirects and Service Decomposition">
+<meta property="og:url" content="https://www.yzhu.name/2026/02/27/microservice-gateway-oauth2-routing-en/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="A practical guide to designing API gateway routing for OAuth2 authentication flows in microservices. Learn how to handle redirects, configure Context-Path, and implement BFF patterns for seamless serv">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-02-27T14:00:00.000Z">
+<meta property="article:modified_time" content="2026-02-27T14:00:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="api-gateway">
+<meta property="article:tag" content="architecture">
+<meta property="article:tag" content="microservice">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2026/02/27/microservice-gateway-oauth2-routing-en/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en-US'
+  };
+</script>
+
+  <title>Microservice Gateway Routing: OAuth2 Redirects and Service Decomposition | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en-US">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2026/02/27/microservice-gateway-oauth2-routing-en/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Microservice Gateway Routing: OAuth2 Redirects and Service Decomposition
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2026-02-27 22:00:00" itemprop="dateCreated datePublished" datetime="2026-02-27T22:00:00+08:00">2026-02-27</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Architecture/" itemprop="url" rel="index"><span itemprop="name">Architecture</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">A practical guide to designing API gateway routing for OAuth2 authentication flows in microservices. Learn how to handle redirects, configure Context-Path, and implement BFF patterns for seamless service decomposition without breaking client contracts.</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p><strong>🌐 Language</strong>: <strong>English Version</strong> | <a href="/2026/02/27/microservice-gateway-oauth2-routing/">中文版</a></p>
+</blockquote>
+<p>In microservice architectures, the API Gateway serves as the unified governance layer for all incoming traffic. Its routing design directly impacts system maintainability and evolution capabilities. This article documents a real-world scenario involving OAuth2 redirect issues during gateway integration with Spring Security, and how we achieved seamless client experience and high backend cohesion through Context-Path configuration and BFF (Backend For Frontend) patterns during service decomposition.</p>
+<span id="more"></span>
+
+<h2 id="The-Problem-Scattered-Routes-Creating-Architectural-Debt"><a href="#The-Problem-Scattered-Routes-Creating-Architectural-Debt" class="headerlink" title="The Problem: Scattered Routes Creating Architectural Debt"></a>The Problem: Scattered Routes Creating Architectural Debt</h2><h3 id="Initial-Scenario"><a href="#Initial-Scenario" class="headerlink" title="Initial Scenario"></a>Initial Scenario</h3><p>When debugging our gateway locally, we discovered that accessing sample applications through the gateway (e.g., <code>http://localhost:18000/java-example</code>) and clicking the “Login with Enterprise IdP” button resulted in a <code>404 Not Found</code> error when redirecting to the gateway’s <code>/login</code> path.</p>
+<h3 id="First-Fix-The-Patch-Approach"><a href="#First-Fix-The-Patch-Approach" class="headerlink" title="First Fix: The Patch Approach"></a>First Fix: The Patch Approach</h3><p>To quickly resolve this, we implemented a “patch” solution by hardcoding scattered routes in the gateway configuration:</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Scattered routes configuration in gateway</span></span><br><span class="line"><span class="attr">routes:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">paths:</span> [<span class="string">&quot;/login&quot;</span>]</span><br><span class="line">    <span class="attr">service:</span> <span class="string">auth-service</span></span><br><span class="line">    <span class="attr">preserve_host:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">strip_path:</span> <span class="literal">false</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">paths:</span> [<span class="string">&quot;/oauth2&quot;</span>]</span><br><span class="line">    <span class="attr">service:</span> <span class="string">auth-service</span></span><br><span class="line">    <span class="attr">preserve_host:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">strip_path:</span> <span class="literal">false</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">paths:</span> [<span class="string">&quot;/css&quot;</span>, <span class="string">&quot;/js&quot;</span>, <span class="string">&quot;/error&quot;</span>]</span><br><span class="line">    <span class="attr">service:</span> <span class="string">auth-service</span></span><br><span class="line">    <span class="attr">preserve_host:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">strip_path:</span> <span class="literal">false</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>Result</strong>: While the login flow worked, this scattered routing configuration at the gateway’s root level felt fragile. In production operations, such scattered routes would lead to:</p>
+<ul>
+<li><strong>High maintenance costs</strong>: Each new path requires manual configuration, prone to omissions and errors</li>
+<li><strong>Configuration chaos</strong>: As business grows, routing rules quickly become bloated and difficult to manage</li>
+<li><strong>Security risks</strong>: Unified access control becomes challenging, potentially enabling path traversal or unauthorized access</li>
+<li><strong>Poor scalability</strong>: Service decomposition or path adjustments require extensive gateway configuration changes, hindering rapid iteration</li>
+</ul>
+<hr>
+<h2 id="Unified-Prefix-Approach-Redirect-Problem-Analysis"><a href="#Unified-Prefix-Approach-Redirect-Problem-Analysis" class="headerlink" title="Unified Prefix Approach: Redirect Problem Analysis"></a>Unified Prefix Approach: Redirect Problem Analysis</h2><p>Since scattered routes are messy, can we unify <code>/login</code>, <code>/oauth2</code>, and other scattered configurations under a <code>/auth</code> prefix at the gateway level?</p>
+<p><strong>The answer is no—this introduces redirect problems.</strong></p>
+<h3 id="Root-Cause-Analysis"><a href="#Root-Cause-Analysis" class="headerlink" title="Root Cause Analysis"></a>Root Cause Analysis</h3><p>Frameworks like Spring Security, when constructing page URLs or generating absolute <code>Location</code> redirect responses (302 redirects) sent to clients, if unaware they’re behind a gateway’s <code>/auth</code> prefix, will still generate links based on the root path <code>/oauth2/authorization/...</code>.</p>
+<pre class="mermaid">sequenceDiagram
+    participant Browser as Browser
+    participant Gateway as API Gateway
+    participant Service as auth-service (Spring Security)
+
+    Browser->>Gateway: GET /auth/login
+    Gateway->>Service: GET /auth/login (strip_path: false)
+    Service-->>Gateway: 302 Location: /oauth2/authorization/idp
+    Gateway-->>Browser: 302 Location: /oauth2/authorization/idp
+    Browser->>Gateway: GET /oauth2/authorization/idp
+    Gateway-->>Browser: 404 Not Found (route doesn't exist)</pre>
+
+<p><strong>Key Conclusion</strong>: Frontend and backend contexts must be strongly aligned! Never hide the prefix on one side while exposing it on the other.</p>
+<hr>
+<h2 id="Context-Path-and-Service-Decomposition-Compatibility"><a href="#Context-Path-and-Service-Decomposition-Compatibility" class="headerlink" title="Context-Path and Service Decomposition Compatibility"></a>Context-Path and Service Decomposition Compatibility</h2><h3 id="The-Canonical-Solution-Server-Side-Context-Path-Configuration"><a href="#The-Canonical-Solution-Server-Side-Context-Path-Configuration" class="headerlink" title="The Canonical Solution: Server-Side Context-Path Configuration"></a>The Canonical Solution: Server-Side Context-Path Configuration</h3><p>To align contexts, the solution is to configure the Java backend service directly:</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># application.yml</span></span><br><span class="line"><span class="attr">server:</span></span><br><span class="line">  <span class="attr">servlet:</span></span><br><span class="line">    <span class="attr">context-path:</span> <span class="string">/auth</span> <span class="comment"># Context-Path defines the web application&#x27;s root path.</span></span><br><span class="line">                       <span class="comment"># When set to /auth, all requests to this service start with /auth, e.g., /auth/login.</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="API-Compatibility-After-Service-Decomposition"><a href="#API-Compatibility-After-Service-Decomposition" class="headerlink" title="API Compatibility After Service Decomposition"></a>API Compatibility After Service Decomposition</h3><p>This raises a core question in microservice evolution: <strong>If the service prefix is hardcoded at the code level, when future business changes require service splitting, do client API URLs need to change as well?</strong></p>
+<p>If clients are forced to upgrade their code because of backend decomposition, doesn’t this defeat the purpose of the gateway’s anti-corruption layer?</p>
+<h3 id="Gateway-Routing-Priority-Design"><a href="#Gateway-Routing-Priority-Design" class="headerlink" title="Gateway Routing Priority Design"></a>Gateway Routing Priority Design</h3><p>Through deep analysis, we arrived at the core API management philosophy for microservices:</p>
+<blockquote>
+<p><strong>Microservices should never care about their external names. The API contract published externally (e.g., <code>http://gateway/auth/users</code>) is entirely the governance asset of the API Gateway.</strong></p>
+</blockquote>
+<p>If we decompose some interfaces to a new service, clients <strong>don’t need to change</strong>—they still access the old <code>/auth/new-feature</code>.</p>
+<p><strong>Backend Development</strong>: Add a high-priority <strong>exact prefix hijacking route</strong> in the gateway:</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">routes:</span></span><br><span class="line">  <span class="comment"># Generic route (low priority)</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">route-iam</span></span><br><span class="line">    <span class="attr">service:</span> <span class="string">auth-service</span></span><br><span class="line">    <span class="attr">paths:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/auth</span></span><br><span class="line">    <span class="attr">strip_path:</span> <span class="literal">false</span> <span class="comment"># Client requests /auth/login, backend receives /auth/login</span></span><br><span class="line"></span><br><span class="line">  <span class="comment"># Exact hijacking route (high priority)</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">route-new-feature</span></span><br><span class="line">    <span class="attr">service:</span> <span class="string">new-service</span></span><br><span class="line">    <span class="attr">paths:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/auth/new-feature</span></span><br><span class="line">    <span class="attr">strip_path:</span> <span class="literal">true</span>  <span class="comment"># Client requests /auth/new-feature/api, backend receives /api</span></span><br><span class="line">    <span class="comment"># More specific paths (/auth/new-feature) are matched first</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>Configuration Strategy</strong>:</p>
+<table>
+<thead>
+<tr>
+<th align="left">Route Type</th>
+<th align="left">Path Config</th>
+<th align="left">strip_path</th>
+<th align="left">Priority</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">Generic Route</td>
+<td align="left"><code>/auth</code></td>
+<td align="left"><code>false</code></td>
+<td align="left">Low</td>
+<td align="left">Handles most auth-service requests</td>
+</tr>
+<tr>
+<td align="left">Hijacking Route</td>
+<td align="left"><code>/auth/new-feature</code></td>
+<td align="left"><code>true</code></td>
+<td align="left">High</td>
+<td align="left">Exact match, intercepts specific sub-paths and forwards to new service</td>
+</tr>
+</tbody></table>
+<p>With this combination, client code requires no modifications, achieving service decomposition through the gateway.</p>
+<hr>
+<h2 id="BFF-Pattern-and-OAuth2-Security-Best-Practices"><a href="#BFF-Pattern-and-OAuth2-Security-Best-Practices" class="headerlink" title="BFF Pattern and OAuth2 Security Best Practices"></a>BFF Pattern and OAuth2 Security Best Practices</h2><p><strong>BFF (Backend For Frontend)</strong> is an architecture pattern where backends are tailored for specific frontend applications (Web, iOS, Android). It sits between traditional backend services and frontends, responsible for aggregating and transforming data, and handling frontend-specific business logic to optimize user experience and development efficiency.</p>
+<h3 id="Pure-Frontend-Login-Approach-Considerations"><a href="#Pure-Frontend-Login-Approach-Considerations" class="headerlink" title="Pure Frontend Login Approach Considerations"></a>Pure Frontend Login Approach Considerations</h3><p>Since handling Spring Boot page endpoints with redirects is complex, can we separate the login page into a pure frontend microservice (like an independently deployed Vue&#x2F;React container) to avoid backend redirect binding logic?</p>
+<h3 id="Browser-Side-OAuth2-Security-Risks"><a href="#Browser-Side-OAuth2-Security-Risks" class="headerlink" title="Browser-Side OAuth2 Security Risks"></a>Browser-Side OAuth2 Security Risks</h3><p>Completing the OAuth2 loop and storing tokens purely in the browser presents serious security risks:</p>
+<ul>
+<li><strong>Implicit Flow</strong>: Directly obtaining Access Tokens in the browser is vulnerable to XSS attacks and token leakage, and has been deprecated in OAuth 2.1.</li>
+<li><strong>PKCE (Proof Key for Code Exchange)</strong>: An enhancement to the authorization code flow to prevent authorization code interception attacks, <strong>currently the recommended standard practice</strong>, but token storage and usage must still be completed on the backend, not purely in the frontend.</li>
+</ul>
+<p>Under current security standards and best practices, <strong>frontends should not directly hold Access Tokens</strong>.</p>
+<h3 id="BFF-Pattern-Best-Practices"><a href="#BFF-Pattern-Best-Practices" class="headerlink" title="BFF Pattern Best Practices"></a>BFF Pattern Best Practices</h3><p><strong>Core Principle</strong>: OAuth2 authorization code exchange must be completed by the backend; frontends should not hold tokens. The handshake with external IdPs (enterprise identity providers) to exchange authorization codes and Access Tokens <strong>should be handled at the backend BFF layer (i.e., <code>auth-service</code>)</strong>.</p>
+<pre class="mermaid">sequenceDiagram
+    participant Browser as Browser
+    participant BFF as auth-service
+    participant IdP as Enterprise IdP
+    participant Cache as Redis/Cache
+
+    Note right of Browser: 1. User clicks login
+    Browser->>BFF: GET /auth/login
+    BFF-->>Browser: Returns login page
+
+    Note right of Browser: 2. User clicks Enterprise IdP login
+    Browser->>BFF: GET /auth/oauth2/authorization/idp
+    BFF->>IdP: 302 Location: https://idp.example.com/...
+
+    Note right of Browser: 3. User completes authentication at IdP
+    IdP-->>BFF: GET /auth/login/oauth2/code/idp?code=...
+    BFF->>IdP: POST /token
+    IdP-->>BFF: access_token, refresh_token
+
+    Note right of BFF: 4. Store tokens in distributed cache
+    BFF->>Cache: SET session_id {tokens}
+    BFF-->>Browser: Set-Cookie: SESSION_ID</pre>
+
+<p><strong>Key Security Measures</strong>:</p>
+<ol>
+<li><strong>BFF stores tokens in distributed cache (e.g., Redis) after obtaining them</strong></li>
+<li><strong>Only issue an HttpOnly + Secure Cookie key to the user’s browser externally</strong></li>
+<li><strong>Cookies should not be readable by JS</strong>, preventing XSS theft</li>
+<li><strong>Frontend uses this invisible same-domain cookie key to make all seamless calls</strong></li>
+<li><strong>Production environments recommend using distributed caches like Redis to share Session</strong>, avoiding Session inconsistency in multi-instance deployments</li>
+</ol>
+<hr>
+<h2 id="Context-Path-Configuration-Strategy"><a href="#Context-Path-Configuration-Strategy" class="headerlink" title="Context-Path Configuration Strategy"></a>Context-Path Configuration Strategy</h2><h3 id="Authentication-BFF-Service-Configuration"><a href="#Authentication-BFF-Service-Configuration" class="headerlink" title="Authentication BFF Service Configuration"></a>Authentication BFF Service Configuration</h3><p><strong>1. Add to auth-service’s application.yml:</strong></p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">server:</span></span><br><span class="line">  <span class="attr">servlet:</span></span><br><span class="line">    <span class="attr">context-path:</span> <span class="string">/auth</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>2. Clean up redundant authentication routes (<code>/login</code>, etc.) in gateway configuration.</strong></p>
+<p><strong>3. Restore the single <code>/auth</code> route mapping in the gateway, changing <code>strip_path</code> to <code>false</code>:</strong></p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">routes:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">route-iam</span></span><br><span class="line">    <span class="attr">service:</span> <span class="string">auth-service</span></span><br><span class="line">    <span class="attr">paths:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/auth</span></span><br><span class="line">    <span class="attr">strip_path:</span> <span class="literal">false</span>  <span class="comment"># Key: preserve /auth prefix</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>4. Example client targets the single authentication handshake endpoint:</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http://gateway:18000/auth/login</span><br></pre></td></tr></table></figure>
+
+<h3 id="Architecture-Extension-Do-Pure-API-Microservices-Need-Context-Path"><a href="#Architecture-Extension-Do-Pure-API-Microservices-Need-Context-Path" class="headerlink" title="Architecture Extension: Do Pure API Microservices Need Context-Path?"></a>Architecture Extension: Do Pure API Microservices Need Context-Path?</h3><p>For <strong>pure API microservices</strong> without authorization pages and redirect logic (no absolute redirect concepts), they <strong>absolutely do not need</strong> Context-Path configuration!</p>
+<p>Develop directly at the default root path <code>/</code>, letting the API Gateway handle all path merging, prefix trimming, and assembly strategies with <code>strip_path: true</code>, keeping services as pure API interface nodes.</p>
+<table>
+<thead>
+<tr>
+<th align="left">Service Type</th>
+<th align="left">Needs Context-Path</th>
+<th align="left">strip_path</th>
+<th align="left">Reason</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>Authentication BFF</strong></td>
+<td align="left"><strong>Yes</strong></td>
+<td align="left"><code>false</code></td>
+<td align="left">Needs to handle redirects; frontend and backend contexts must align</td>
+</tr>
+<tr>
+<td align="left"><strong>Pure API Microservice</strong></td>
+<td align="left"><strong>No</strong></td>
+<td align="left"><code>true</code></td>
+<td align="left">No redirect logic; gateway handles path trimming, service stays pure</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="Summary"><a href="#Summary" class="headerlink" title="Summary"></a>Summary</h2><p>In microservice gateway routing design, the core principle is: <strong>Find the boundary between gateway control plane and backend logic plane, making the gateway a truly powerful anti-corruption layer.</strong></p>
+<p><strong>Key Decision Tree</strong>:</p>
+<pre class="mermaid">flowchart TD
+    A[Microservice Routing Design] --> B{Service Type?}
+    B -->|Authentication BFF| C[Configure Context-Path]
+    B -->|Pure API Microservice| D[No Context-Path]
+    C --> E[Gateway strip_path: false]
+    D --> F[Gateway strip_path: true]
+    E --> G[Align frontend and backend contexts]
+    F --> H[Keep services pure]
+    G --> I{Future decomposition?}
+    H --> I
+    I -->|Needed| J[Gateway exact prefix hijacking]
+    I -->|Not needed| K[Maintain status quo]</pre>
+
+<p><strong>Core Takeaways</strong>:</p>
+<ol>
+<li><strong>Frontend and backend contexts must be strongly aligned</strong>: Services with redirects must configure Context-Path; gateway doesn’t trim prefix</li>
+<li><strong>Gateway owns the API contract</strong>: Services don’t care about their external names; API contracts are governed by the gateway</li>
+<li><strong>Service decomposition is transparent to clients</strong>: Through gateway exact prefix hijacking, clients don’t need code changes when backends decompose</li>
+<li><strong>BFF pattern handles OAuth2</strong>: Authorization code exchange happens on the backend; frontend doesn’t hold tokens</li>
+</ol>
+<blockquote>
+<p>“In the face of any architectural dilemma, finding the boundary between gateway control plane and backend logic plane is always where the anti-corruption layer delivers its greatest power!”</p>
+</blockquote>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/microservice/" rel="tag"># microservice</a>
+              <a href="/tags/architecture/" rel="tag"># architecture</a>
+              <a href="/tags/api-gateway/" rel="tag"># api-gateway</a>
+              <a href="/tags/oauth2/" rel="tag"># oauth2</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2026/02/14/unified-login-multi-identifier-social-binding-en/" rel="prev" title="Multi-Identifier Unified Login & Social Binding: Building a Scalable Authentication System">
+      <i class="fa fa-chevron-left"></i> Multi-Identifier Unified Login & Social Binding: Building a Scalable Authentication System
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2026/02/27/microservice-gateway-oauth2-routing/" rel="next" title="微服务网关路由设计：OAuth2 重定向与服务拆分实践">
+      微服务网关路由设计：OAuth2 重定向与服务拆分实践 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#The-Problem-Scattered-Routes-Creating-Architectural-Debt"><span class="nav-number">1.</span> <span class="nav-text">The Problem: Scattered Routes Creating Architectural Debt</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Initial-Scenario"><span class="nav-number">1.1.</span> <span class="nav-text">Initial Scenario</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#First-Fix-The-Patch-Approach"><span class="nav-number">1.2.</span> <span class="nav-text">First Fix: The Patch Approach</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Unified-Prefix-Approach-Redirect-Problem-Analysis"><span class="nav-number">2.</span> <span class="nav-text">Unified Prefix Approach: Redirect Problem Analysis</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Root-Cause-Analysis"><span class="nav-number">2.1.</span> <span class="nav-text">Root Cause Analysis</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Context-Path-and-Service-Decomposition-Compatibility"><span class="nav-number">3.</span> <span class="nav-text">Context-Path and Service Decomposition Compatibility</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#The-Canonical-Solution-Server-Side-Context-Path-Configuration"><span class="nav-number">3.1.</span> <span class="nav-text">The Canonical Solution: Server-Side Context-Path Configuration</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#API-Compatibility-After-Service-Decomposition"><span class="nav-number">3.2.</span> <span class="nav-text">API Compatibility After Service Decomposition</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Gateway-Routing-Priority-Design"><span class="nav-number">3.3.</span> <span class="nav-text">Gateway Routing Priority Design</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#BFF-Pattern-and-OAuth2-Security-Best-Practices"><span class="nav-number">4.</span> <span class="nav-text">BFF Pattern and OAuth2 Security Best Practices</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Pure-Frontend-Login-Approach-Considerations"><span class="nav-number">4.1.</span> <span class="nav-text">Pure Frontend Login Approach Considerations</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Browser-Side-OAuth2-Security-Risks"><span class="nav-number">4.2.</span> <span class="nav-text">Browser-Side OAuth2 Security Risks</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#BFF-Pattern-Best-Practices"><span class="nav-number">4.3.</span> <span class="nav-text">BFF Pattern Best Practices</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Context-Path-Configuration-Strategy"><span class="nav-number">5.</span> <span class="nav-text">Context-Path Configuration Strategy</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Authentication-BFF-Service-Configuration"><span class="nav-number">5.1.</span> <span class="nav-text">Authentication BFF Service Configuration</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Architecture-Extension-Do-Pure-API-Microservices-Need-Context-Path"><span class="nav-number">5.2.</span> <span class="nav-text">Architecture Extension: Do Pure API Microservices Need Context-Path?</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Summary"><span class="nav-number">6.</span> <span class="nav-text">Summary</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">63</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>
