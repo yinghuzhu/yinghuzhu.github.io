@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="A detailed walkthrough of troubleshooting OAuth2 redirect URLs with incorrect ports in a multi-layer proxy architecture using APISIX, and the complete solution via configuring trusted_addresses.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Troubleshooting APISIX OAuth2 Redirect Port Issue at Gateway Layer">
+<meta property="og:url" content="https://www.yzhu.name/2026/03/10/apisix-trusted-addresses-oauth2-redirect-en/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="A detailed walkthrough of troubleshooting OAuth2 redirect URLs with incorrect ports in a multi-layer proxy architecture using APISIX, and the complete solution via configuring trusted_addresses.">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-03-10T14:00:00.000Z">
+<meta property="article:modified_time" content="2026-03-10T14:00:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="APISIX">
+<meta property="article:tag" content="OAuth2">
+<meta property="article:tag" content="gateway">
+<meta property="article:tag" content="troubleshooting">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2026/03/10/apisix-trusted-addresses-oauth2-redirect-en/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en-US'
+  };
+</script>
+
+  <title>Troubleshooting APISIX OAuth2 Redirect Port Issue at Gateway Layer | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en-US">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2026/03/10/apisix-trusted-addresses-oauth2-redirect-en/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Troubleshooting APISIX OAuth2 Redirect Port Issue at Gateway Layer
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2026-03-10 22:00:00" itemprop="dateCreated datePublished" datetime="2026-03-10T22:00:00+08:00">2026-03-10</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/API-Gateway/" itemprop="url" rel="index"><span itemprop="name">API Gateway</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/API-Gateway/OAuth2/" itemprop="url" rel="index"><span itemprop="name">OAuth2</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">A detailed walkthrough of troubleshooting OAuth2 redirect URLs with incorrect ports in a multi-layer proxy architecture using APISIX, and the complete solution via configuring trusted_addresses.</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p><strong>🌐 Language</strong>: <strong>English Version</strong> | <a href="/2026/03/10/apisix-trusted-addresses-oauth2-redirect/">中文版</a></p>
+</blockquote>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p><strong>Problem</strong>: OAuth2 redirect URL contains incorrect port <code>http://example.com:9080</code><br><strong>Root Cause</strong>: APISIX <code>trusted_addresses</code> configuration too restrictive, causing X-Forwarded-* headers to be overwritten<br><strong>Solution</strong>: Add upstream proxy network segments to <code>trusted_addresses</code></p>
+<h2 id="Problem-Background"><a href="#Problem-Background" class="headerlink" title="Problem Background"></a>Problem Background</h2><p>In a typical multi-layer proxy architecture:</p>
+<pre class="mermaid">flowchart TD
+    Browser[Browser<br>HTTPS:443] --> Nginx[Nginx<br>TLS Termination]
+    Nginx --> APISIX[APISIX<br>Docker:9080]
+    APISIX --> OAuth2[Spring OAuth2<br>Authorization Server]</pre>
+
+<p>Users access the system via <code>https://public.example.com</code>. When not logged in, accessing the OAuth2 authorization endpoint <code>/oauth2/authorize</code> should theoretically return:</p>
+<figure class="highlight http"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">HTTP/1.1</span> <span class="number">302</span> Found</span><br><span class="line"><span class="attribute">Location</span><span class="punctuation">: </span>https://public.example.com/login</span><br></pre></td></tr></table></figure>
+
+<p>But the actual response was:</p>
+<figure class="highlight http"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">HTTP/1.1</span> <span class="number">302</span> Found</span><br><span class="line"><span class="attribute">Location</span><span class="punctuation">: </span>http://public.example.com:9080/login</span><br></pre></td></tr></table></figure>
+
+<p>When the browser accesses <code>https://public.example.com:9080/login</code>, it throws <code>ERR_CONNECTION_CLOSED</code>, preventing users from logging in.</p>
+<h2 id="Problem-Analysis"><a href="#Problem-Analysis" class="headerlink" title="Problem Analysis"></a>Problem Analysis</h2><h3 id="Browser-Network-Request-Chain"><a href="#Browser-Network-Request-Chain" class="headerlink" title="Browser Network Request Chain"></a>Browser Network Request Chain</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">GET https://public.example.com/oauth2/authorize → 302</span><br><span class="line">GET http://public.example.com:9080/login → 307 Internal Redirect</span><br><span class="line">GET https://public.example.com:9080/login → FAILED</span><br></pre></td></tr></table></figure>
+
+<h3 id="Key-Application-Log-Information"><a href="#Key-Application-Log-Information" class="headerlink" title="Key Application Log Information"></a>Key Application Log Information</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">requestUrl=http://public.example.com:9080/oauth2/authorize</span><br><span class="line">scheme=http serverName=public.example.com serverPort=9080</span><br><span class="line">Saved request http://public.example.com:9080/oauth2/authorize?...</span><br><span class="line">Redirecting to /login</span><br><span class="line">location=http://public.example.com:9080/login</span><br></pre></td></tr></table></figure>
+
+<p>From the logs, we can see Spring Security already sees the wrong request view:</p>
+<ul>
+<li>scheme recognized as <code>http</code></li>
+<li>port recognized as <code>9080</code></li>
+<li>SavedRequest URL is corrupted</li>
+</ul>
+<h2 id="Troubleshooting-Directions"><a href="#Troubleshooting-Directions" class="headerlink" title="Troubleshooting Directions"></a>Troubleshooting Directions</h2><p>Initially, we suspected several directions:</p>
+<ol>
+<li>Spring Security’s SavedRequest logic had issues</li>
+<li>APISIX’s proxy-rewrite plugin configuration was incorrect</li>
+<li>Application didn’t properly enable forward-headers-strategy</li>
+<li>Entry Nginx wasn’t passing X-Forwarded-* headers</li>
+</ol>
+<p>These hypotheses could explain some symptoms, but none were the root cause.</p>
+<h3 id="Troubleshooting-Timeline"><a href="#Troubleshooting-Timeline" class="headerlink" title="Troubleshooting Timeline"></a>Troubleshooting Timeline</h3><table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Hypothesis</th>
+<th>Verification Method</th>
+<th>Conclusion</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>Spring Security issue</td>
+<td>Check SavedRequest logic</td>
+<td>❌ Ruled out</td>
+</tr>
+<tr>
+<td>2</td>
+<td>proxy-rewrite config</td>
+<td>Compare plugin configs</td>
+<td>❌ Ruled out</td>
+</tr>
+<tr>
+<td>3</td>
+<td>forward-headers-strategy</td>
+<td>Check app configuration</td>
+<td>❌ Ruled out</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Upstream Nginx config</td>
+<td>Check X-Forwarded-* passing</td>
+<td>❌ Ruled out</td>
+</tr>
+<tr>
+<td>5</td>
+<td>APISIX log diagnostics</td>
+<td>Add diagnostic logs</td>
+<td>✅ Root cause identified</td>
+</tr>
+</tbody></table>
+<h2 id="Converging-on-APISIX"><a href="#Converging-on-APISIX" class="headerlink" title="Converging on APISIX"></a>Converging on APISIX</h2><p>The real breakthrough came after adding diagnostic logs to APISIX, revealing:</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;host&quot;</span><span class="punctuation">:</span> <span class="string">&quot;public.example.com&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;server_port&quot;</span><span class="punctuation">:</span> <span class="string">&quot;9080&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;http_x_forwarded_host&quot;</span><span class="punctuation">:</span> <span class="string">&quot;public.example.com&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;http_x_forwarded_proto&quot;</span><span class="punctuation">:</span> <span class="string">&quot;http&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;http_x_forwarded_port&quot;</span><span class="punctuation">:</span> <span class="string">&quot;9080&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;sent_http_location&quot;</span><span class="punctuation">:</span> <span class="string">&quot;http://public.example.com:9080/login&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;upstream_http_location&quot;</span><span class="punctuation">:</span> <span class="string">&quot;http://public.example.com:9080/login&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>Key findings:</p>
+<ul>
+<li>The incorrect <code>http/9080</code> was already formed inside APISIX</li>
+<li>It wasn’t the application “breaking it again” during the return phase</li>
+<li>The wrong request view the application received was passed in by the gateway itself</li>
+</ul>
+<h2 id="Easily-Confused-Points"><a href="#Easily-Confused-Points" class="headerlink" title="Easily Confused Points"></a>Easily Confused Points</h2><p>During troubleshooting, the most confusing aspect was mixing “user real IP” chain with “public origin” chain. These are not the same thing:</p>
+<h3 id="User-Real-IP-Chain"><a href="#User-Real-IP-Chain" class="headerlink" title="User Real IP Chain"></a>User Real IP Chain</h3><p>Used for risk control, auditing, rate limiting, and log location, typically relying on:</p>
+<ul>
+<li>X-Real-IP</li>
+<li>X-Forwarded-For</li>
+</ul>
+<h3 id="Public-Origin-Chain"><a href="#Public-Origin-Chain" class="headerlink" title="Public Origin Chain"></a>Public Origin Chain</h3><p>Used for OAuth2 redirects, absolute URL generation, and callback address validation, typically relying on:</p>
+<ul>
+<li>X-Forwarded-Proto</li>
+<li>X-Forwarded-Host</li>
+<li>X-Forwarded-Port</li>
+</ul>
+<p>The essence of this problem wasn’t “user IP not being passed through,” but APISIX corrupting the second chain after trust judgment failed.</p>
+<h2 id="APISIX-Source-Code-Analysis"><a href="#APISIX-Source-Code-Analysis" class="headerlink" title="APISIX Source Code Analysis"></a>APISIX Source Code Analysis</h2><p>The problem ultimately converged on the <code>trusted_addresses</code> configuration.</p>
+<p>APISIX request processing logic:</p>
+<ol>
+<li>Calculate previous hop address (usually via X-Real-IP or Remote Addr)</li>
+<li>Match this address against <code>apisix.trusted_addresses</code></li>
+<li>If not trusted, overwrite:<ul>
+<li>X-Forwarded-Proto</li>
+<li>X-Forwarded-Host</li>
+<li>X-Forwarded-Port</li>
+</ul>
+</li>
+<li>Overwrite values are not the external public entry, but what APISIX observes:<ul>
+<li>scheme</li>
+<li>host</li>
+<li>server_port</li>
+</ul>
+</li>
+</ol>
+<p>Pseudocode representation:</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- Check if previous hop address is in trusted list</span></span><br><span class="line"><span class="keyword">local</span> addr_is_trusted = trusted_addresses_util.is_trusted(api_ctx.var.realip_remote_addr)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> <span class="keyword">not</span> addr_is_trusted <span class="keyword">then</span></span><br><span class="line">    <span class="comment">-- When not trusted, overwrite X-Forwarded-* headers with gateway&#x27;s own view</span></span><br><span class="line">    <span class="keyword">local</span> proto = api_ctx.var.scheme        <span class="comment">-- actual value: http</span></span><br><span class="line">    <span class="keyword">local</span> host = api_ctx.var.host            <span class="comment">-- actual value: public.example.com</span></span><br><span class="line">    <span class="keyword">local</span> port = api_ctx.var.server_port     <span class="comment">-- actual value: 9080</span></span><br><span class="line"></span><br><span class="line">    core.request.set_header(api_ctx, <span class="string">&quot;X-Forwarded-Proto&quot;</span>, proto)</span><br><span class="line">    core.request.set_header(api_ctx, <span class="string">&quot;X-Forwarded-Host&quot;</span>, host)</span><br><span class="line">    core.request.set_header(api_ctx, <span class="string">&quot;X-Forwarded-Port&quot;</span>, port)</span><br><span class="line"><span class="keyword">end</span></span><br></pre></td></tr></table></figure>
+
+<p>This explains why the application kept seeing <code>http</code> and <code>9080</code>:</p>
+<ul>
+<li>Once APISIX judges the upstream proxy as “not trusted”</li>
+<li>It downgrades external origin information to its own listening view</li>
+</ul>
+<p>For more configuration details, refer to <a href="https://apisix.apache.org/docs/apisix/conf/config.yml/">APISIX Official Documentation - trusted_addresses</a></p>
+<h2 id="Solution"><a href="#Solution" class="headerlink" title="Solution"></a>Solution</h2><h3 id="Quick-Verification"><a href="#Quick-Verification" class="headerlink" title="Quick Verification"></a>Quick Verification</h3><p>The simplest control variable experiment:</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apisix:</span></span><br><span class="line">  <span class="attr">trusted_addresses:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="number">0.0</span><span class="number">.0</span><span class="number">.0</span><span class="string">/0</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">::/0</span></span><br></pre></td></tr></table></figure>
+
+<p>After reloading, verify the OAuth2 authorization endpoint:</p>
+<figure class="highlight http"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">Location</span><span class="punctuation">: </span>https://public.example.com/login</span><br></pre></td></tr></table></figure>
+
+<p>The problem disappears immediately. This experiment itself isn’t the final configuration, but it pins down the root cause: <strong>the problem is at the APISIX <code>trusted_addresses</code> layer.</strong></p>
+<h3 id="Production-Configuration"><a href="#Production-Configuration" class="headerlink" title="Production Configuration"></a>Production Configuration</h3><p>More appropriate approach for production:</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apisix:</span></span><br><span class="line">  <span class="attr">node_listen:</span> <span class="number">9080</span></span><br><span class="line">  <span class="attr">enable_ipv6:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">trusted_addresses:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span>           <span class="comment"># Local loopback</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">&quot;::1&quot;</span>               <span class="comment"># IPv6 loopback</span></span><br><span class="line">    <span class="bullet">-</span> <span class="number">172.17</span><span class="number">.21</span><span class="number">.0</span><span class="string">/24</span>     <span class="comment"># Docker network (e.g., Docker Desktop)</span></span><br><span class="line">    <span class="bullet">-</span> <span class="number">192.168</span><span class="number">.10</span><span class="number">.0</span><span class="string">/24</span>     <span class="comment"># Internal network (where upstream proxy resides)</span></span><br></pre></td></tr></table></figure>
+
+<p>With upstream Nginx configuration:</p>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">location</span> / &#123;</span><br><span class="line">    <span class="attribute">proxy_pass</span> http://apisix;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">proxy_set_header</span> Host <span class="variable">$host</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> X-Forwarded-Host <span class="variable">$host</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> X-Forwarded-Proto <span class="variable">$scheme</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> X-Forwarded-Port <span class="variable">$server_port</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> X-Real-IP <span class="variable">$remote_addr</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> X-Forwarded-For <span class="variable">$proxy_add_x_forwarded_for</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Why-Application-Layer-Patches-Aren’t-the-Root-Solution"><a href="#Why-Application-Layer-Patches-Aren’t-the-Root-Solution" class="headerlink" title="Why Application Layer Patches Aren’t the Root Solution"></a>Why Application Layer Patches Aren’t the Root Solution</h2><p>During troubleshooting, several workarounds were attempted at the application layer:</p>
+<ul>
+<li>Custom RequestCache, forcibly changing SavedRequest to public address</li>
+<li>Custom login redirect URL generation</li>
+<li>Wrapping HttpServletRequest in filters to override scheme&#x2F;host&#x2F;port</li>
+</ul>
+<p>These methods can alleviate symptoms in the short term, but aren’t suitable as formal solutions:</p>
+<ol>
+<li>The problem won’t appear in just one service</li>
+<li>Absolute URL generation doesn’t only occur in OAuth2 login flows</li>
+<li>Future Swagger, email links, frontend API base URLs, callback addresses, and download links may encounter similar issues</li>
+</ol>
+<p>If the public access view isn’t uniformly governed at the gateway layer, it will eventually become patchwork for each service.</p>
+<h2 id="Differences-Between-Dev-and-Production-Environments"><a href="#Differences-Between-Dev-and-Production-Environments" class="headerlink" title="Differences Between Dev and Production Environments"></a>Differences Between Dev and Production Environments</h2><p>Another reality of this problem: development and production network topologies differ.</p>
+<p>Common dev environment chain:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Host Nginx → Docker Desktop port mapping → APISIX container</span><br></pre></td></tr></table></figure>
+
+<p>More common production pattern:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Nginx node → Internal network → APISIX node</span><br></pre></td></tr></table></figure>
+
+<p>In both environments, the “previous hop address” that APISIX actually sees can be completely different.</p>
+<p>This causes a phenomenon:</p>
+<ul>
+<li>In dev environments, using a very narrow <code>trusted_addresses</code> may not stably reproduce production behavior</li>
+<li>Because the address object APISIX uses for trust judgment may not be the expected upstream proxy address</li>
+</ul>
+<p>This is why in some local environments, temporarily widening <code>trusted_addresses</code> immediately restores functionality, while continuing to guess CIDRs can lead to endless loops.</p>
+<h2 id="Applicable-Scenarios"><a href="#Applicable-Scenarios" class="headerlink" title="Applicable Scenarios"></a>Applicable Scenarios</h2><p>This record applies to similar scenarios:</p>
+<ul>
+<li>APISIX deployed behind a reverse proxy</li>
+<li>Public unified domain and TLS termination at upstream layer</li>
+<li>Downstream applications generate absolute URLs based on scheme&#x2F;host&#x2F;port</li>
+<li>OAuth2 &#x2F; OIDC login flows sensitive to URL view consistency</li>
+</ul>
+<p>If any of the following phenomena appear in the chain:</p>
+<ul>
+<li>302 Location contains internal port</li>
+<li>SavedRequest shows internal addresses or container ports</li>
+<li>Frontend callbacks or logout addresses mix in internal ports</li>
+<li>Mixed Content points to internal HTTP services</li>
+</ul>
+<p>It’s worth checking if APISIX is overwriting X-Forwarded-*.</p>
+<h2 id="Quick-Checklist"><a href="#Quick-Checklist" class="headerlink" title="Quick Checklist"></a>Quick Checklist</h2><p>When encountering similar issues, check in order:</p>
+<ul>
+<li><input disabled type="checkbox"> Is <code>server_port</code> in APISIX logs showing the internal port</li>
+<li><input disabled type="checkbox"> Does <code>trusted_addresses</code> include upstream proxy IPs</li>
+<li><input disabled type="checkbox"> Is upstream Nginx properly setting X-Forwarded-* headers</li>
+<li><input disabled type="checkbox"> Is application enabled <code>forward-headers-strategy</code></li>
+<li><input disabled type="checkbox"> Is OAuth2 redirect URL using internal addresses</li>
+</ul>
+<p>For more on Forwarded Headers configuration, refer to <a href="https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html#csrf-foreign-hosts">Spring Security Official Documentation</a>.</p>
+<h2 id="Summary"><a href="#Summary" class="headerlink" title="Summary"></a>Summary</h2><p>This problem isn’t essentially an OAuth2 protocol issue, nor is it Spring Security’s special behavior.</p>
+<p>It’s more like a typical gateway trust boundary problem:</p>
+<ul>
+<li>External entry is HTTPS</li>
+<li>Gateway internal is HTTP 9080</li>
+<li>If the gateway doesn’t stably preserve the public access view</li>
+<li>Downstream services will naturally expose internal ports in absolute URLs</li>
+</ul>
+<p>And APISIX’s <code>trusted_addresses</code> is the key switch in this chain.</p>
+<p>The problem wasn’t solved by a single “magic configuration,” but through a complete convergence:</p>
+<ul>
+<li>First admitting application patches aren’t the root solution</li>
+<li>Then converging the problem to the gateway</li>
+<li>Then using source code and control variables to pin down the root cause</li>
+<li>Finally distinguishing dev environment temporary recovery from production formal configuration principles</li>
+</ul>
+<p>If the runtime chain contains both upstream proxies, gateways, and applications that need to generate absolute URLs, this type of problem is worth prioritizing from the trust boundary rather than business code.</p>
+<p>These solutions can help maintain <code>trusted_addresses</code> correctness in more complex environments, avoiding repeated issues due to IP changes.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/APISIX/" rel="tag"># APISIX</a>
+              <a href="/tags/OAuth2/" rel="tag"># OAuth2</a>
+              <a href="/tags/gateway/" rel="tag"># gateway</a>
+              <a href="/tags/troubleshooting/" rel="tag"># troubleshooting</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2026/03/10/apisix-trusted-addresses-oauth2-redirect/" rel="prev" title="APISIX 网关层 OAuth2 重定向端口问题排查">
+      <i class="fa fa-chevron-left"></i> APISIX 网关层 OAuth2 重定向端口问题排查
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Problem-Background"><span class="nav-number">2.</span> <span class="nav-text">Problem Background</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Problem-Analysis"><span class="nav-number">3.</span> <span class="nav-text">Problem Analysis</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Browser-Network-Request-Chain"><span class="nav-number">3.1.</span> <span class="nav-text">Browser Network Request Chain</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Key-Application-Log-Information"><span class="nav-number">3.2.</span> <span class="nav-text">Key Application Log Information</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Troubleshooting-Directions"><span class="nav-number">4.</span> <span class="nav-text">Troubleshooting Directions</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Troubleshooting-Timeline"><span class="nav-number">4.1.</span> <span class="nav-text">Troubleshooting Timeline</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Converging-on-APISIX"><span class="nav-number">5.</span> <span class="nav-text">Converging on APISIX</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Easily-Confused-Points"><span class="nav-number">6.</span> <span class="nav-text">Easily Confused Points</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#User-Real-IP-Chain"><span class="nav-number">6.1.</span> <span class="nav-text">User Real IP Chain</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Public-Origin-Chain"><span class="nav-number">6.2.</span> <span class="nav-text">Public Origin Chain</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#APISIX-Source-Code-Analysis"><span class="nav-number">7.</span> <span class="nav-text">APISIX Source Code Analysis</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Solution"><span class="nav-number">8.</span> <span class="nav-text">Solution</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Quick-Verification"><span class="nav-number">8.1.</span> <span class="nav-text">Quick Verification</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Production-Configuration"><span class="nav-number">8.2.</span> <span class="nav-text">Production Configuration</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Why-Application-Layer-Patches-Aren%E2%80%99t-the-Root-Solution"><span class="nav-number">9.</span> <span class="nav-text">Why Application Layer Patches Aren’t the Root Solution</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Differences-Between-Dev-and-Production-Environments"><span class="nav-number">10.</span> <span class="nav-text">Differences Between Dev and Production Environments</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Applicable-Scenarios"><span class="nav-number">11.</span> <span class="nav-text">Applicable Scenarios</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Quick-Checklist"><span class="nav-number">12.</span> <span class="nav-text">Quick Checklist</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Summary"><span class="nav-number">13.</span> <span class="nav-text">Summary</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">73</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

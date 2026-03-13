@@ -228,7 +228,10 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p><strong>问题</strong>: OAuth2 重定向 URL 包含错误端口 <code>http://example.com:9080</code><br><strong>根因</strong>: APISIX <code>trusted_addresses</code> 配置过窄，导致 X-Forwarded-* 头被覆盖<br><strong>解决</strong>: 将前置代理网段加入 <code>trusted_addresses</code><br><strong>耗时</strong>: 3 天排查</p>
+        <blockquote>
+<p><strong>🌐 语言</strong>: <strong>中文版</strong> | <a href="/2026/03/10/apisix-trusted-addresses-oauth2-redirect-en/">English Version</a></p>
+</blockquote>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p><strong>问题</strong>: OAuth2 重定向 URL 包含错误端口 <code>http://example.com:9080</code><br><strong>根因</strong>: APISIX <code>trusted_addresses</code> 配置过窄，导致 X-Forwarded-* 头被覆盖<br><strong>解决</strong>: 将前置代理网段加入 <code>trusted_addresses</code>  </p>
 <h2 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h2><p>在一个典型的多层代理架构中：</p>
 <pre class="mermaid">flowchart TD
     Browser[浏览器<br>HTTPS:443] --> Nginx[Nginx<br>TLS 终止]
@@ -357,10 +360,11 @@
 
 <p>问题立即消失。这个实验本身并不是最终配置，但它把根因钉死了：<strong>问题就在 APISIX <code>trusted_addresses</code> 这一层。</strong></p>
 <h3 id="正式配置"><a href="#正式配置" class="headerlink" title="正式配置"></a>正式配置</h3><p>生产环境更合适的做法：</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apisix:</span></span><br><span class="line">  <span class="attr">node_listen:</span> <span class="number">9080</span></span><br><span class="line">  <span class="attr">enable_ipv6:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">trusted_addresses:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span>           <span class="comment"># 本地回环</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">&quot;::1&quot;</span>               <span class="comment"># IPv6 本地回环</span></span><br><span class="line">    <span class="bullet">-</span> <span class="number">192.168</span><span class="number">.65</span><span class="number">.0</span><span class="string">/24</span>     <span class="comment"># Docker 网络（如 Docker Desktop）</span></span><br><span class="line">    <span class="bullet">-</span> <span class="number">192.168</span><span class="number">.71</span><span class="number">.0</span><span class="string">/24</span>     <span class="comment"># 内网网络（前置代理所在网络）</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apisix:</span></span><br><span class="line">  <span class="attr">node_listen:</span> <span class="number">9080</span></span><br><span class="line">  <span class="attr">enable_ipv6:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">trusted_addresses:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span>           <span class="comment"># 本地回环</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">&quot;::1&quot;</span>               <span class="comment"># IPv6 本地回环</span></span><br><span class="line">    <span class="bullet">-</span> <span class="number">172.17</span><span class="number">.21</span><span class="number">.0</span><span class="string">/24</span>     <span class="comment"># Docker 网络（如 Docker Desktop）</span></span><br><span class="line">    <span class="bullet">-</span> <span class="number">192.168</span><span class="number">.10</span><span class="number">.0</span><span class="string">/24</span>     <span class="comment"># 内网网络（前置代理所在网络）</span></span><br></pre></td></tr></table></figure>
 
 <p>配合前置 Nginx 配置：</p>
 <figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">location</span> / &#123;</span><br><span class="line">    <span class="attribute">proxy_pass</span> http://apisix;</span><br><span class="line"></span><br><span class="line">    <span class="attribute">proxy_set_header</span> Host <span class="variable">$host</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> X-Forwarded-Host <span class="variable">$host</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> X-Forwarded-Proto <span class="variable">$scheme</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> X-Forwarded-Port <span class="variable">$server_port</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> X-Real-IP <span class="variable">$remote_addr</span>;</span><br><span class="line">    <span class="attribute">proxy_set_header</span> X-Forwarded-For <span class="variable">$proxy_add_x_forwarded_for</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
 
 <h2 id="为什么应用层补丁不是根解"><a href="#为什么应用层补丁不是根解" class="headerlink" title="为什么应用层补丁不是根解"></a>为什么应用层补丁不是根解</h2><p>排查过程中，一度在应用层做过几种兜底：</p>
 <ul>
@@ -430,6 +434,7 @@
 <li>最后区分开发环境临时恢复方案和生产环境正式配置原则</li>
 </ul>
 <p>如果运行链路里同时存在前置代理、网关和需要生成绝对 URL 的应用，这类问题值得优先从 trust 边界而不是业务代码开始看。</p>
+<p>这些方案可以帮助你在更复杂的环境中维护 <code>trusted_addresses</code> 的正确性，避免因 IP 变动导致的问题反复出现。</p>
 
     </div>
 
@@ -450,10 +455,13 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2026/02/27/microservice-gateway-oauth2-routing-en/" rel="prev" title="Microservice Gateway Routing: OAuth2 Redirects and Service Decomposition">
-      <i class="fa fa-chevron-left"></i> Microservice Gateway Routing: OAuth2 Redirects and Service Decomposition
+    <a href="/2026/02/27/microservice-gateway-oauth2-routing/" rel="prev" title="微服务网关路由设计：OAuth2 重定向与服务拆分实践">
+      <i class="fa fa-chevron-left"></i> 微服务网关路由设计：OAuth2 重定向与服务拆分实践
     </a></div>
-      <div class="post-nav-item"></div>
+      <div class="post-nav-item">
+    <a href="/2026/03/10/apisix-trusted-addresses-oauth2-redirect-en/" rel="next" title="Troubleshooting APISIX OAuth2 Redirect Port Issue at Gateway Layer">
+      Troubleshooting APISIX OAuth2 Redirect Port Issue at Gateway Layer <i class="fa fa-chevron-right"></i>
+    </a></div>
     </div>
       </footer>
     
@@ -526,7 +534,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">47</span>
+          <span class="site-state-item-count">48</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -537,7 +545,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">71</span>
+        <span class="site-state-item-count">73</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
