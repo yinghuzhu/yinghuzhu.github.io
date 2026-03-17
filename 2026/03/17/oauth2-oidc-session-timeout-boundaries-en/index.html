@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Clarifying the boundaries between access tokens, refresh tokens, authorization codes, browser sessions, and server-side session revocation in OAuth2&#x2F;OIDC, with explanations of common timeout phenomena">
+<meta property="og:type" content="article">
+<meta property="og:title" content="OAuth2&#x2F;OIDC Session Timeout Boundaries: Frontend Tokens, Refresh Tokens, and SSO Sessions">
+<meta property="og:url" content="https://www.yzhu.name/2026/03/17/oauth2-oidc-session-timeout-boundaries-en/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="Clarifying the boundaries between access tokens, refresh tokens, authorization codes, browser sessions, and server-side session revocation in OAuth2&#x2F;OIDC, with explanations of common timeout phenomena">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-03-17T13:07:47.000Z">
+<meta property="article:modified_time" content="2026-03-17T13:22:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="oauth2">
+<meta property="article:tag" content="oidc">
+<meta property="article:tag" content="session">
+<meta property="article:tag" content="sso">
+<meta property="article:tag" content="token">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2026/03/17/oauth2-oidc-session-timeout-boundaries-en/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en-US'
+  };
+</script>
+
+  <title>OAuth2/OIDC Session Timeout Boundaries: Frontend Tokens, Refresh Tokens, and SSO Sessions | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en-US">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2026/03/17/oauth2-oidc-session-timeout-boundaries-en/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          OAuth2/OIDC Session Timeout Boundaries: Frontend Tokens, Refresh Tokens, and SSO Sessions
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2026-03-17 21:07:47" itemprop="dateCreated datePublished" datetime="2026-03-17T21:07:47+08:00">2026-03-17</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Security/" itemprop="url" rel="index"><span itemprop="name">Security</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">Clarifying the boundaries between access tokens, refresh tokens, authorization codes, browser sessions, and server-side session revocation in OAuth2/OIDC, with explanations of common timeout phenomena and recommended time configuration strategies.</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p><strong>🌐 Language</strong>: <strong>English Version</strong> | <a href="/2026/03/17/oauth2-oidc-session-timeout-boundaries/">中文版</a></p>
+</blockquote>
+<p>While troubleshooting a session timeout issue, we encountered a typical phenomenon: the frontend had already indicated session invalidation, but when users re-entered the authorization flow, they didn’t see the login page again and were directly returned to the system. Initially, the frontend and backend explanations were completely misaligned. Later, when we broke down the chain, we realized the problem wasn’t with a single configuration value, but that what everyone called “login state” wasn’t the same layer at all.<span id="more"></span></p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p>This article assumes readers are already familiar with basic OAuth2&#x2F;OIDC flows, focusing on the timeout boundaries most prone to confusion in production environments.</p>
+<p>The “login state” in OAuth2&#x2F;OIDC typically isn’t a single time, but rather several types of times working together:</p>
+<ul>
+<li><code>authorization code</code> determines how long the authorization code remains valid</li>
+<li><code>access token</code> determines how long the current token can still invoke APIs</li>
+<li><code>refresh token</code> determines how long the application can silently renew</li>
+<li>SSO browser session determines whether password re-entry is required when re-entering the authorization flow</li>
+<li>Server-side session identifier determines whether issued tokens can be actively revoked</li>
+</ul>
+<p>When troubleshooting, examining these layers separately is more effective than repeatedly discussing a single TTL.</p>
+<h2 id="I-Where-Problems-Usually-Occur"><a href="#I-Where-Problems-Usually-Occur" class="headerlink" title="I. Where Problems Usually Occur"></a>I. Where Problems Usually Occur</h2><p>The phenomenon we observed was quite specific:</p>
+<ol>
+<li>User is actively using the frontend application</li>
+<li>After some time, the frontend prompts that the session has expired</li>
+<li>User clicks to re-login</li>
+<li>Browser redirects to the authorization server, but the login page doesn’t appear</li>
+<li>After authorization completes, the user is directly returned to the system</li>
+</ol>
+<p>This phenomenon typically indicates that both of the following are true:</p>
+<ul>
+<li>The <code>access token</code> held locally by the frontend has expired, or has been determined by the frontend to be about to expire</li>
+<li>The authorization server’s browser session is still valid, so the authorization server still recognizes this user</li>
+</ul>
+<p>Therefore, the “re-login required” prompt from applications often just means “need to obtain a new set of tokens,” not equivalent to “user must re-enter username and password.”</p>
+<p>If this distinction isn’t clarified first, troubleshooting can easily go astray.</p>
+<h2 id="II-First-Distinguish-Protocol-Layer-from-Engineering-Layer"><a href="#II-First-Distinguish-Protocol-Layer-from-Engineering-Layer" class="headerlink" title="II. First, Distinguish Protocol Layer from Engineering Layer"></a>II. First, Distinguish Protocol Layer from Engineering Layer</h2><p>In the standard OAuth2&#x2F;OIDC authorization code flow, there are only four core roles:</p>
+<ul>
+<li>User</li>
+<li>Client Application</li>
+<li>Authorization Server</li>
+<li>Resource Server</li>
+</ul>
+<p>A simplified flow is as follows:</p>
+<pre class="mermaid">sequenceDiagram
+    participant User as User
+    participant Client as Client App
+    participant AS as Authorization Server
+    participant RS as Resource Server
+
+    User->>Client: Open app
+    Client->>AS: Redirect to /authorize
+    AS->>User: Login and authorize
+    AS-->>Client: Callback redirect_uri?code=...
+    Client->>AS: Exchange code for token
+    AS-->>Client: Return access token / refresh token
+    Client->>RS: Call API with access token
+    RS-->>Client: Return business data</pre>
+
+<p>The protocol layer mainly defines:</p>
+<ul>
+<li>How to initiate authorization</li>
+<li>How to exchange tokens</li>
+<li>How to validate tokens</li>
+</ul>
+<p>But in production environments, systems typically overlay some engineering implementations:</p>
+<ul>
+<li>API Gateway uniformly handles token validation</li>
+<li>Authorization servers use browser sessions to maintain login memory</li>
+<li>Server-side introduces session identifiers to support immediate token invalidation after logout</li>
+<li>Frontends avoid boundary jitter by determining tokens as expired tens of seconds early</li>
+</ul>
+<p>These mechanisms are all common, but they don’t belong to the same layer. Mixing protocol concepts with engineering strategies directly affects judgment of “login state.”</p>
+<h2 id="III-How-We-Initially-Misdiagnosed"><a href="#III-How-We-Initially-Misdiagnosed" class="headerlink" title="III. How We Initially Misdiagnosed"></a>III. How We Initially Misdiagnosed</h2><p>Such issues easily lead to a wrong direction first: modifying the <code>access token</code> TTL.</p>
+<p>The reason isn’t complex. When the frontend prompts session invalidation, the most intuitive understanding is that the token is too short; and from the phenomenon, making it longer seems to alleviate the problem.</p>
+<p>But this line of thinking typically only explains part of the表象, not these situations:</p>
+<ul>
+<li>Why no password re-entry is required when re-authorizing after token expiration</li>
+<li>Why some requests first receive <code>401</code>, but the page doesn’t truly exit</li>
+<li>Why after logout, certain old tokens can continue accessing for a short time</li>
+</ul>
+<p>In other words, only modifying <code>access token</code> TTL can at most affect “how quickly the frontend perceives invalidation,” but cannot cover “whether silent renewal is still possible,” “whether password re-entry is still required,” “whether old tokens can be immediately invalidated.”</p>
+<p>After separating these boundaries, subsequent phenomena become consistent.</p>
+<h2 id="IV-A-More-Practical-Mental-Model-Three-Layer-Tickets"><a href="#IV-A-More-Practical-Mental-Model-Three-Layer-Tickets" class="headerlink" title="IV. A More Practical Mental Model: Three-Layer Tickets"></a>IV. A More Practical Mental Model: Three-Layer Tickets</h2><p>Understanding login state as three-layer tickets makes troubleshooting much simpler.</p>
+<h3 id="1-access-token"><a href="#1-access-token" class="headerlink" title="1. access token"></a>1. <code>access token</code></h3><p>This is the ticket directly presented when accessing the resource server.</p>
+<ul>
+<li>Typically has a short lifecycle</li>
+<li>Largest exposure surface</li>
+<li>Direct performance after expiration is API returning <code>401</code></li>
+</ul>
+<h3 id="2-refresh-token"><a href="#2-refresh-token" class="headerlink" title="2. refresh token"></a>2. <code>refresh token</code></h3><p>This is the ticket used by applications to exchange for new <code>access token</code>s.</p>
+<ul>
+<li>Typically has a longer lifecycle than access token</li>
+<li>Should not appear frequently in business requests</li>
+<li>It determines whether the application can still renew silently</li>
+</ul>
+<h3 id="3-SSO-Session"><a href="#3-SSO-Session" class="headerlink" title="3. SSO Session"></a>3. SSO Session</h3><p>This layer is typically divided into two parts:</p>
+<ul>
+<li>Browser-side login session, such as <code>JSESSIONID</code> type cookies</li>
+<li>Server-side session identifier, used for governance capabilities like revocation, kick-out, single sign-out</li>
+</ul>
+<p>These two parts often appear simultaneously, but have different responsibilities:</p>
+<ul>
+<li>Browser session determines whether password re-entry is required when re-entering <code>/authorize</code></li>
+<li>Server-side session identifier determines whether issued tokens can still be accepted</li>
+</ul>
+<h2 id="V-Several-Most-Confusing-Time-Parameters"><a href="#V-Several-Most-Confusing-Time-Parameters" class="headerlink" title="V. Several Most Confusing Time Parameters"></a>V. Several Most Confusing Time Parameters</h2><table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Layer</th>
+<th>Performance After Expiration</th>
+<th>Common Recommendations</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>authorization_code</code> TTL</td>
+<td>Authorization code</td>
+<td>Fails to exchange code for token</td>
+<td>Short, typically around 5 minutes</td>
+</tr>
+<tr>
+<td><code>access_token</code> TTL</td>
+<td>API access token</td>
+<td>API call failure or frontend determines invalidation</td>
+<td>Short, typically 10 to 15 minutes</td>
+</tr>
+<tr>
+<td><code>refresh_token</code> TTL</td>
+<td>Renewal token</td>
+<td>Cannot renew silently, requires re-authorization</td>
+<td>Medium to long, stratified by application risk</td>
+</tr>
+<tr>
+<td>SSO browser session timeout</td>
+<td>Authorization server login memory</td>
+<td>Login page appears again during re-authorization</td>
+<td>Consistent with platform session policy</td>
+</tr>
+<tr>
+<td>Server-side session identifier TTL</td>
+<td>Revocation and logout governance</td>
+<td>Whether old tokens can be immediately intercepted</td>
+<td>Consistent with session governance policy</td>
+</tr>
+<tr>
+<td>Frontend <code>skewSeconds</code></td>
+<td>Local premature expiration judgment</td>
+<td>Token determined as invalid slightly early</td>
+<td>Keep small, e.g., 30 seconds</td>
+</tr>
+</tbody></table>
+<h3 id="5-1-authorization-code"><a href="#5-1-authorization-code" class="headerlink" title="5.1 authorization code"></a>5.1 <code>authorization code</code></h3><p>The authorization code is a one-time short-term credential, primarily used for the frontend callback to exchange with the authorization server for tokens. Its responsibility is very single and typically doesn’t participate in “long session” discussions.</p>
+<p>Extending this time typically neither improves user experience nor expands the exposure window.</p>
+<h3 id="5-2-access-token"><a href="#5-2-access-token" class="headerlink" title="5.2 access token"></a>5.2 <code>access token</code></h3><p>This is the layer with the most obvious user perception.</p>
+<ul>
+<li>Time too short, frontend easily experiences frequent not-logged-in, API retries, boundary jitter</li>
+<li>Time too long, risk window after leakage significantly expands</li>
+</ul>
+<p>For most backend systems, <code>10-15 minutes</code> is often more balanced than a few minutes.</p>
+<h3 id="5-3-refresh-token"><a href="#5-3-refresh-token" class="headerlink" title="5.3 refresh token"></a>5.3 <code>refresh token</code></h3><p>Many demands like “7 days免登录” or “30 days continuous availability” should essentially be borne by <code>refresh token</code>, rather than directly extending <code>access token</code> to several days.</p>
+<p>Short access token combined with longer refresh token is generally more stable than long-term access token.</p>
+<h3 id="5-4-SSO-Browser-Session"><a href="#5-4-SSO-Browser-Session" class="headerlink" title="5.4 SSO Browser Session"></a>5.4 SSO Browser Session</h3><p>This layer determines: when users go through the authorization flow again, whether the authorization server still remembers that this browser has already logged in.</p>
+<p>Thus this situation occurs:</p>
+<ul>
+<li>Application local token has already expired</li>
+<li>User re-initiates authorization</li>
+<li>Authorization server checks that browser session is still valid</li>
+<li>Thus directly issues new authorization result, user doesn’t need to re-enter password</li>
+</ul>
+<p>This isn’t bypassing authentication, but rather normal SSO experience.</p>
+<h3 id="5-5-Server-side-Session-Identifier"><a href="#5-5-Server-side-Session-Identifier" class="headerlink" title="5.5 Server-side Session Identifier"></a>5.5 Server-side Session Identifier</h3><p>Many production systems maintain a server-side session identifier outside of tokens, such as <code>sid</code> type claims or session keys. Its purpose isn’t to replace tokens, but to supplement “active revocation” capability.</p>
+<p>Typical uses include:</p>
+<ul>
+<li>After user actively exits, old tokens immediately invalidate</li>
+<li>Administrator kicks out a certain session</li>
+<li>After password modification, force old sessions offline</li>
+<li>Same browser multiple tabs share one invalidation state</li>
+</ul>
+<p>Without this layer mechanism, systems typically can only wait for token natural expiration.</p>
+<p>If only discussing concepts, this layer still easily appears somewhat虚. Using a minimal implementation to illustrate is more direct:</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// When signing token, write sid into claim together</span></span><br><span class="line"><span class="keyword">const</span> sid = <span class="title function_">randomSessionId</span>();</span><br><span class="line"><span class="keyword">await</span> redis.<span class="title function_">set</span>(<span class="string">`session:sid:<span class="subst">$&#123;sid&#125;</span>`</span>, <span class="string">&quot;1&quot;</span>, &#123; <span class="attr">EX</span>: <span class="number">43200</span> &#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> accessToken = <span class="title function_">signJwt</span>(&#123;</span><br><span class="line">  <span class="attr">sub</span>: userId,</span><br><span class="line">  sid,</span><br><span class="line">  <span class="attr">exp</span>: now + <span class="number">900</span></span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// When validating token, simultaneously check whether sid still exists</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">function</span> <span class="title function_">validateAccessToken</span>(<span class="params">token</span>) &#123;</span><br><span class="line">  <span class="keyword">const</span> payload = <span class="title function_">verifyJwt</span>(token);</span><br><span class="line">  <span class="keyword">const</span> exists = <span class="keyword">await</span> redis.<span class="title function_">exists</span>(<span class="string">`session:sid:<span class="subst">$&#123;payload.sid&#125;</span>`</span>);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (!exists) &#123;</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">Error</span>(<span class="string">&quot;session revoked&quot;</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> payload;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// When logout or kicking people, delete sid</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">function</span> <span class="title function_">revokeSession</span>(<span class="params">sid</span>) &#123;</span><br><span class="line">  <span class="keyword">await</span> redis.<span class="title function_">del</span>(<span class="string">`session:sid:<span class="subst">$&#123;sid&#125;</span>`</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>The focus of this approach isn’t Redis itself, but adding a server-side handle for “active revocation.” Relying only on JWT’s <code>exp</code>, systems typically can only wait for it to naturally expire.</p>
+<h2 id="VI-Why-Frontend-and-Backend-Often-Don’t-Match"><a href="#VI-Why-Frontend-and-Backend-Often-Don’t-Match" class="headerlink" title="VI. Why Frontend and Backend Often Don’t Match"></a>VI. Why Frontend and Backend Often Don’t Match</h2><p>Login state issues are prone to debate because different roles observe different layers:</p>
+<ul>
+<li>Frontend focuses on whether local tokens are still available</li>
+<li>Gateway or resource server focuses on whether bearer token can pass validation</li>
+<li>Authorization server focuses on whether browser session still exists</li>
+<li>Security governance focuses on whether old sessions can be actively revoked</li>
+</ul>
+<p>If these layers aren’t described separately, teams easily develop two seemingly contradictory but individually correct statements:</p>
+<ul>
+<li>“It’s obviously expired, why did it go straight in again?”</li>
+<li>“It’s obviously already exited, why can old tokens still call one more API?”</li>
+</ul>
+<p>The first sentence usually says SSO browser session is still valid, the second sentence usually says server-side revocation chain didn’t catch.</p>
+<h2 id="VII-Long-Sessions-Don’t-Mean-Just-Modifying-One-TTL"><a href="#VII-Long-Sessions-Don’t-Mean-Just-Modifying-One-TTL" class="headerlink" title="VII. Long Sessions Don’t Mean Just Modifying One TTL"></a>VII. Long Sessions Don’t Mean Just Modifying One TTL</h2><p>If an application wants to achieve “continuous availability for several days,” typically at least the following several things need to be simultaneously satisfied.</p>
+<h3 id="7-1-Frontend-Actually-Integrated-Refresh-Token-Renewal"><a href="#7-1-Frontend-Actually-Integrated-Refresh-Token-Renewal" class="headerlink" title="7.1 Frontend Actually Integrated Refresh Token Renewal"></a>7.1 Frontend Actually Integrated Refresh Token Renewal</h3><p>If frontend directly clears state and jumps back to login page once access token expires, then even if refresh token is configured to 7 days, experience won’t improve.</p>
+<h3 id="7-2-When-Logging-Out-Server-side-Can-Also-Revoke-Sessions"><a href="#7-2-When-Logging-Out-Server-side-Can-Also-Revoke-Sessions" class="headerlink" title="7.2 When Logging Out, Server-side Can Also Revoke Sessions"></a>7.2 When Logging Out, Server-side Can Also Revoke Sessions</h3><p>Only clearing frontend local storage isn’t enough. As long as old tokens are within validity period, they may continue to be accepted by gateway or resource server. This is particularly important in long session scenarios.</p>
+<h3 id="7-3-Sensitive-Events-Must-Support-Forced-Invalidation"><a href="#7-3-Sensitive-Events-Must-Support-Forced-Invalidation" class="headerlink" title="7.3 Sensitive Events Must Support Forced Invalidation"></a>7.3 Sensitive Events Must Support Forced Invalidation</h3><p>For example:</p>
+<ul>
+<li>Modify password</li>
+<li>User disabled</li>
+<li>Major permission changes</li>
+<li>Administrator kicks out session</li>
+</ul>
+<p>These scenarios shouldn’t purely rely on natural expiration.</p>
+<h3 id="7-4-Long-term-Refresh-Token-Best-Uses-Rotation-Strategy"><a href="#7-4-Long-term-Refresh-Token-Best-Uses-Rotation-Strategy" class="headerlink" title="7.4 Long-term Refresh Token Best Uses Rotation Strategy"></a>7.4 Long-term Refresh Token Best Uses Rotation Strategy</h3><p>If refresh token can be repeatedly reused until natural expiration, once leaked, risk window will be very long.</p>
+<p>Rotation strategy idea is: after each refresh, immediately invalidate old refresh token, and issue new refresh token. This is more suitable for long session scenarios.</p>
+<h2 id="VIII-A-More-Stable-Time-Configuration-Strategy"><a href="#VIII-A-More-Stable-Time-Configuration-Strategy" class="headerlink" title="VIII. A More Stable Time Configuration Strategy"></a>VIII. A More Stable Time Configuration Strategy</h2><p>Below is a set of common reference stratifications:</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th><code>access token</code></th>
+<th><code>refresh token</code></th>
+<th>Browser Session</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Ordinary backend system</td>
+<td><code>10-15m</code></td>
+<td><code>8-12h</code></td>
+<td>Half day or one work day</td>
+</tr>
+<tr>
+<td>Low-risk long session application</td>
+<td><code>10-15m</code></td>
+<td><code>7d</code></td>
+<td>Evaluate according to login policy</td>
+</tr>
+<tr>
+<td>Very few whitelist applications</td>
+<td><code>10-15m</code></td>
+<td><code>30d</code></td>
+<td>Must配套 revocation and risk control</td>
+</tr>
+</tbody></table>
+<p>Here are two key points:</p>
+<ul>
+<li>Long experience优先 implemented through <code>refresh token</code></li>
+<li><code>access token</code> still remains short-term</li>
+</ul>
+<p>If directly extending <code>access token</code> to several hours or days, impact surface after leakage significantly expands, and many systems themselves don’t have配套 immediate revocation capability.</p>
+<h2 id="IX-What-Order-to-View-When-Troubleshooting"><a href="#IX-What-Order-to-View-When-Troubleshooting" class="headerlink" title="IX. What Order to View When Troubleshooting"></a>IX. What Order to View When Troubleshooting</h2><p>When encountering problems like “re-login,” “auto-renewal failure,” “still accessible after logout,” viewing in the following order is typically more efficient:</p>
+<ol>
+<li>First look at <code>access token</code>‘s <code>exp</code></li>
+<li>Then look at whether frontend actually executed refresh token renewal</li>
+<li>Then confirm whether <code>refresh token</code> itself is still valid, whether it uses rotation</li>
+<li>Then look at whether authorization server’s browser session still exists</li>
+<li>Finally look at whether server-side revocation identifier is still valid, whether logout chain truly deleted it</li>
+</ol>
+<p>This order can quickly distinguish:</p>
+<ul>
+<li>Is it API ticket expired</li>
+<li>Is it renewal chain not properly connected</li>
+<li>Or is SSO session still alive</li>
+<li>Or revocation governance not complete</li>
+</ul>
+<h2 id="X-A-Sufficiently-Practical-Judgment-Formula"><a href="#X-A-Sufficiently-Practical-Judgment-Formula" class="headerlink" title="X. A Sufficiently Practical Judgment Formula"></a>X. A Sufficiently Practical Judgment Formula</h2><p>If only keeping one sentence, can directly remember this set of boundaries:</p>
+<ul>
+<li>Whether can still call API, look at <code>access token</code></li>
+<li>Whether can still silently renew, look at <code>refresh token</code></li>
+<li>Whether still need to re-enter password, look at SSO browser session</li>
+<li>Whether can make old tokens immediately invalidate, look at server-side session revocation mechanism</li>
+</ul>
+<p>After these boundaries are straightened out, many seemingly contradictory phenomena become very direct.</p>
+<h2 id="XI-Conclusion"><a href="#XI-Conclusion" class="headerlink" title="XI. Conclusion"></a>XI. Conclusion</h2><p>OAuth2&#x2F;OIDC itself isn’t complex, what’s truly confusing is production systems overlaying tokens, browser sessions, gateway validation, server-side revocation. Discussing these mechanisms collectively as one “login state,” conclusions easily go astray.</p>
+<p>A more stable approach is typically:</p>
+<ul>
+<li>Use short-term <code>access token</code> to control API access risk</li>
+<li>Use <code>refresh token</code> to provide continuous experience</li>
+<li>Use browser session to carry SSO login memory</li>
+<li>Use server-side revocation mechanism to handle logout, kick-out, and forced offline</li>
+</ul>
+<p>After these layer boundaries are clear, frontend, backend, and security sides will have much easier discussions when discussing timeout strategies.</p>
+<h2 id="Further-Reading"><a href="#Further-Reading" class="headerlink" title="Further Reading"></a>Further Reading</h2><ul>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc6749">RFC 6749: The OAuth 2.0 Authorization Framework</a></li>
+<li><a href="https://openid.net/specs/openid-connect-core-1_0.html">OpenID Connect Core 1.0</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc9700">RFC 9700: Best Current Practice for OAuth 2.0 Security</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc7636">RFC 7636: Proof Key for Code Exchange by OAuth Public Clients</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/oauth2/" rel="tag"># oauth2</a>
+              <a href="/tags/oidc/" rel="tag"># oidc</a>
+              <a href="/tags/session/" rel="tag"># session</a>
+              <a href="/tags/token/" rel="tag"># token</a>
+              <a href="/tags/sso/" rel="tag"># sso</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2026/03/17/oauth2-oidc-session-timeout-boundaries/" rel="prev" title="OAuth2/OIDC 会话超时的边界：前端 Token、Refresh Token 与 SSO Session">
+      <i class="fa fa-chevron-left"></i> OAuth2/OIDC 会话超时的边界：前端 Token、Refresh Token 与 SSO Session
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#I-Where-Problems-Usually-Occur"><span class="nav-number">2.</span> <span class="nav-text">I. Where Problems Usually Occur</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#II-First-Distinguish-Protocol-Layer-from-Engineering-Layer"><span class="nav-number">3.</span> <span class="nav-text">II. First, Distinguish Protocol Layer from Engineering Layer</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#III-How-We-Initially-Misdiagnosed"><span class="nav-number">4.</span> <span class="nav-text">III. How We Initially Misdiagnosed</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#IV-A-More-Practical-Mental-Model-Three-Layer-Tickets"><span class="nav-number">5.</span> <span class="nav-text">IV. A More Practical Mental Model: Three-Layer Tickets</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-access-token"><span class="nav-number">5.1.</span> <span class="nav-text">1. access token</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-refresh-token"><span class="nav-number">5.2.</span> <span class="nav-text">2. refresh token</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-SSO-Session"><span class="nav-number">5.3.</span> <span class="nav-text">3. SSO Session</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#V-Several-Most-Confusing-Time-Parameters"><span class="nav-number">6.</span> <span class="nav-text">V. Several Most Confusing Time Parameters</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-authorization-code"><span class="nav-number">6.1.</span> <span class="nav-text">5.1 authorization code</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-access-token"><span class="nav-number">6.2.</span> <span class="nav-text">5.2 access token</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-refresh-token"><span class="nav-number">6.3.</span> <span class="nav-text">5.3 refresh token</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-4-SSO-Browser-Session"><span class="nav-number">6.4.</span> <span class="nav-text">5.4 SSO Browser Session</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-5-Server-side-Session-Identifier"><span class="nav-number">6.5.</span> <span class="nav-text">5.5 Server-side Session Identifier</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#VI-Why-Frontend-and-Backend-Often-Don%E2%80%99t-Match"><span class="nav-number">7.</span> <span class="nav-text">VI. Why Frontend and Backend Often Don’t Match</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#VII-Long-Sessions-Don%E2%80%99t-Mean-Just-Modifying-One-TTL"><span class="nav-number">8.</span> <span class="nav-text">VII. Long Sessions Don’t Mean Just Modifying One TTL</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#7-1-Frontend-Actually-Integrated-Refresh-Token-Renewal"><span class="nav-number">8.1.</span> <span class="nav-text">7.1 Frontend Actually Integrated Refresh Token Renewal</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-2-When-Logging-Out-Server-side-Can-Also-Revoke-Sessions"><span class="nav-number">8.2.</span> <span class="nav-text">7.2 When Logging Out, Server-side Can Also Revoke Sessions</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-3-Sensitive-Events-Must-Support-Forced-Invalidation"><span class="nav-number">8.3.</span> <span class="nav-text">7.3 Sensitive Events Must Support Forced Invalidation</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-4-Long-term-Refresh-Token-Best-Uses-Rotation-Strategy"><span class="nav-number">8.4.</span> <span class="nav-text">7.4 Long-term Refresh Token Best Uses Rotation Strategy</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#VIII-A-More-Stable-Time-Configuration-Strategy"><span class="nav-number">9.</span> <span class="nav-text">VIII. A More Stable Time Configuration Strategy</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#IX-What-Order-to-View-When-Troubleshooting"><span class="nav-number">10.</span> <span class="nav-text">IX. What Order to View When Troubleshooting</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#X-A-Sufficiently-Practical-Judgment-Formula"><span class="nav-number">11.</span> <span class="nav-text">X. A Sufficiently Practical Judgment Formula</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#XI-Conclusion"><span class="nav-number">12.</span> <span class="nav-text">XI. Conclusion</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Further-Reading"><span class="nav-number">13.</span> <span class="nav-text">Further Reading</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">50</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">77</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>
