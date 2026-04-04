@@ -289,12 +289,7 @@
     APP3 -->|Query User Profile| IDS
 
     IMA -.->|Config Distribution| IAS
-    ISJ -->|Incremental Sync| IDP
-
-    style IDP fill:#0078d4,color:#fff
-    style IAS fill:#e87511,color:#fff
-    style IDS fill:#28a745,color:#fff
-    style GW fill:#e60050,color:#fff</pre>
+    ISJ -->|Incremental Sync| IDP</pre>
 
 <h3 id="2-2-Interaction-Flow-Analysis-Identity-Flows"><a href="#2-2-Interaction-Flow-Analysis-Identity-Flows" class="headerlink" title="2.2 Interaction Flow Analysis (Identity Flows)"></a>2.2 Interaction Flow Analysis (Identity Flows)</h3><h4 id="A-Identity-Federation-Login-Flow-OIDC-Federation"><a href="#A-Identity-Federation-Login-Flow-OIDC-Federation" class="headerlink" title="A. Identity Federation Login Flow (OIDC Federation)"></a>A. Identity Federation Login Flow (OIDC Federation)</h4><p>This flow implements identity relay based on standard OAuth2 protocol, supporting seamless integration with any standard OIDC Provider:</p>
 <pre class="mermaid">sequenceDiagram
@@ -417,8 +412,8 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2026/03/17/oauth2-oidc-session-timeout-boundaries-en/" rel="prev" title="OAuth2/OIDC Session Timeout Boundaries: Frontend Tokens, Refresh Tokens, and SSO Sessions">
-      <i class="fa fa-chevron-left"></i> OAuth2/OIDC Session Timeout Boundaries: Frontend Tokens, Refresh Tokens, and SSO Sessions
+    <a href="/2026/03/17/oauth2-oidc-session-timeout-boundaries/" rel="prev" title="OAuth2/OIDC 会话超时的边界：前端 Token、Refresh Token 与 SSO Session">
+      <i class="fa fa-chevron-left"></i> OAuth2/OIDC 会话超时的边界：前端 Token、Refresh Token 与 SSO Session
     </a></div>
       <div class="post-nav-item">
     <a href="/2026/04/04/enterprise-unified-identity-architecture/" rel="next" title="基于 OAuth2/OIDC 协议的企业级统一身份治理架构实践">

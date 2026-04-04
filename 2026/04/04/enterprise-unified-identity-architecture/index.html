@@ -281,12 +281,7 @@
     APP3 -->|查询用户画像| IDS
 
     IMA -.->|配置分发| IAS
-    ISJ -->|增量同步| IDP
-
-    style IDP fill:#0078d4,color:#fff
-    style IAS fill:#e87511,color:#fff
-    style IDS fill:#28a745,color:#fff
-    style GW fill:#e60050,color:#fff</pre>
+    ISJ -->|增量同步| IDP</pre>
 
 <h3 id="2-2-交互流分析-Identity-Flows"><a href="#2-2-交互流分析-Identity-Flows" class="headerlink" title="2.2 交互流分析 (Identity Flows)"></a>2.2 交互流分析 (Identity Flows)</h3><h4 id="A-身份联邦登录流-OIDC-Federation"><a href="#A-身份联邦登录流-OIDC-Federation" class="headerlink" title="A. 身份联邦登录流 (OIDC Federation)"></a>A. 身份联邦登录流 (OIDC Federation)</h4><p>此流程实现了基于标准 OAuth2 协议的身份中继，支持任意标准 OIDC Provider 的无缝接入：</p>
 <pre class="mermaid">sequenceDiagram

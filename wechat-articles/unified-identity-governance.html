@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="基于标准 OAuth2&#x2F;OIDC 协议构建企业级身份中继架构，实现跨系统的统一准入决策与身份画像汇聚。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="多业务系统统一身份治理：基于 OAuth2&#x2F;OIDC 的架构实践">
+<meta property="og:url" content="https://www.yzhu.name/wechat-articles/unified-identity-governance.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="基于标准 OAuth2&#x2F;OIDC 协议构建企业级身份中继架构，实现跨系统的统一准入决策与身份画像汇聚。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://www.yzhu.name/images/iam-architecture/01-architecture-overview.png">
+<meta property="og:image" content="https://www.yzhu.name/images/iam-architecture/02-federation-login-flow.png">
+<meta property="og:image" content="https://www.yzhu.name/images/iam-architecture/03-transparent-auth-flow.png">
+<meta property="article:published_time" content="2026-04-04T03:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-04T03:39:59.005Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="enterprise-architecture">
+<meta property="article:tag" content="iam">
+<meta property="article:tag" content="oauth2">
+<meta property="article:tag" content="oidc">
+<meta property="article:tag" content="sso">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.yzhu.name/images/iam-architecture/01-architecture-overview.png">
+
+<link rel="canonical" href="https://www.yzhu.name/wechat-articles/unified-identity-governance">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : false,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>多业务系统统一身份治理：基于 OAuth2/OIDC 的架构实践 | yhzhu的随手记
+</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+  
+  
+
+          <div class="content page posts-expand">
+            
+
+    
+    
+    
+    <div class="post-block" lang="zh-CN">
+      <header class="post-header">
+
+<h1 class="post-title" itemprop="name headline">多业务系统统一身份治理：基于 OAuth2/OIDC 的架构实践
+</h1>
+
+<div class="post-meta">
+    <div class="post-description">基于标准 OAuth2/OIDC 协议构建企业级身份中继架构，实现跨系统的统一准入决策与身份画像汇聚。</div>
+  
+
+</div>
+
+</header>
+
+      
+      
+      
+      <div class="post-body">
+          <p>在企业环境里，经常遇到这样的场景：OA、CRM、项目管理、财务等十几套业务系统并行运行，每个系统都有自己的用户体系、权限模型、登录方式。新员工入职时，IT 要在所有系统里逐个创建账号，设置权限；员工离职时，又要逐个停用权限；某天要调整某个应用的准入策略，却发现改动点分散在各个业务系统里。</p>
+<p><strong>这背后是三个核心问题：</strong></p>
+<ul>
+<li><strong>准入逻辑分散</strong>：各业务系统独立实现准入控制，策略变更导致多点重构</li>
+<li><strong>身份标识不一</strong>：不同服务对同一用户的标识规则（Email、Subject ID）冲突，数据难以打通</li>
+<li><strong>属性管理重复</strong>：组织架构在多处维护，缺乏单一事实来源</li>
+</ul>
+<p>成熟的身份源（Azure AD、Google、Okta）主要负责解决”这人是谁”的身份断言，但企业内部的”这人能进哪些系统、能做什么事”的准入决策，还需要一层统一的身份治理体系。</p>
+<p><strong>下面分享一个基于标准 OAuth2&#x2F;OIDC 协议的身份中继架构</strong>，在不绑定特定厂商的前提下，实现跨系统的统一准入决策与身份画像汇聚。</p>
+<span id="more"></span>
+
+<h2 id="架构核心原则"><a href="#架构核心原则" class="headerlink" title="架构核心原则"></a>架构核心原则</h2><p>先说结论：<strong>上游身份提供商（Upstream IdP）负责身份真实性，内部身份系统负责准入判定与属性分发。</strong></p>
+<p>这个职责划分很重要。如果让业务系统直接对接外部 IdP，很快就会陷入”每个系统都要实现一遍 OAuth2 客户端、每个系统都要维护自己的用户映射”的局面。反之，如果让内部身份系统试图取代 IdP 的全部职责，又会丢失外部 IdP 在 MFA、SSO、生命周期管理上的成熟能力。</p>
+<p>所以，最佳实践是在中间加一层<strong>身份中继层（Identity Relay Layer）</strong>：</p>
+<p><img src="/./images/iam-architecture/01-architecture-overview.png" alt="架构全景图"></p>
+<h2 id="两个关键交互流"><a href="#两个关键交互流" class="headerlink" title="两个关键交互流"></a>两个关键交互流</h2><h3 id="A-身份联邦登录流"><a href="#A-身份联邦登录流" class="headerlink" title="A. 身份联邦登录流"></a>A. 身份联邦登录流</h3><p>用户点击”企业账号登录”后的完整流程：</p>
+<p><img src="/./images/iam-architecture/02-federation-login-flow.png" alt="身份联邦登录流"></p>
+<p>**这里的关键点是”身份汇聚”**：无论用户来自 Google、Azure AD 还是本地邮箱密码登录，最终都映射到一个全局唯一的 <code>UID</code>，业务系统看到的一直是这个 <code>UID</code>，不关心上游身份源的变化。</p>
+<h3 id="B-透明鉴权与准入流"><a href="#B-透明鉴权与准入流" class="headerlink" title="B. 透明鉴权与准入流"></a>B. 透明鉴权与准入流</h3><p>用户已经拿到 JWT 后，每次访问业务 API 时的鉴权流程：</p>
+<p><img src="/./images/iam-architecture/03-transparent-auth-flow.png" alt="透明鉴权与准入流"></p>
+<p><strong>这四步校验解决了三个实际问题：</strong></p>
+<ol>
+<li><strong>JWT 完整性</strong>：防止 Token 被篡改</li>
+<li><strong>权限版本</strong>：管理员修改准入策略后，版本号递增，所有旧 Token 立即失效</li>
+<li><strong>SID 会话校验</strong>：支持即时撤回权限（踢人、强制下线）</li>
+<li><strong>应用级准入</strong>：在业务逻辑之前做一道统一拦截</li>
+</ol>
+<h2 id="关键设计决策"><a href="#关键设计决策" class="headerlink" title="关键设计决策"></a>关键设计决策</h2><h3 id="决策-1：准入控制-vs-业务权限的边界"><a href="#决策-1：准入控制-vs-业务权限的边界" class="headerlink" title="决策 1：准入控制 vs 业务权限的边界"></a>决策 1：准入控制 vs 业务权限的边界</h3><p>这是最容易混淆的地方。先说清楚：</p>
+<ul>
+<li><strong>准入控制（Access Control）</strong>：由身份系统决定该用户是否有权<strong>进入</strong>此应用</li>
+<li><strong>功能权限（Feature Permission）</strong>：应用内部通过 IAM 提供的属性自行判定该用户能<strong>做什么</strong></li>
+</ul>
+<p><strong>为什么这样划分？</strong></p>
+<p>如果把所有权限逻辑都放进身份系统，很快就会出现”中央身份系统过度侵入业务细节”的问题。反之，如果让业务系统自己管理准入，又会回到”每个系统都要实现一遍用户管理”的起点。</p>
+<p>所以，这里的平衡点是：<strong>身份系统作为 Attribute Provider（属性提供者），业务系统作为 Rule Definer（规则定义者）</strong>。</p>
+<h3 id="决策-2：为什么选-Spring-Authorization-Server？"><a href="#决策-2：为什么选-Spring-Authorization-Server？" class="headerlink" title="决策 2：为什么选 Spring Authorization Server？"></a>决策 2：为什么选 Spring Authorization Server？</h3><p>对比了几个方案后，最终选了 Spring Authorization Server 作为 IAS 核心：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>优势</th>
+<th>不足</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Keycloak</strong></td>
+<td>开箱即用、功能完整</td>
+<td>定制化困难，侵入性强</td>
+</tr>
+<tr>
+<td><strong>Spring Authorization Server</strong></td>
+<td>纯净的 OAuth2 实现、灵活扩展</td>
+<td>需要自己组装模块</td>
+</tr>
+<tr>
+<td><strong>Auth0&#x2F;Okta</strong></td>
+<td>SaaS 服务、运维简单</td>
+<td>绑定厂商、数据出境风险</td>
+</tr>
+</tbody></table>
+<p><strong>Spring Authorization Server 的最大优势</strong>：它的纯净 OAuth2 实现支持将任何三方 Identity Provider 抽象为”身份源”，便于插入自定义的”准入决策链”。</p>
+<h3 id="决策-3：无状态与有状态的平衡-SID-设计"><a href="#决策-3：无状态与有状态的平衡-SID-设计" class="headerlink" title="决策 3：无状态与有状态的平衡 (SID 设计)"></a>决策 3：无状态与有状态的平衡 (SID 设计)</h3><p>OAuth2 协议本身是无状态的，JWT 的 <code>exp</code> 字段决定了 Token 什么时候自然过期。但在生产环境里，还需要支持：</p>
+<ul>
+<li>用户主动退出后，旧 Token 立即失效</li>
+<li>管理员踢出某个会话</li>
+<li>密码修改后强制旧会话下线</li>
+<li>同浏览器多标签页共享一套失效状态</li>
+</ul>
+<p><strong>解决方案</strong>：在 JWT 中嵌入 Session ID (SID)，由后端 Redis 集群维护。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 签发 Token 时，把 SID 一起写入 claim</span></span><br><span class="line"><span class="keyword">const</span> sid = <span class="title function_">randomSessionId</span>();</span><br><span class="line"><span class="keyword">await</span> redis.<span class="title function_">set</span>(<span class="string">`session:sid:<span class="subst">$&#123;sid&#125;</span>`</span>, <span class="string">&quot;1&quot;</span>, &#123; <span class="attr">EX</span>: <span class="number">43200</span> &#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> accessToken = <span class="title function_">signJwt</span>(&#123;</span><br><span class="line">  <span class="attr">sub</span>: userId,</span><br><span class="line">  sid,</span><br><span class="line">  <span class="attr">exp</span>: now + <span class="number">900</span></span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 校验 Token 时，同时检查 SID 是否还存在</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">function</span> <span class="title function_">validateAccessToken</span>(<span class="params">token</span>) &#123;</span><br><span class="line">  <span class="keyword">const</span> payload = <span class="title function_">verifyJwt</span>(token);</span><br><span class="line">  <span class="keyword">const</span> exists = <span class="keyword">await</span> redis.<span class="title function_">exists</span>(<span class="string">`session:sid:<span class="subst">$&#123;payload.sid&#125;</span>`</span>);</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (!exists) &#123;</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">Error</span>(<span class="string">&quot;session revoked&quot;</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> payload;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// logout 或踢人时，删除 SID</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">function</span> <span class="title function_">revokeSession</span>(<span class="params">sid</span>) &#123;</span><br><span class="line">  <span class="keyword">await</span> redis.<span class="title function_">del</span>(<span class="string">`session:sid:<span class="subst">$&#123;sid&#125;</span>`</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>这个做法的重点不在 Redis 本身，而在于给”主动撤销”加了一个服务端抓手</strong>。只靠 JWT 的 <code>exp</code>，系统通常只能等它自然过期。</p>
+<h3 id="决策-4：权限即时生效的版本一致性"><a href="#决策-4：权限即时生效的版本一致性" class="headerlink" title="决策 4：权限即时生效的版本一致性"></a>决策 4：权限即时生效的版本一致性</h3><p>如果管理员修改了某个应用的准入策略，希望变更能”分钟级生效”，而不是等所有 Token 自然过期（可能要等几十分钟到几小时）。</p>
+<p><strong>解决方案</strong>：用户与权限的映射持有 <code>permission_version</code>，网关准入时进行版本匹配校验。</p>
+<p>流程：</p>
+<ol>
+<li>管理员修改准入策略，版本号递增 (v1 → v2)</li>
+<li>所有活跃 Token (v1) 在下次请求时，版本不匹配</li>
+<li>网关拒绝访问，前端触发重新鉴权</li>
+<li>重新鉴权后获取新 Token (v2)</li>
+</ol>
+<p>这样就能在不牺牲 JWT 无状态优势的前提下，实现权限变更的快速生效。</p>
+<h2 id="身份汇聚：UID-驱动的统一画像"><a href="#身份汇聚：UID-驱动的统一画像" class="headerlink" title="身份汇聚：UID 驱动的统一画像"></a>身份汇聚：UID 驱动的统一画像</h2><p>架构通过”身份联邦转换”将异构账户标识转换为全局唯一的 <code>UID</code>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">┌──────────────────────────────────────┐</span><br><span class="line">│            身份联邦映射关系               │</span><br><span class="line">├──────────┬─────────────┬─────────────┤</span><br><span class="line">│  UID     │ External ID │ Identity Type│</span><br><span class="line">├──────────┼─────────────┼─────────────┤</span><br><span class="line">│    100   │ aaa111bbb.. │ OIDC_SUB/OID │  ← 主力联邦身份</span><br><span class="line">│    100   │ user@domain │ EMAIL_PWD    │  ← 容灾/备用身份</span><br><span class="line">└──────────┴─────────────┴─────────────┘</span><br></pre></td></tr></table></figure>
+
+<p><strong>设计的核心在于实现 IDP-Agnostic（身份源无关）</strong>，确保上游账号的变更（如企业更名导致的 Email 域名变更）不会影响业务系统中的数据关联。</p>
+<p>举个例子：</p>
+<ul>
+<li>用户在公司 A 时期，用 <code>user@company-a.com</code> 注册，UID&#x3D;100</li>
+<li>公司收购后更名为公司 B，Email 域名变为 <code>user@company-b.com</code></li>
+<li>但在业务系统里，这个用户的所有数据仍然关联到 UID&#x3D;100</li>
+<li>无需迁移数据，只需在联邦映射表里增加一条新的映射记录</li>
+</ul>
+<h2 id="协作边界规范"><a href="#协作边界规范" class="headerlink" title="协作边界规范"></a>协作边界规范</h2><p>通过标准化协议明确身份治理系统与上游 IdP 的协作：</p>
+<table>
+<thead>
+<tr>
+<th>职责方</th>
+<th>负责的核心能力</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>上游 IdP</strong></td>
+<td>身份断言 (Assertion)、MFA&#x2F;SSO、生命周期同步 (HR 系统集成)</td>
+</tr>
+<tr>
+<td><strong>内部治理层</strong></td>
+<td>准入决策、会话一致性管理、企业画像补全、全局操作审计</td>
+</tr>
+</tbody></table>
+<p><strong>这个划分的价值</strong>：上游 IdP 专注于”这人是谁”，内部治理层专注于”这人能干什么”，职责清晰，不会互相干扰。</p>
+<h2 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h2><p>这套架构的核心价值在于：</p>
+<ol>
+<li><strong>协议中立</strong>：基于标准 OAuth2&#x2F;OIDC，不绑定特定供应商，可无缝对接 Google、Azure 或 Okta</li>
+<li><strong>治理一致</strong>：通过网关注入实现身份的全局可信分发，业务系统无需重复实现用户管理</li>
+<li><strong>管理可控</strong>：通过 SID 和版本机制，将无状态协议的灵活性与有状态管理的安全性结合</li>
+</ol>
+<p>如果你的团队也正在面对”多业务系统统一身份治理”的挑战，希望这篇实践分享能提供一些参考。</p>
+<p><strong>延伸阅读</strong>：</p>
+<ul>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc6749">RFC 6749: The OAuth 2.0 Authorization Framework</a></li>
+<li><a href="https://openid.net/specs/openid-connect-core-1_0.html">OpenID Connect Core 1.0</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc9700">RFC 9700: Best Current Practice for OAuth 2.0 Security</a></li>
+</ul>
+
+      </div>
+      
+      
+      
+    </div>
+    
+
+    
+    
+    
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9E%B6%E6%9E%84%E6%A0%B8%E5%BF%83%E5%8E%9F%E5%88%99"><span class="nav-number">1.</span> <span class="nav-text">架构核心原则</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%A4%E4%B8%AA%E5%85%B3%E9%94%AE%E4%BA%A4%E4%BA%92%E6%B5%81"><span class="nav-number">2.</span> <span class="nav-text">两个关键交互流</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#A-%E8%BA%AB%E4%BB%BD%E8%81%94%E9%82%A6%E7%99%BB%E5%BD%95%E6%B5%81"><span class="nav-number">2.1.</span> <span class="nav-text">A. 身份联邦登录流</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#B-%E9%80%8F%E6%98%8E%E9%89%B4%E6%9D%83%E4%B8%8E%E5%87%86%E5%85%A5%E6%B5%81"><span class="nav-number">2.2.</span> <span class="nav-text">B. 透明鉴权与准入流</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B3%E9%94%AE%E8%AE%BE%E8%AE%A1%E5%86%B3%E7%AD%96"><span class="nav-number">3.</span> <span class="nav-text">关键设计决策</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%B3%E7%AD%96-1%EF%BC%9A%E5%87%86%E5%85%A5%E6%8E%A7%E5%88%B6-vs-%E4%B8%9A%E5%8A%A1%E6%9D%83%E9%99%90%E7%9A%84%E8%BE%B9%E7%95%8C"><span class="nav-number">3.1.</span> <span class="nav-text">决策 1：准入控制 vs 业务权限的边界</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%B3%E7%AD%96-2%EF%BC%9A%E4%B8%BA%E4%BB%80%E4%B9%88%E9%80%89-Spring-Authorization-Server%EF%BC%9F"><span class="nav-number">3.2.</span> <span class="nav-text">决策 2：为什么选 Spring Authorization Server？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%B3%E7%AD%96-3%EF%BC%9A%E6%97%A0%E7%8A%B6%E6%80%81%E4%B8%8E%E6%9C%89%E7%8A%B6%E6%80%81%E7%9A%84%E5%B9%B3%E8%A1%A1-SID-%E8%AE%BE%E8%AE%A1"><span class="nav-number">3.3.</span> <span class="nav-text">决策 3：无状态与有状态的平衡 (SID 设计)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%B3%E7%AD%96-4%EF%BC%9A%E6%9D%83%E9%99%90%E5%8D%B3%E6%97%B6%E7%94%9F%E6%95%88%E7%9A%84%E7%89%88%E6%9C%AC%E4%B8%80%E8%87%B4%E6%80%A7"><span class="nav-number">3.4.</span> <span class="nav-text">决策 4：权限即时生效的版本一致性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BA%AB%E4%BB%BD%E6%B1%87%E8%81%9A%EF%BC%9AUID-%E9%A9%B1%E5%8A%A8%E7%9A%84%E7%BB%9F%E4%B8%80%E7%94%BB%E5%83%8F"><span class="nav-number">4.</span> <span class="nav-text">身份汇聚：UID 驱动的统一画像</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8D%8F%E4%BD%9C%E8%BE%B9%E7%95%8C%E8%A7%84%E8%8C%83"><span class="nav-number">5.</span> <span class="nav-text">协作边界规范</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%80%E5%90%8E"><span class="nav-number">6.</span> <span class="nav-text">最后</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">52</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">78</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

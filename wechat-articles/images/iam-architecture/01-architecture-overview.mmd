@@ -1,0 +1,45 @@
+graph TB
+    subgraph U["用户层"]
+        EU["企业员工"]
+        AD["系统管理员"]
+    end
+
+    subgraph A["外部身份源 (Upstream IdP)"]
+        IDP["OIDC Provider - (Azure AD, Google, Okta 等)"]
+    end
+
+    subgraph I["身份治理层 (Internal IAM)"]
+        IAS["Identity Access Service (IAS) - 准入决策引擎 + 会话管理"]
+        IMA["Identity Management API (IMA) - 读写管理后台"]
+        IDS["Identity Data Service (IDS) - 身份画像查询 (只读)"]
+        ISJ["Identity Sync Job (ISJ) - 镜像数据同步"]
+    end
+
+    subgraph G["API 网关层"]
+        GW["API Gateway - 身份透传 + 统一鉴权"]
+    end
+
+    subgraph B["业务系统层"]
+        APP1["业务系统 A"]
+        APP2["业务系统 B"]
+        APP3["业务系统 C"]
+    end
+
+    EU -->|OIDC SSO| IDP
+    EU -.->|OIDC SSO| IAS
+    IDP -->|OIDC Federation| IAS
+    AD -->|Email/Password| IAS
+
+    IAS -->|签发内部标准 JWT| GW
+    GW -->|Header 注入 X-User-Id| APP1
+    GW -->|Header 注入| APP2
+    GW -->|Header 注入| APP3
+
+    APP1 -->|查询用户画像| IDS
+    APP2 -->|查询用户画像| IDS
+    APP3 -->|查询用户画像| IDS
+
+    IMA -.->|配置分发| IAS
+    ISJ -->|增量同步| IDP
+
+
