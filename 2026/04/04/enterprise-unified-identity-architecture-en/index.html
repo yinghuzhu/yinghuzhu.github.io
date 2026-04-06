@@ -230,7 +230,7 @@
         <blockquote>
 <p><strong>🌐 Language</strong>: <strong>English Version</strong> | <a href="/2026/04/04/enterprise-unified-identity-architecture/">中文版</a></p>
 </blockquote>
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p>This article presents a production-grade identity governance architecture that bridges upstream Identity Providers (Azure AD, Google, Okta) with internal business systems through a protocol-agnostic identity relay layer. Key highlights:</p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p>This article presents a production-grade identity governance architecture that bridges upstream Identity Providers with internal business systems through a protocol-agnostic identity relay layer. Key highlights:</p>
 <ul>
 <li><strong>Clean separation of concerns</strong>: Upstream IdP handles identity assertion, internal IAM handles access control and profile distribution</li>
 <li><strong>Identity relay pattern</strong>: OIDC federation with standardized JWT issuance and gateway-based header injection</li>
@@ -254,7 +254,7 @@
     end
 
     subgraph A["External Identity Source (Upstream IdP)"]
-        IDP["OIDC Provider - (Azure AD, Google, Okta, etc.)"]
+        IDP["OIDC Provider"]
     end
 
     subgraph I["Identity Governance Layer (Internal IAM)"]
@@ -303,7 +303,7 @@
     IAS-->>GW: Unauthenticated (302 Redirect)
     GW-->>Browser: 302 → Redirect to Login Page
     Browser->>IAS: Select "Enterprise Account Login"
-    IAS-->>Browser: 302 → Redirect to Upstream IdP (Google, AAD, etc.)
+    IAS-->>Browser: 302 → Redirect to Upstream IdP
     Browser->>IdP: Submit Identity Assertion (MFA/SSO)
     IdP-->>Browser: Callback IAS (Authorization Code)
     Browser->>IAS: /oauth2/callback?code=xxxx
@@ -385,7 +385,7 @@
 <hr>
 <h2 id="6-Key-Takeaways"><a href="#6-Key-Takeaways" class="headerlink" title="6. Key Takeaways"></a>6. Key Takeaways</h2><p>This architecture aims to establish a protocol-neutral, clearly-responsible identity governance bridge:</p>
 <ol>
-<li><strong>Protocol-neutral</strong>: Based on standard protocols, not bound to specific vendors, seamlessly integrating with Google, Azure, or Okta</li>
+<li><strong>Protocol-neutral</strong>: Based on standard protocols, not bound to specific vendors, supporting any OIDC Provider</li>
 <li><strong>Consistent governance</strong>: Global trusted identity distribution through gateway injection</li>
 <li><strong>Controlled management</strong>: Combining stateless protocol flexibility with stateful management security through SID and versioning mechanisms</li>
 </ol>
@@ -415,7 +415,10 @@
     <a href="/2026/04/04/enterprise-unified-identity-architecture/" rel="prev" title="基于 OAuth2/OIDC 协议的企业级统一身份治理架构实践">
       <i class="fa fa-chevron-left"></i> 基于 OAuth2/OIDC 协议的企业级统一身份治理架构实践
     </a></div>
-      <div class="post-nav-item"></div>
+      <div class="post-nav-item">
+    <a href="/2026/04/06/why-local-auth-alongside-federation/" rel="next" title="为什么企业 IAM 在联合登录之外还需要本地密码认证">
+      为什么企业 IAM 在联合登录之外还需要本地密码认证 <i class="fa fa-chevron-right"></i>
+    </a></div>
     </div>
       </footer>
     
@@ -488,7 +491,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">52</span>
+          <span class="site-state-item-count">53</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

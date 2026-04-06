@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="探讨企业 IAM 架构中同时保留联合登录与本地密码认证的设计考量，分析容灾场景、安全成本分布与认证路径收敛的工程实践。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="为什么企业 IAM 在联合登录之外还需要本地密码认证">
+<meta property="og:url" content="https://www.yzhu.name/2026/04/06/why-local-auth-alongside-federation/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="探讨企业 IAM 架构中同时保留联合登录与本地密码认证的设计考量，分析容灾场景、安全成本分布与认证路径收敛的工程实践。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-06T02:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-06T02:00:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="enterprise-architecture">
+<meta property="article:tag" content="iam">
+<meta property="article:tag" content="identity-management">
+<meta property="article:tag" content="oauth2">
+<meta property="article:tag" content="oidc">
+<meta property="article:tag" content="sso">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2026/04/06/why-local-auth-alongside-federation/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>为什么企业 IAM 在联合登录之外还需要本地密码认证 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2026/04/06/why-local-auth-alongside-federation/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          为什么企业 IAM 在联合登录之外还需要本地密码认证
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2026-04-06 10:00:00" itemprop="dateCreated datePublished" datetime="2026-04-06T10:00:00+08:00">2026-04-06</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Security/" itemprop="url" rel="index"><span itemprop="name">Security</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">探讨企业 IAM 架构中同时保留联合登录与本地密码认证的设计考量，分析容灾场景、安全成本分布与认证路径收敛的工程实践。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在上一篇<a href="/2026/04/04/enterprise-unified-identity-architecture/">《基于 OAuth2&#x2F;OIDC 的企业级统一身份治理架构实践》</a>中，我们展示了身份映射表中同时存在联合身份（<code>OIDC_SUB</code>）和本地身份（<code>EMAIL_PWD</code>）的设计。有读者提出一个问题：既然认证已经委托给上游 IdP，为什么还要自建用户名密码登录？这是否会引入额外的安全成本？</p>
+<p>这个问题涉及认证架构中一个常被忽视的维度——<strong>认证路径的韧性设计</strong>。本文将从容灾场景、安全成本分布和架构收敛三个角度展开分析。</p>
+<hr>
+<h2 id="一、身份映射表中的主备关系"><a href="#一、身份映射表中的主备关系" class="headerlink" title="一、身份映射表中的主备关系"></a>一、身份映射表中的主备关系</h2><p>回顾上篇文章中的身份映射结构：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">┌──────────┬──────────────┬──────────────────┬──────────────────┐</span><br><span class="line">│ user_id  │  identifier  │  identity_type   │      角色         │</span><br><span class="line">├──────────┼──────────────┼──────────────────┼──────────────────┤</span><br><span class="line">│   100    │ aaa111bbb... │ OIDC_SUB         │  主力联合身份     │</span><br><span class="line">│   100    │ zhang@co.com │ EMAIL_PWD        │  容灾/备用身份    │</span><br><span class="line">└──────────┴──────────────┴──────────────────┴──────────────────┘</span><br></pre></td></tr></table></figure>
+
+<p>同一个用户绑定两种身份标识，它们在架构中的定位并非并列，而是主备关系：</p>
+<ul>
+<li><strong>OIDC_SUB</strong>：主力联合身份，承载日常 99% 的认证流量</li>
+<li><strong>EMAIL_PWD</strong>：容灾备用身份，在主力路径不可用时提供替代入口</li>
+</ul>
+<p>这种设计的核心思路是将认证路径与最终身份标识解耦——无论通过哪条路径进入，下游系统看到的始终是统一的 <code>uid</code>。</p>
+<hr>
+<h2 id="二、上游-IdP-的可用性边界"><a href="#二、上游-IdP-的可用性边界" class="headerlink" title="二、上游 IdP 的可用性边界"></a>二、上游 IdP 的可用性边界</h2><h3 id="2-1-外部服务的故障现实"><a href="#2-1-外部服务的故障现实" class="headerlink" title="2.1 外部服务的故障现实"></a>2.1 外部服务的故障现实</h3><p>任何外部 SaaS 服务都存在不可用的可能性。企业级身份提供商（Azure AD、Google Workspace、Okta 等）历史上发生过多次全球性服务中断：</p>
+<ul>
+<li><strong>2023 年 7 月</strong>：Azure AD&#x2F;Entra ID 大规模中断，影响 Microsoft 365、Teams、Power Platform 等全部依赖其认证的服务</li>
+<li><strong>2024 年 1 月</strong>：网络路由变更导致的全球性认证中断</li>
+</ul>
+<p>即使 SLA 达到 99.99%，年度计划外不可用时间仍有约 52 分钟。故障往往集中出现在工作日的业务高峰期。</p>
+<h3 id="2-2-完全依赖联合登录的风险链路"><a href="#2-2-完全依赖联合登录的风险链路" class="headerlink" title="2.2 完全依赖联合登录的风险链路"></a>2.2 完全依赖联合登录的风险链路</h3><p>当 IAM 系统 100% 依赖上游 IdP 时，故障传播路径如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">上游 IdP 服务中断</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">所有依赖联合登录的内部系统无法认证</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">运维团队需要登录管理后台进行应急处理</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">管理后台同样依赖上游 IdP 认证</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">运维人员无法进入系统执行恢复操作</span><br></pre></td></tr></table></figure>
+
+<p>这个场景与数据中心需要带外管理（Out-of-Band Management）的逻辑一致——当主网络通道失效时，需要一条完全不依赖主干网络的独立通道来恢复系统。本地密码认证在 IAM 架构中承担的就是这个角色。</p>
+<hr>
+<h2 id="三、其他需要本地认证的场景"><a href="#三、其他需要本地认证的场景" class="headerlink" title="三、其他需要本地认证的场景"></a>三、其他需要本地认证的场景</h2><h3 id="3-1-IdP-供应商迁移"><a href="#3-1-IdP-供应商迁移" class="headerlink" title="3.1 IdP 供应商迁移"></a>3.1 IdP 供应商迁移</h3><p>企业在生命周期中可能经历身份提供商的切换：从 Okta 迁移到 Entra ID、从 Entra ID 迁移到 Google Workspace、从一个 OIDC Provider 切换到另一个等。迁移过渡期的状态通常为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">旧 IdP —— 正在停用，部分用户已迁出</span><br><span class="line">新 IdP —— 正在启用，部分用户尚未迁入</span><br><span class="line"></span><br><span class="line">过渡期内，两边的联合身份都可能存在不确定性</span><br></pre></td></tr></table></figure>
+
+<p>本地凭证在此阶段提供稳定的认证手段。</p>
+<h3 id="3-2-系统初始部署"><a href="#3-2-系统初始部署" class="headerlink" title="3.2 系统初始部署"></a>3.2 系统初始部署</h3><p>IAM 系统自身就是认证基础设施。在系统初始部署阶段，上游 IdP 的集成尚未完成配置，首个超级管理员需要一个不依赖任何外部服务的入口来完成系统初始化。这是系统的自举（bootstrap）问题。</p>
+<h3 id="3-3-邮箱域名变更与账号锁定"><a href="#3-3-邮箱域名变更与账号锁定" class="headerlink" title="3.3 邮箱域名变更与账号锁定"></a>3.3 邮箱域名变更与账号锁定</h3><p>公司并购、品牌重塑导致的邮箱域名变更，或上游 IdP 智能锁定机制触发的账号冻结，都可能使联合身份暂时不可用。对于需要执行紧急操作的系统管理员，独立的本地凭证提供了一条不受上游状态影响的通道。</p>
+<hr>
+<h2 id="四、安全成本的实际分布"><a href="#四、安全成本的实际分布" class="headerlink" title="四、安全成本的实际分布"></a>四、安全成本的实际分布</h2><h3 id="4-1-用户规模决定安全投入量级"><a href="#4-1-用户规模决定安全投入量级" class="headerlink" title="4.1 用户规模决定安全投入量级"></a>4.1 用户规模决定安全投入量级</h3><p>读者担心的逻辑链条是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">自建密码登录 → 需要自行管理密码安全 → MFA、暴力破解防护、泄露检测……</span><br><span class="line">→ 安全成本显著增加</span><br></pre></td></tr></table></figure>
+
+<p>这个推导的前提假设是本地密码登录与联合登录面向相同的用户规模。在实际架构中，两个认证路径面向的用户群体存在显著差异：</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>联合登录（上游 IdP）</th>
+<th>本地密码登录</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>用户规模</td>
+<td>全员（数百至上千人）</td>
+<td>超级管理员（个位数）</td>
+</tr>
+<tr>
+<td>攻击面</td>
+<td>所有可访问公司网络的人员</td>
+<td>已知身份的内部管理员</td>
+</tr>
+<tr>
+<td>所需安全深度</td>
+<td>MFA + 条件访问 + 风险评估 + 泄露检测</td>
+<td>密码复杂度 + BCrypt + 失败锁定 + HTTPS</td>
+</tr>
+<tr>
+<td>安全投入承担方</td>
+<td>上游 IdP</td>
+<td>本地系统</td>
+</tr>
+</tbody></table>
+<h3 id="4-2-安全面的收窄效应"><a href="#4-2-安全面的收窄效应" class="headerlink" title="4.2 安全面的收窄效应"></a>4.2 安全面的收窄效应</h3><p>引入联合登录后，安全成本的实际变化是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">引入前：</span><br><span class="line">  全员密码安全 = 密码策略 + MFA + 暴力破解防护 + 泄露检测 + SSO</span><br><span class="line"></span><br><span class="line">引入后：</span><br><span class="line">  全员 → 安全成本转移至上游 IdP</span><br><span class="line">  个位数管理员 → 本地承担有限范围的密码安全</span><br></pre></td></tr></table></figure>
+
+<p>安全面从全员收窄至少数管理员，整体安全投入是下降的。</p>
+<h3 id="4-3-本地密码登录的最小安全清单"><a href="#4-3-本地密码登录的最小安全清单" class="headerlink" title="4.3 本地密码登录的最小安全清单"></a>4.3 本地密码登录的最小安全清单</h3><p>面向个位数管理员的场景，最小必要安全措施如下：</p>
+<table>
+<thead>
+<tr>
+<th>措施</th>
+<th>实现成本</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>密码复杂度策略</td>
+<td>低</td>
+<td>长度、字符类型要求</td>
+</tr>
+<tr>
+<td>BCrypt 加密存储</td>
+<td>低</td>
+<td>Spring Security 默认支持，strength&#x3D;10</td>
+</tr>
+<tr>
+<td>失败次数锁定</td>
+<td>低</td>
+<td>N 次失败后锁定 M 分钟</td>
+</tr>
+<tr>
+<td>强制 HTTPS</td>
+<td>零</td>
+<td>网关层统一处理</td>
+</tr>
+<tr>
+<td>登录审计日志</td>
+<td>低</td>
+<td>记录时间、IP、结果</td>
+</tr>
+<tr>
+<td>权限即时撤销</td>
+<td>低</td>
+<td>permission_version 机制</td>
+</tr>
+</tbody></table>
+<p>对于 5 个已知身份的管理员，上述 6 项措施已足够。面向数百人的场景则需要更完整的策略体系——这正是将主力认证交给上游 IdP 的原因。</p>
+<hr>
+<h2 id="五、认证路径的最终收敛"><a href="#五、认证路径的最终收敛" class="headerlink" title="五、认证路径的最终收敛"></a>五、认证路径的最终收敛</h2><p>架构设计的核心意图在于认证路径的收敛：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">OIDC 联合登录 → auth_identity 匹配 OIDC_SUB  → user_id = 100 → JWT uid = 100</span><br><span class="line">本地密码登录  → auth_identity 匹配 EMAIL_PWD → user_id = 100 → JWT uid = 100</span><br></pre></td></tr></table></figure>
+
+<p>两条路径、两种身份标识、同一个用户。下游业务系统看到的始终是统一的 <code>uid</code>，无需感知用户的认证入口。</p>
+<pre class="mermaid">graph LR
+    A[OIDC 联合登录] --> C[auth_identity 匹配]
+    B[本地密码登录] --> C
+    C --> D[user_id = 100]
+    D --> E[签发 JWT uid=100]
+    E --> F[下游系统 A]
+    E --> G[下游系统 B]
+    E --> H[下游系统 C]</pre>
+
+<p>这种设计使认证入口的选择成为架构层面的韧性决策，而非下游系统需要处理的业务逻辑。</p>
+<hr>
+<h2 id="六、小结"><a href="#六、小结" class="headerlink" title="六、小结"></a>六、小结</h2><table>
+<thead>
+<tr>
+<th>关注点</th>
+<th>架构考量</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>重复建设</td>
+<td>联合登录与本地认证是主备关系，非功能重复</td>
+</tr>
+<tr>
+<td>安全成本</td>
+<td>安全面从全员收窄至个位数管理员，整体投入下降</td>
+</tr>
+<tr>
+<td>上游可用性</td>
+<td>任何外部服务都存在不可用场景，需要独立逃生通道</td>
+</tr>
+<tr>
+<td>架构收敛</td>
+<td>多认证路径最终统一至同一 uid，下游系统无感知</td>
+</tr>
+</tbody></table>
+<p>在统一身份治理架构中，本地密码认证作为容灾兜底机制存在，安全成本在可控范围内。将主力认证流量委托给上游 IdP，同时保留极小范围的本地认证能力，是认证架构韧性设计的工程取舍。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/iam/" rel="tag"># iam</a>
+              <a href="/tags/oauth2/" rel="tag"># oauth2</a>
+              <a href="/tags/oidc/" rel="tag"># oidc</a>
+              <a href="/tags/identity-management/" rel="tag"># identity-management</a>
+              <a href="/tags/enterprise-architecture/" rel="tag"># enterprise-architecture</a>
+              <a href="/tags/sso/" rel="tag"># sso</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2026/04/04/enterprise-unified-identity-architecture-en/" rel="prev" title="Enterprise Unified Identity Governance Architecture with OAuth2/OIDC">
+      <i class="fa fa-chevron-left"></i> Enterprise Unified Identity Governance Architecture with OAuth2/OIDC
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%80%E3%80%81%E8%BA%AB%E4%BB%BD%E6%98%A0%E5%B0%84%E8%A1%A8%E4%B8%AD%E7%9A%84%E4%B8%BB%E5%A4%87%E5%85%B3%E7%B3%BB"><span class="nav-number">1.</span> <span class="nav-text">一、身份映射表中的主备关系</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%8C%E3%80%81%E4%B8%8A%E6%B8%B8-IdP-%E7%9A%84%E5%8F%AF%E7%94%A8%E6%80%A7%E8%BE%B9%E7%95%8C"><span class="nav-number">2.</span> <span class="nav-text">二、上游 IdP 的可用性边界</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-%E5%A4%96%E9%83%A8%E6%9C%8D%E5%8A%A1%E7%9A%84%E6%95%85%E9%9A%9C%E7%8E%B0%E5%AE%9E"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 外部服务的故障现实</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-%E5%AE%8C%E5%85%A8%E4%BE%9D%E8%B5%96%E8%81%94%E5%90%88%E7%99%BB%E5%BD%95%E7%9A%84%E9%A3%8E%E9%99%A9%E9%93%BE%E8%B7%AF"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 完全依赖联合登录的风险链路</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%89%E3%80%81%E5%85%B6%E4%BB%96%E9%9C%80%E8%A6%81%E6%9C%AC%E5%9C%B0%E8%AE%A4%E8%AF%81%E7%9A%84%E5%9C%BA%E6%99%AF"><span class="nav-number">3.</span> <span class="nav-text">三、其他需要本地认证的场景</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-IdP-%E4%BE%9B%E5%BA%94%E5%95%86%E8%BF%81%E7%A7%BB"><span class="nav-number">3.1.</span> <span class="nav-text">3.1 IdP 供应商迁移</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-%E7%B3%BB%E7%BB%9F%E5%88%9D%E5%A7%8B%E9%83%A8%E7%BD%B2"><span class="nav-number">3.2.</span> <span class="nav-text">3.2 系统初始部署</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-%E9%82%AE%E7%AE%B1%E5%9F%9F%E5%90%8D%E5%8F%98%E6%9B%B4%E4%B8%8E%E8%B4%A6%E5%8F%B7%E9%94%81%E5%AE%9A"><span class="nav-number">3.3.</span> <span class="nav-text">3.3 邮箱域名变更与账号锁定</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9B%9B%E3%80%81%E5%AE%89%E5%85%A8%E6%88%90%E6%9C%AC%E7%9A%84%E5%AE%9E%E9%99%85%E5%88%86%E5%B8%83"><span class="nav-number">4.</span> <span class="nav-text">四、安全成本的实际分布</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-%E7%94%A8%E6%88%B7%E8%A7%84%E6%A8%A1%E5%86%B3%E5%AE%9A%E5%AE%89%E5%85%A8%E6%8A%95%E5%85%A5%E9%87%8F%E7%BA%A7"><span class="nav-number">4.1.</span> <span class="nav-text">4.1 用户规模决定安全投入量级</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-%E5%AE%89%E5%85%A8%E9%9D%A2%E7%9A%84%E6%94%B6%E7%AA%84%E6%95%88%E5%BA%94"><span class="nav-number">4.2.</span> <span class="nav-text">4.2 安全面的收窄效应</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-%E6%9C%AC%E5%9C%B0%E5%AF%86%E7%A0%81%E7%99%BB%E5%BD%95%E7%9A%84%E6%9C%80%E5%B0%8F%E5%AE%89%E5%85%A8%E6%B8%85%E5%8D%95"><span class="nav-number">4.3.</span> <span class="nav-text">4.3 本地密码登录的最小安全清单</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%94%E3%80%81%E8%AE%A4%E8%AF%81%E8%B7%AF%E5%BE%84%E7%9A%84%E6%9C%80%E7%BB%88%E6%94%B6%E6%95%9B"><span class="nav-number">5.</span> <span class="nav-text">五、认证路径的最终收敛</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%AD%E3%80%81%E5%B0%8F%E7%BB%93"><span class="nav-number">6.</span> <span class="nav-text">六、小结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">53</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">78</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

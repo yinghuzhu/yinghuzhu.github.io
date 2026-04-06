@@ -246,7 +246,7 @@
     end
 
     subgraph A["外部身份源 (Upstream IdP)"]
-        IDP["OIDC Provider - (Azure AD, Google, Okta 等)"]
+        IDP["OIDC Provider"]
     end
 
     subgraph I["身份治理层 (Internal IAM)"]
@@ -295,7 +295,7 @@
     IAS-->>GW: 未认证 (302 Redirect)
     GW-->>Browser: 302 → 进入登录页
     Browser->>IAS: 选择 "企业账号登录"
-    IAS-->>Browser: 302 → 跳转至上游 IdP (Google, AAD 等)
+    IAS-->>Browser: 302 → 跳转至上游 IdP
     Browser->>IdP: 提交身份断言 (MFA/SSO)
     IdP-->>Browser: 回调 IAS (Authorization Code)
     Browser->>IAS: /oauth2/callback?code=xxxx
@@ -377,7 +377,7 @@
 <hr>
 <h2 id="6-实践小结"><a href="#6-实践小结" class="headerlink" title="6. 实践小结"></a>6. 实践小结</h2><p>本架构旨在建立一套协议中立、职责清晰的身份治理桥梁：</p>
 <ol>
-<li><strong>协议中立</strong>：基于标准协议，不绑定特定供应商，可无缝对接 Google、Azure 或 Okta。</li>
+<li><strong>协议中立</strong>：基于标准协议，不绑定特定供应商，可对接任意 OIDC Provider。</li>
 <li><strong>治理一致</strong>：通过网关注入实现身份的全局可信分发。</li>
 <li><strong>管理可控</strong>：通过 SID 和版本机制，将无状态协议的灵活性与有状态管理的安全性结合。</li>
 </ol>
@@ -404,8 +404,8 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2026/03/17/oauth2-oidc-session-timeout-boundaries-en/" rel="prev" title="OAuth2/OIDC Session Timeout Boundaries: Frontend Tokens, Refresh Tokens, and SSO Sessions">
-      <i class="fa fa-chevron-left"></i> OAuth2/OIDC Session Timeout Boundaries: Frontend Tokens, Refresh Tokens, and SSO Sessions
+    <a href="/2026/03/17/oauth2-oidc-session-timeout-boundaries/" rel="prev" title="OAuth2/OIDC 会话超时的边界：前端 Token、Refresh Token 与 SSO Session">
+      <i class="fa fa-chevron-left"></i> OAuth2/OIDC 会话超时的边界：前端 Token、Refresh Token 与 SSO Session
     </a></div>
       <div class="post-nav-item">
     <a href="/2026/04/04/enterprise-unified-identity-architecture-en/" rel="next" title="Enterprise Unified Identity Governance Architecture with OAuth2/OIDC">
@@ -483,7 +483,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">52</span>
+          <span class="site-state-item-count">53</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

@@ -9,7 +9,7 @@ sequenceDiagram
     IAS-->>GW: 未认证 (302 Redirect)
     GW-->>Browser: 302 → 进入登录页
     Browser->>IAS: 选择 "企业账号登录"
-    IAS-->>Browser: 302 → 跳转至上游 IdP (Google, AAD 等)
+    IAS-->>Browser: 302 → 跳转至上游 IdP
     Browser->>IdP: 提交身份断言 (MFA/SSO)
     IdP-->>Browser: 回调 IAS (Authorization Code)
     Browser->>IAS: /oauth2/callback?code=xxxx
