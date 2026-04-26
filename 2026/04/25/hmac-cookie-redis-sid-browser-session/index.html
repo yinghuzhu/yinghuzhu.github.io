@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="在 OAuth2&#x2F;JWT 体系下，用 HMAC 签名 Cookie + Redis SID 双层结构管理浏览器会话，把浏览器登录态、令牌生命周期和撤销信号放到同一套治理模型里。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="HMAC Cookie + Redis SID 双层会话：OAuth2&#x2F;JWT 体系下的浏览器会话治理">
+<meta property="og:url" content="https://www.yzhu.name/2026/04/25/hmac-cookie-redis-sid-browser-session/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="在 OAuth2&#x2F;JWT 体系下，用 HMAC 签名 Cookie + Redis SID 双层结构管理浏览器会话，把浏览器登录态、令牌生命周期和撤销信号放到同一套治理模型里。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-04-25T14:30:17.000Z">
+<meta property="article:modified_time" content="2026-04-25T16:00:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="cookie">
+<meta property="article:tag" content="iam">
+<meta property="article:tag" content="jwt">
+<meta property="article:tag" content="oauth2">
+<meta property="article:tag" content="redis">
+<meta property="article:tag" content="session">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2026/04/25/hmac-cookie-redis-sid-browser-session/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>HMAC Cookie + Redis SID 双层会话：OAuth2/JWT 体系下的浏览器会话治理 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2026/04/25/hmac-cookie-redis-sid-browser-session/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          HMAC Cookie + Redis SID 双层会话：OAuth2/JWT 体系下的浏览器会话治理
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2026-04-25 22:30:17" itemprop="dateCreated datePublished" datetime="2026-04-25T22:30:17+08:00">2026-04-25</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Security/" itemprop="url" rel="index"><span itemprop="name">Security</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">在 OAuth2/JWT 体系下，用 HMAC 签名 Cookie + Redis SID 双层结构管理浏览器会话，把浏览器登录态、令牌生命周期和撤销信号放到同一套治理模型里。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在一套基于 OAuth2&#x2F;OIDC 的 IAM 系统中，网关用 JWT 做 API 请求的准入控制。协议链路跑通之后，浏览器端的会话管理会变成一个独立的工程问题：JWT 发出后天然偏无状态，权限变更、主动登出、会话追踪都需要额外的治理手段。</p>
+<p>这篇文章记录一种 HMAC 签名 Cookie + Redis SID 的双层会话设计。浏览器登录态和上层 JWT 共享同一个 Session ID，让浏览器会话、API 令牌和撤销信号进入同一套生命周期模型。</p>
+<span id="more"></span>
+
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p>这篇文章记录一个浏览器会话治理方案，默认读者熟悉 OAuth2&#x2F;JWT 的基本概念，重点放在架构取舍和关键设计决策。</p>
+<p>核心思路：</p>
+<ul>
+<li>浏览器用 HMAC 签名 Cookie 承载会话标识，无状态、防篡改</li>
+<li>Redis 中存储 Session ID（SID），有状态、可撤销</li>
+<li>SID 从浏览器 Cookie 流入 JWT，撤销某个 SID 即可让该浏览器会话及其派生令牌失效</li>
+<li>双撤销信号：安全戳处理密码修改等账户级事件，权限版本号处理角色变更</li>
+</ul>
+<h2 id="JWT-在浏览器端的治理短板"><a href="#JWT-在浏览器端的治理短板" class="headerlink" title="JWT 在浏览器端的治理短板"></a>JWT 在浏览器端的治理短板</h2><p>网关对 API 请求做 JWT 校验，在协议层面没有问题。但系统需要以下能力时，纯 JWT 的无状态特性会带来额外治理成本：</p>
+<ul>
+<li><strong>会话撤销</strong>：管理员禁用用户后，已签发的 JWT 在过期前仍然有效</li>
+<li><strong>主动登出</strong>：前端清空 token 存储，但 JWT 本身不会失效，被截获仍可使用</li>
+<li><strong>权限变更生效</strong>：修改用户角色后，旧 JWT 中的权限信息仍然在使用</li>
+<li><strong>会话追踪</strong>：无法统计活跃会话数量，也无法踢出指定会话</li>
+</ul>
+<p>这些问题的根源不是 JWT 错了，而是它本来就更适合无状态校验。需要撤销、踢出指定会话、追踪活跃会话时，需要在 JWT 之外补一层有状态的会话信号。</p>
+<h2 id="为什么不直接用传统-Session"><a href="#为什么不直接用传统-Session" class="headerlink" title="为什么不直接用传统 Session"></a>为什么不直接用传统 Session</h2><p>传统服务端 Session 可以解决上述问题，但有两个顾虑：</p>
+<ol>
+<li><strong>每次请求都查存储</strong>：浏览器端的页面请求频率比 API 请求高，每个静态资源请求都触发一次 Session 查询，存储压力不理想</li>
+<li><strong>与 OAuth2 流程的集成</strong>：系统已经有完整的 OAuth2 授权码流程和 JWT 签发机制，需要的是一个与现有体系平行的浏览器会话层，而不是替换它</li>
+</ol>
+<p>设计目标：<strong>在 JWT 体系之外，加一层轻量的浏览器会话管理，支持撤销和会话追踪，同时控制每次请求的额外开销。</strong></p>
+<h2 id="双层架构"><a href="#双层架构" class="headerlink" title="双层架构"></a>双层架构</h2><p>整体结构分三层校验：</p>
+<pre class="mermaid">flowchart LR
+    subgraph Browser["浏览器"]
+        Cookie["签名 Cookie\n(HMAC-SHA256)"]
+    end
+
+    subgraph Server["服务端"]
+        Redis["Redis\nsession:sid:{sid}"]
+        DB["数据库\nuser.security_stamp"]
+    end
+
+    Cookie -->|"① HMAC 验签 + exp 检查"| Redis
+    Redis -->|"② SID 存活 + 滑动续期"| DB
+    DB -->|"③ security_stamp 匹配"| Cookie</pre>
+
+<p><strong>第一层：HMAC 签名 Cookie</strong>——无状态、防篡改、可独立验证过期。Cookie 中包含用户标识、Session ID、安全戳和过期时间，整段 payload 经过 HMAC-SHA256 签名。</p>
+<p><strong>第二层：Redis SID</strong>——有状态、可撤销、滑动续期。登录时生成随机 Session ID，存入 Redis 并设置 TTL。每次验证通过后重置 TTL，活跃用户不会因超时掉线。</p>
+<p><strong>第三层：数据库安全戳</strong>——账户级安全信号。每个用户有一个安全戳字段，密码修改、账户禁用等安全事件会更新这个值。验证时比对 Cookie 中的戳和数据库当前值，不匹配则不恢复认证状态。</p>
+<p>三层中任何一层失败，都不能恢复有效认证状态。服务端可以在可判定为失效的场景下清除 Cookie，并按未认证处理。</p>
+<h2 id="Cookie-层的设计"><a href="#Cookie-层的设计" class="headerlink" title="Cookie 层的设计"></a>Cookie 层的设计</h2><h3 id="Cookie-格式"><a href="#Cookie-格式" class="headerlink" title="Cookie 格式"></a>Cookie 格式</h3><p>所有信息编码到一个 Cookie 中，格式为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">base64url(JSON payload) . base64url(HMAC-SHA256(payload))</span><br></pre></td></tr></table></figure>
+
+<p>点号分隔，前半部分是 payload 的 base64url 编码，后半部分是对前半部分的 HMAC-SHA256 签名。结构和 JWT 类似，但签名用对称的 HMAC 而非 RSA，验证更快，密钥管理也更简单。</p>
+<h3 id="Payload-内容"><a href="#Payload-内容" class="headerlink" title="Payload 内容"></a>Payload 内容</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;uid&quot;</span><span class="punctuation">:</span> <span class="number">100</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;email&quot;</span><span class="punctuation">:</span> <span class="string">&quot;user@example.com&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;display_name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;张三&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;sid&quot;</span><span class="punctuation">:</span> <span class="string">&quot;a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;idp&quot;</span><span class="punctuation">:</span> <span class="string">&quot;EMAIL&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;security_stamp&quot;</span><span class="punctuation">:</span> <span class="string">&quot;abc123def456&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;exp&quot;</span><span class="punctuation">:</span> <span class="number">1745577600</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>uid</code></td>
+<td>本地用户 ID</td>
+</tr>
+<tr>
+<td><code>sid</code></td>
+<td>Session ID，关联 Redis 中的会话记录</td>
+</tr>
+<tr>
+<td><code>security_stamp</code></td>
+<td>安全戳，与数据库当前值比对</td>
+</tr>
+<tr>
+<td><code>exp</code></td>
+<td>过期时间（epoch seconds），默认 12 小时</td>
+</tr>
+<tr>
+<td><code>idp</code></td>
+<td>身份提供商标识</td>
+</tr>
+<tr>
+<td><code>email</code> &#x2F; <code>display_name</code></td>
+<td>用户基本信息</td>
+</tr>
+</tbody></table>
+<p>把 <code>security_stamp</code> 放在 Cookie 中是一个关键设计：每次校验不只验证签名，还要确认账户安全状态没有变化。</p>
+<h3 id="签名与验签"><a href="#签名与验签" class="headerlink" title="签名与验签"></a>签名与验签</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 签发：对 payload 做 HMAC-SHA256</span></span><br><span class="line"><span class="type">Mac</span> <span class="variable">mac</span> <span class="operator">=</span> Mac.getInstance(<span class="string">&quot;HmacSHA256&quot;</span>);</span><br><span class="line">mac.init(<span class="keyword">new</span> <span class="title class_">SecretKeySpec</span>(secretKey, <span class="string">&quot;HmacSHA256&quot;</span>));</span><br><span class="line"><span class="type">byte</span>[] signature = mac.doFinal(encodedPayload.getBytes(UTF_8));</span><br><span class="line"><span class="type">String</span> <span class="variable">cookieValue</span> <span class="operator">=</span> base64url(encodedPayload) + <span class="string">&quot;.&quot;</span> + base64url(signature);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 验签：重算签名，常量时间比对</span></span><br><span class="line"><span class="type">byte</span>[] expected = mac.doFinal(receivedPayload.getBytes(UTF_8));</span><br><span class="line"><span class="type">byte</span>[] actual = base64urlDecode(receivedSignature);</span><br><span class="line"><span class="keyword">if</span> (!MessageDigest.isEqual(expected, actual)) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;  <span class="comment">// 签名不匹配</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>签名比对用 <code>MessageDigest.isEqual()</code> 而不是 <code>Arrays.equals()</code>。前者是常量时间比较，防止通过响应耗时逐字节猜测签名内容（timing attack）。这个攻击面容易被忽略。</p>
+<h3 id="Cookie-属性"><a href="#Cookie-属性" class="headerlink" title="Cookie 属性"></a>Cookie 属性</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">ResponseCookie</span> <span class="variable">cookie</span> <span class="operator">=</span> ResponseCookie.from(cookieName, value)</span><br><span class="line">    .httpOnly(<span class="literal">true</span>)</span><br><span class="line">    .secure(request.isSecure())  <span class="comment">// 动态判断，依赖 X-Forwarded-Proto</span></span><br><span class="line">    .sameSite(<span class="string">&quot;Lax&quot;</span>)</span><br><span class="line">    .path(<span class="string">&quot;/&quot;</span>)</span><br><span class="line">    .maxAge(Duration.ofSeconds(<span class="number">43200</span>))</span><br><span class="line">    .build();</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>HttpOnly</code>：JavaScript 无法读取，降低 XSS 窃取风险</li>
+<li><code>Secure</code>：仅 HTTPS 传输。用 <code>request.isSecure()</code> 动态判断，因为服务在 TLS 终止代理之后，需要一个高优先级 Filter 从 <code>X-Forwarded-Proto</code> 重写 <code>isSecure()</code> 的返回值</li>
+<li><code>SameSite=Lax</code>：允许顶级导航携带，阻止跨站 POST，安全性和可用性的折中</li>
+</ul>
+<h2 id="Redis-SID-层的设计"><a href="#Redis-SID-层的设计" class="headerlink" title="Redis SID 层的设计"></a>Redis SID 层的设计</h2><h3 id="Session-ID-生成"><a href="#Session-ID-生成" class="headerlink" title="Session ID 生成"></a>Session ID 生成</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">byte</span>[] bytes = <span class="keyword">new</span> <span class="title class_">byte</span>[<span class="number">16</span>];</span><br><span class="line">SecureRandom.getInstanceStrong().nextBytes(bytes);</span><br><span class="line"><span class="type">String</span> <span class="variable">sid</span> <span class="operator">=</span> HexFormat.of().formatHex(bytes);  <span class="comment">// 32 字符 hex</span></span><br></pre></td></tr></table></figure>
+
+<p>16 字节随机数提供 128 bit 熵，碰撞概率可忽略。</p>
+<h3 id="Redis-存储"><a href="#Redis-存储" class="headerlink" title="Redis 存储"></a>Redis 存储</h3><p>Redis 中的存储非常精简，只存必要的用户标识。下面的 key 仅为示意，实际项目可以按自己的命名规范增加前缀和隔离维度：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Key:   session:sid:&#123;sid&#125;</span><br><span class="line">Value: &#123;&quot;uid&quot;: 100&#125;</span><br><span class="line">TTL:   43200 秒（12 小时，可配置）</span><br></pre></td></tr></table></figure>
+
+<p>Session 的完整上下文没有存在 Redis 中，而是分散在 Cookie（用户基本信息）和数据库（权限、安全戳）中。Redis SID 层的唯一职责是<strong>标记 Session 是否仍然有效</strong>和<strong>滑动续期</strong>。</p>
+<p>不做”胖 Session”的原因：</p>
+<ul>
+<li>权限数据量大（可能有上百条授权记录），序列化开销和维护复杂度都不低</li>
+<li>权限变更时只需更新数据库中的版本号，不需要同步更新所有 Session</li>
+<li>Cookie 已经携带了用户基本信息，Redis 不需要重复存储</li>
+</ul>
+<h3 id="滑动续期"><a href="#滑动续期" class="headerlink" title="滑动续期"></a>滑动续期</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">isSidActive</span><span class="params">(String sid)</span> &#123;</span><br><span class="line">    <span class="type">Boolean</span> <span class="variable">exists</span> <span class="operator">=</span> redis.hasKey(key(sid));</span><br><span class="line">    <span class="keyword">if</span> (Boolean.TRUE.equals(exists)) &#123;</span><br><span class="line">        redis.expire(key(sid), ttlSeconds, TimeUnit.SECONDS);  <span class="comment">// 重置 TTL</span></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>每次验证 SID 时同时重置 TTL。活跃用户不会因超时掉线。</p>
+<p>这里存在双过期机制：</p>
+<ul>
+<li>Cookie 内嵌的 <code>exp</code> 是硬性上限（12 小时），签名后不可更改</li>
+<li>Redis SID 的 TTL 是弹性窗口，每次验证都重置</li>
+</ul>
+<p>实际效果：<strong>Cookie <code>exp</code> 控制硬性上限，Redis TTL 控制活跃窗口。是否允许更长的滑动会话，要看业务对安全和体验的取舍。</strong></p>
+<h2 id="三层校验流程"><a href="#三层校验流程" class="headerlink" title="三层校验流程"></a>三层校验流程</h2><p>浏览器请求恢复登录态时经过三层校验：</p>
+<pre class="mermaid">flowchart TD
+    A["请求到达"] --> B{"解析签名 Cookie"}
+    B -->|"不存在"| Z["未认证"]
+    B -->|"存在"| C{"HMAC 验签"}
+    C -->|"不匹配"| Z
+    C -->|"通过"| D{"检查 exp"}
+    D -->|"已过期"| Z
+    D -->|"未过期"| E{"Redis SID 存活?"}
+    E -->|"不存在"| Z
+    E -->|"存在 + 续期"| F{"DB 安全戳匹配?"}
+    F -->|"不匹配"| Z
+    F -->|"匹配"| G["认证通过"]
+
+    Z --> H["未认证 / 可清除 Cookie"]</pre>
+
+<p>对应的核心校验方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> SessionClaims <span class="title function_">resolveActiveClaims</span><span class="params">(Request request, Response response)</span> &#123;</span><br><span class="line">    <span class="comment">// ① 解析 Cookie + HMAC 验签 + 检查 exp</span></span><br><span class="line">    <span class="type">SessionClaims</span> <span class="variable">claims</span> <span class="operator">=</span> decodeAndVerifyCookie(request);</span><br><span class="line">    <span class="keyword">if</span> (claims == <span class="literal">null</span> || claims.sid() == <span class="literal">null</span> || claims.securityStamp() == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ② Redis SID 存活检查 + 滑动续期</span></span><br><span class="line">    <span class="keyword">if</span> (sessionStore.isSidActive(claims.sid())) &#123;</span><br><span class="line">        <span class="comment">// ③ DB 用户状态 + 安全戳匹配</span></span><br><span class="line">        <span class="type">User</span> <span class="variable">user</span> <span class="operator">=</span> userRepo.findActiveById(claims.userId());</span><br><span class="line">        <span class="keyword">if</span> (user != <span class="literal">null</span> &amp;&amp; claims.securityStamp().equals(user.getSecurityStamp())) &#123;</span><br><span class="line">            <span class="keyword">return</span> claims;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 任何一层失败，都不能恢复有效认证状态</span></span><br><span class="line">    clearCookie(request, response);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>三层各有侧重：</p>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>检查内容</th>
+<th>防御的威胁</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>HMAC 签名</td>
+<td>Cookie 是否被篡改</td>
+<td>伪造 SID 或 exp</td>
+</tr>
+<tr>
+<td>Redis SID</td>
+<td>Session 是否仍然有效</td>
+<td>登出、被踢、过期</td>
+</tr>
+<tr>
+<td>DB 安全戳</td>
+<td>账户安全状态是否变化</td>
+<td>密码修改、账户被禁用</td>
+</tr>
+</tbody></table>
+<p>任何一层失败都不能恢复有效认证状态。对已经能判定为失效的场景，服务端可以顺手清除 Cookie；对格式错误、签名错误等输入，直接按未认证处理即可。关键点是不做“只验 Cookie、跳过 SID”的降级。</p>
+<h2 id="SID-的生命周期传播"><a href="#SID-的生命周期传播" class="headerlink" title="SID 的生命周期传播"></a>SID 的生命周期传播</h2><p>这个方案的核心设计：<strong>浏览器端的 SID 不是孤立的，它会传播到 JWT 中，让浏览器会话和 API 令牌使用同一个撤销信号。</strong></p>
+<pre class="mermaid">sequenceDiagram
+    participant B as 浏览器
+    participant Auth as 认证服务
+    participant Redis as Redis
+    participant GW as API 网关
+
+    B->>Auth: 登录（密码 / 联合登录）
+    Auth->>Redis: 创建 SID
+    Auth-->>B: Set-Cookie: 签名 Cookie（含 sid）
+
+    B->>Auth: OAuth2 授权请求（带 Cookie）
+    Auth->>Auth: 从 Cookie 提取 sid
+    Auth->>Auth: 将 sid 附加到 OAuth2 Authorization
+    Auth->>Auth: 签发 JWT（写入 sid + 安全戳 + 权限版本号）
+    Auth-->>B: 返回 JWT
+
+    B->>GW: API 请求（Bearer JWT）
+    GW->>Auth: 鉴权回调
+    Auth->>Auth: 解码 JWT，提取 sid
+    Auth->>Redis: 检查 SID 存活
+    Auth->>Auth: 策略决策
+    Auth-->>GW: 200 + 用户头信息
+    GW-->>B: 业务响应</pre>
+
+<p>传播过程涉及三个环节：</p>
+<h3 id="1-登录时创建-SID"><a href="#1-登录时创建-SID" class="headerlink" title="1. 登录时创建 SID"></a>1. 登录时创建 SID</h3><p>无论密码登录还是联合登录，成功后统一创建 SID：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">String</span> <span class="variable">sid</span> <span class="operator">=</span> sessionStore.createAndActivate(userId);</span><br><span class="line">cookieService.writeSignedCookie(request, response, auth, sid, userId);</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-SID-流入-OAuth2-授权"><a href="#2-SID-流入-OAuth2-授权" class="headerlink" title="2. SID 流入 OAuth2 授权"></a>2. SID 流入 OAuth2 授权</h3><p>浏览器带着 Cookie 发起 OAuth2 授权请求时，一个装饰器从 Cookie 提取 SID 并附加到 Authorization 对象：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// OAuth2AuthorizationService 的装饰器</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">save</span><span class="params">(OAuth2Authorization authorization)</span> &#123;</span><br><span class="line">    <span class="type">String</span> <span class="variable">sid</span> <span class="operator">=</span> authorization.getAttribute(<span class="string">&quot;sid&quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (sid == <span class="literal">null</span>) &#123;</span><br><span class="line">        sid = cookieService.resolveSidFromCurrentRequest();</span><br><span class="line">        authorization = OAuth2Authorization.from(authorization)</span><br><span class="line">                .attribute(<span class="string">&quot;sid&quot;</span>, sid)</span><br><span class="line">                .build();</span><br><span class="line">    &#125;</span><br><span class="line">    delegate.save(authorization);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-SID-写入-JWT"><a href="#3-SID-写入-JWT" class="headerlink" title="3. SID 写入 JWT"></a>3. SID 写入 JWT</h3><p>Token 签发时，从 Authorization 中取出 SID 写入 JWT claims：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">String</span> <span class="variable">sid</span> <span class="operator">=</span> context.getAuthorization().getAttribute(<span class="string">&quot;sid&quot;</span>);</span><br><span class="line">context.getClaims().claim(<span class="string">&quot;sid&quot;</span>, sid);</span><br><span class="line">context.getClaims().claim(<span class="string">&quot;security_stamp&quot;</span>, user.getSecurityStamp());</span><br><span class="line"><span class="comment">// 仅 access token 写入权限版本号</span></span><br><span class="line"><span class="keyword">if</span> (isAccessToken) &#123;</span><br><span class="line">    context.getClaims().claim(<span class="string">&quot;token_version&quot;</span>, user.getPermissionVersion());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>JWT 中的 SID 和浏览器 Cookie 中的 SID 是同一个值。撤销 Redis 中的这个 SID 后，该浏览器会话以及通过这个会话签发的 JWT 都会在后续校验中失效。账户级的全部会话撤销，则更适合通过安全戳这类全局信号处理。</p>
+<h2 id="双撤销信号"><a href="#双撤销信号" class="headerlink" title="双撤销信号"></a>双撤销信号</h2><p>系统中有两个独立的撤销信号，职责不同。</p>
+<h3 id="安全戳：账户级安全事件"><a href="#安全戳：账户级安全事件" class="headerlink" title="安全戳：账户级安全事件"></a>安全戳：账户级安全事件</h3><p>安全戳存在用户表中，典型触发场景包括：</p>
+<ul>
+<li>用户修改密码</li>
+<li>管理员重置密码</li>
+<li>账户禁用或其他需要强制重新认证的安全事件</li>
+<li>其他需要强制所有会话失效的安全事件</li>
+</ul>
+<p>校验时，Cookie 和 JWT 中的安全戳都与数据库当前值比对。不匹配则拒绝。</p>
+<p>效果：<strong>修改密码后，旧 Cookie 和旧 JWT 中携带的安全戳都会过期。</strong> 不需要逐个查找 token，也不需要等 JWT 自然过期。</p>
+<h3 id="权限版本号：权限变更"><a href="#权限版本号：权限变更" class="headerlink" title="权限版本号：权限变更"></a>权限版本号：权限变更</h3><p><code>permission_version</code> 是用户表中的单调递增版本号，每次权限变更时 +1。只写入 JWT 的 access token，在网关鉴权时比对：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 策略决策引擎</span></span><br><span class="line"><span class="keyword">if</span> (!currentPolicy.getPermissionVersion().equals(tokenVersion)) &#123;</span><br><span class="line">    <span class="keyword">return</span> denied(TOKEN_VERSION_MISMATCH);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>权限变更后，旧 JWT 的版本号与当前版本不一致，请求被拒绝。客户端可以重新走授权流程获取新 JWT。</p>
+<h3 id="为什么拆成两个"><a href="#为什么拆成两个" class="headerlink" title="为什么拆成两个"></a>为什么拆成两个</h3><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>安全戳</th>
+<th>权限版本号</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>触发场景</td>
+<td>密码修改、账户禁用</td>
+<td>角色调整、授权增删</td>
+</tr>
+<tr>
+<td>影响范围</td>
+<td>Cookie + JWT 同时失效</td>
+<td>主要影响 JWT</td>
+</tr>
+<tr>
+<td>校验位置</td>
+<td>Cookie 验证 + 网关鉴权</td>
+<td>仅网关鉴权</td>
+</tr>
+<tr>
+<td>更新频率</td>
+<td>低（安全事件）</td>
+<td>中（权限变更）</td>
+</tr>
+<tr>
+<td>用户体验</td>
+<td>需要重新登录</td>
+<td>前端可自动重获 JWT</td>
+</tr>
+</tbody></table>
+<p>权限变更比安全事件频繁得多。如果只用一个字段，每次改权限都可能强制重新登录。拆开后，改权限主要触发令牌刷新；改密码、撤销会话等安全事件才触发重新登录。</p>
+<h2 id="网关鉴权"><a href="#网关鉴权" class="headerlink" title="网关鉴权"></a>网关鉴权</h2><p>API 请求通过网关的 forward-auth 机制走另一条校验路径：</p>
+<pre class="mermaid">flowchart LR
+    Client["客户端"] -->|"Bearer JWT"| GW["API 网关"]
+    GW -->|"forward-auth\n转发 Authorization 头"| Auth["认证服务"]
+    Auth -->|"① 解码 JWT"| Auth
+    Auth -->|"② SID 存活检查"| Redis["Redis"]
+    Auth -->|"③ 策略决策"| Policy["策略缓存 / DB"]
+    Auth -->|"200 + 用户头"| GW
+    GW -->|"注入请求头"| Svc["业务服务"]</pre>
+
+<p>支持两种模式：</p>
+<ul>
+<li><strong>entitled 模式</strong>（默认）：完整 RBAC，包括用户状态、权限版本号、安全戳、应用授权</li>
+<li><strong>authenticated 模式</strong>：只检查用户状态、权限版本号和安全戳，不做应用授权判断。适用于只需确认”请求是谁发的”的场景</li>
+</ul>
+<p>两种模式的区别在 entitlement 检查，SID 和双信号校验都是必经之路。</p>
+<h2 id="策略缓存与降级"><a href="#策略缓存与降级" class="headerlink" title="策略缓存与降级"></a>策略缓存与降级</h2><p>策略数据采用 Redis 主 + DB 备的模式：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> UserPolicy <span class="title function_">getUserPolicy</span><span class="params">(Long uid)</span> &#123;</span><br><span class="line">    <span class="comment">// 优先 Redis</span></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="type">UserPolicy</span> <span class="variable">cached</span> <span class="operator">=</span> redis.get(policyCacheKey(uid));</span><br><span class="line">        <span class="keyword">if</span> (cached != <span class="literal">null</span>) <span class="keyword">return</span> cached;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        log.warn(<span class="string">&quot;Redis unavailable, fallback to DB&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 降级 DB</span></span><br><span class="line">    <span class="type">User</span> <span class="variable">user</span> <span class="operator">=</span> userRepo.findActiveById(uid);</span><br><span class="line">    <span class="keyword">if</span> (user != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="type">UserPolicy</span> <span class="variable">policy</span> <span class="operator">=</span> UserPolicy.from(user);</span><br><span class="line">        <span class="comment">// 尝试回填 Redis</span></span><br><span class="line">        <span class="keyword">try</span> &#123; redis.set(policyCacheKey(uid), policy, <span class="number">300</span>, SECONDS); &#125;</span><br><span class="line">        <span class="keyword">catch</span> (Exception ex) &#123; log.warn(<span class="string">&quot;Cache refill failed&quot;</span>); &#125;</span><br><span class="line">        <span class="keyword">return</span> policy;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;  <span class="comment">// Redis + DB 都不可用</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Redis 和 DB 都不可用时，策略不可判定，决策结果应拒绝。这是安全优先于可用性的选择。</p>
+<p>权限变更时主动删除缓存：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">redis.delete(policyCacheKey(uid));</span><br></pre></td></tr></table></figure>
+
+<p>下次请求触发缓存未命中，从 DB 重新加载。缓存 TTL 只是兜底，正常路径应依赖主动失效和权限版本号，让旧 token 尽快被拒绝。</p>
+<h2 id="登出"><a href="#登出" class="headerlink" title="登出"></a>登出</h2><p>登出同时清理两层：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">logout</span><span class="params">(Request request, Response response, Authentication auth)</span> &#123;</span><br><span class="line">    <span class="type">String</span> <span class="variable">sid</span> <span class="operator">=</span> cookieService.resolveSid(request);</span><br><span class="line">    sessionStore.invalidateSid(sid);           <span class="comment">// 删除 Redis SID</span></span><br><span class="line">    cookieService.clearCookie(request, response);  <span class="comment">// 清除 Cookie</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Redis SID 删除后：</p>
+<ul>
+<li>浏览器后续请求：Cookie 验签能过，但 SID 检查失败，走 fail-closed</li>
+<li>已签发的 JWT：网关鉴权时 SID 检查失败，请求被拒绝</li>
+<li>对单个浏览器会话，不需要维护 token 黑名单，也不需要等 JWT 自然过期</li>
+</ul>
+<h2 id="得失分析"><a href="#得失分析" class="headerlink" title="得失分析"></a>得失分析</h2><h3 id="收益"><a href="#收益" class="headerlink" title="收益"></a>收益</h3><ul>
+<li><strong>会话级撤销</strong>：撤销一个 SID，浏览器会话和对应 API 令牌同时失效，不需要 token 黑名单</li>
+<li><strong>双信号分层</strong>：安全事件强制重新登录，权限变更只重获 JWT</li>
+<li><strong>与 OAuth2 自然集成</strong>：SID 从 Cookie 流入 OAuth2 再流入 JWT，不需要额外的令牌管理</li>
+<li><strong>滑动会话</strong>：Redis TTL 支持活跃窗口，Cookie <code>exp</code> 保留硬性上限</li>
+</ul>
+<h3 id="代价"><a href="#代价" class="headerlink" title="代价"></a>代价</h3><ul>
+<li><strong>Redis 依赖</strong>：SID 校验依赖 Redis。设计上不建议做“HMAC 验过就跳过 SID”的降级，线上环境需要 Redis 高可用和清晰的故障语义</li>
+<li><strong>请求额外开销</strong>：浏览器登录态恢复和网关鉴权会多一次 SID 检查及续期</li>
+<li><strong>实现复杂度</strong>：比纯 JWT 多了 Cookie 签名、Redis SID、安全戳比对、SID 传播链路和策略缓存降级</li>
+</ul>
+<h3 id="适用场景"><a href="#适用场景" class="headerlink" title="适用场景"></a>适用场景</h3><table>
+<thead>
+<tr>
+<th>场景</th>
+<th>判断</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>内部系统，需要撤销和踢人</td>
+<td>适合</td>
+</tr>
+<tr>
+<td>权限变更需要较快生效</td>
+<td>适合</td>
+</tr>
+<tr>
+<td>浏览器会话和 API 令牌需要统一治理</td>
+<td>适合</td>
+</tr>
+<tr>
+<td>纯公开 API，无会话概念</td>
+<td>不适合，JWT 更简单</td>
+</tr>
+<tr>
+<td>跨顶级域名 SSO</td>
+<td>不适合，Cookie 受限，需协议级方案</td>
+</tr>
+<tr>
+<td>极高并发且无法承担集中式会话依赖</td>
+<td>不适合，需要重新评估 Redis 架构和降级策略</td>
+</tr>
+</tbody></table>
+<h2 id="延伸阅读"><a href="#延伸阅读" class="headerlink" title="延伸阅读"></a>延伸阅读</h2><ul>
+<li><a href="/2026/03/17/oauth2-oidc-session-timeout-boundaries/">OAuth2&#x2F;OIDC 会话超时的边界：前端 Token、Refresh Token 与 SSO Session</a></li>
+<li><a href="/2026/04/18/why-local-auth-alongside-federation/">联合登录之外：IAM 认证路径的韧性设计</a></li>
+<li><a href="https://datatracker.ietf.org/doc/html/rfc9121">RFC 9121: Use of the HMAC Algorithm in JSON Object Signing and Encryption (JOSE)</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/iam/" rel="tag"># iam</a>
+              <a href="/tags/oauth2/" rel="tag"># oauth2</a>
+              <a href="/tags/session/" rel="tag"># session</a>
+              <a href="/tags/redis/" rel="tag"># redis</a>
+              <a href="/tags/cookie/" rel="tag"># cookie</a>
+              <a href="/tags/jwt/" rel="tag"># jwt</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2026/04/06/why-local-auth-alongside-federation/" rel="prev" title="为什么企业 IAM 在联合登录之外还需要本地密码认证">
+      <i class="fa fa-chevron-left"></i> 为什么企业 IAM 在联合登录之外还需要本地密码认证
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#JWT-%E5%9C%A8%E6%B5%8F%E8%A7%88%E5%99%A8%E7%AB%AF%E7%9A%84%E6%B2%BB%E7%90%86%E7%9F%AD%E6%9D%BF"><span class="nav-number">2.</span> <span class="nav-text">JWT 在浏览器端的治理短板</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E7%9B%B4%E6%8E%A5%E7%94%A8%E4%BC%A0%E7%BB%9F-Session"><span class="nav-number">3.</span> <span class="nav-text">为什么不直接用传统 Session</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%8C%E5%B1%82%E6%9E%B6%E6%9E%84"><span class="nav-number">4.</span> <span class="nav-text">双层架构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Cookie-%E5%B1%82%E7%9A%84%E8%AE%BE%E8%AE%A1"><span class="nav-number">5.</span> <span class="nav-text">Cookie 层的设计</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Cookie-%E6%A0%BC%E5%BC%8F"><span class="nav-number">5.1.</span> <span class="nav-text">Cookie 格式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Payload-%E5%86%85%E5%AE%B9"><span class="nav-number">5.2.</span> <span class="nav-text">Payload 内容</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AD%BE%E5%90%8D%E4%B8%8E%E9%AA%8C%E7%AD%BE"><span class="nav-number">5.3.</span> <span class="nav-text">签名与验签</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Cookie-%E5%B1%9E%E6%80%A7"><span class="nav-number">5.4.</span> <span class="nav-text">Cookie 属性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Redis-SID-%E5%B1%82%E7%9A%84%E8%AE%BE%E8%AE%A1"><span class="nav-number">6.</span> <span class="nav-text">Redis SID 层的设计</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Session-ID-%E7%94%9F%E6%88%90"><span class="nav-number">6.1.</span> <span class="nav-text">Session ID 生成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Redis-%E5%AD%98%E5%82%A8"><span class="nav-number">6.2.</span> <span class="nav-text">Redis 存储</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%BB%91%E5%8A%A8%E7%BB%AD%E6%9C%9F"><span class="nav-number">6.3.</span> <span class="nav-text">滑动续期</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%89%E5%B1%82%E6%A0%A1%E9%AA%8C%E6%B5%81%E7%A8%8B"><span class="nav-number">7.</span> <span class="nav-text">三层校验流程</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#SID-%E7%9A%84%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E4%BC%A0%E6%92%AD"><span class="nav-number">8.</span> <span class="nav-text">SID 的生命周期传播</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-%E7%99%BB%E5%BD%95%E6%97%B6%E5%88%9B%E5%BB%BA-SID"><span class="nav-number">8.1.</span> <span class="nav-text">1. 登录时创建 SID</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-SID-%E6%B5%81%E5%85%A5-OAuth2-%E6%8E%88%E6%9D%83"><span class="nav-number">8.2.</span> <span class="nav-text">2. SID 流入 OAuth2 授权</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-SID-%E5%86%99%E5%85%A5-JWT"><span class="nav-number">8.3.</span> <span class="nav-text">3. SID 写入 JWT</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%8C%E6%92%A4%E9%94%80%E4%BF%A1%E5%8F%B7"><span class="nav-number">9.</span> <span class="nav-text">双撤销信号</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AE%89%E5%85%A8%E6%88%B3%EF%BC%9A%E8%B4%A6%E6%88%B7%E7%BA%A7%E5%AE%89%E5%85%A8%E4%BA%8B%E4%BB%B6"><span class="nav-number">9.1.</span> <span class="nav-text">安全戳：账户级安全事件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9D%83%E9%99%90%E7%89%88%E6%9C%AC%E5%8F%B7%EF%BC%9A%E6%9D%83%E9%99%90%E5%8F%98%E6%9B%B4"><span class="nav-number">9.2.</span> <span class="nav-text">权限版本号：权限变更</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E6%8B%86%E6%88%90%E4%B8%A4%E4%B8%AA"><span class="nav-number">9.3.</span> <span class="nav-text">为什么拆成两个</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BD%91%E5%85%B3%E9%89%B4%E6%9D%83"><span class="nav-number">10.</span> <span class="nav-text">网关鉴权</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AD%96%E7%95%A5%E7%BC%93%E5%AD%98%E4%B8%8E%E9%99%8D%E7%BA%A7"><span class="nav-number">11.</span> <span class="nav-text">策略缓存与降级</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%99%BB%E5%87%BA"><span class="nav-number">12.</span> <span class="nav-text">登出</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BE%97%E5%A4%B1%E5%88%86%E6%9E%90"><span class="nav-number">13.</span> <span class="nav-text">得失分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%94%B6%E7%9B%8A"><span class="nav-number">13.1.</span> <span class="nav-text">收益</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%A3%E4%BB%B7"><span class="nav-number">13.2.</span> <span class="nav-text">代价</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="nav-number">13.3.</span> <span class="nav-text">适用场景</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BB%B6%E4%BC%B8%E9%98%85%E8%AF%BB"><span class="nav-number">14.</span> <span class="nav-text">延伸阅读</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">54</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">81</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>
