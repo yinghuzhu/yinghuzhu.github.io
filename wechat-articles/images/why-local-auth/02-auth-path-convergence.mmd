@@ -1,8 +1,0 @@
-graph LR
-    A["OIDC 联合登录"] --> C["auth_identity 匹配"]
-    B["本地密码登录"] --> C
-    C --> D["user_id = 100"]
-    D --> E["签发 JWT\nuid=100"]
-    E --> F["下游系统 A"]
-    E --> G["下游系统 B"]
-    E --> H["下游系统 C"]

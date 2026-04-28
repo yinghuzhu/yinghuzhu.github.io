@@ -2,9 +2,18 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://www.yzhu.name/2026/04/25/hmac-cookie-redis-sid-browser-session-en/</loc>
+    
+    <lastmod>2026-04-28</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>https://www.yzhu.name/2026/04/25/hmac-cookie-redis-sid-browser-session/</loc>
     
-    <lastmod>2026-04-25</lastmod>
+    <lastmod>2026-04-28</lastmod>
     
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -20,15 +29,6 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture/</loc>
-    
-    <lastmod>2026-04-04</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
     <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture-en/</loc>
     
     <lastmod>2026-04-04</lastmod>
@@ -38,9 +38,9 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2026/03/17/oauth2-oidc-session-timeout-boundaries/</loc>
+    <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture/</loc>
     
-    <lastmod>2026-03-17</lastmod>
+    <lastmod>2026-04-04</lastmod>
     
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -56,7 +56,16 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2026/03/10/apisix-trusted-addresses-oauth2-redirect-en/</loc>
+    <loc>https://www.yzhu.name/2026/03/17/oauth2-oidc-session-timeout-boundaries/</loc>
+    
+    <lastmod>2026-03-17</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/2026/03/10/apisix-trusted-addresses-oauth2-redirect/</loc>
     
     <lastmod>2026-03-10</lastmod>
     
@@ -65,7 +74,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2026/03/10/apisix-trusted-addresses-oauth2-redirect/</loc>
+    <loc>https://www.yzhu.name/2026/03/10/apisix-trusted-addresses-oauth2-redirect-en/</loc>
     
     <lastmod>2026-03-10</lastmod>
     
@@ -200,7 +209,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tools/asi-converter.html</loc>
+    <loc>https://www.yzhu.name/tools/1688-converter.html</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -218,7 +227,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tools/1688-converter.html</loc>
+    <loc>https://www.yzhu.name/tags/index.html</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -227,7 +236,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/index.html</loc>
+    <loc>https://www.yzhu.name/tools/asi-converter.html</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -254,7 +263,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2019/03/01/product-bug/</loc>
+    <loc>https://www.yzhu.name/2021/04/13/reliable-message-delivery/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -263,7 +272,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2021/04/13/reliable-message-delivery/</loc>
+    <loc>https://www.yzhu.name/2019/03/01/product-bug/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -308,15 +317,6 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2020/09/05/The-Silence-City/</loc>
-    
-    <lastmod>2025-11-11</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
     <loc>https://www.yzhu.name/2025/09/20/dify-custom-brand/</loc>
     
     <lastmod>2025-11-11</lastmod>
@@ -335,6 +335,15 @@
   </url>
   
   <url>
+    <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
+    
+    <lastmod>2025-11-11</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>https://www.yzhu.name/2018/12/23/how-to-question/</loc>
     
     <lastmod>2025-11-11</lastmod>
@@ -344,7 +353,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
+    <loc>https://www.yzhu.name/2020/09/05/The-Silence-City/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -362,7 +371,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
+    <loc>https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -371,7 +380,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/</loc>
+    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -407,7 +416,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2018/12/01/OOM-Casue-Snowslide/</loc>
+    <loc>https://www.yzhu.name/2018/06/18/Parepare-Service/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -416,7 +425,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2018/06/18/Parepare-Service/</loc>
+    <loc>https://www.yzhu.name/2018/12/01/OOM-Casue-Snowslide/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -452,25 +461,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
-    
-    <lastmod>2025-11-11</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
     <loc>https://www.yzhu.name/2020/03/29/JVM-NEW/</loc>
-    
-    <lastmod>2025-11-11</lastmod>
-    
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -488,6 +479,24 @@
   </url>
   
   <url>
+    <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
+    
+    <lastmod>2025-11-11</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
+    
+    <lastmod>2025-11-11</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>https://www.yzhu.name/2025/04/26/Biometric-Based-Payment-Product/</loc>
     
     <lastmod>2025-11-11</lastmod>
@@ -497,7 +506,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2018/07/06/Dubbo-Local-RPC-Switch/</loc>
+    <loc>https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -506,7 +515,7 @@
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/</loc>
+    <loc>https://www.yzhu.name/2018/07/06/Dubbo-Local-RPC-Switch/</loc>
     
     <lastmod>2025-11-11</lastmod>
     
@@ -544,7 +553,7 @@
 
   <url>
     <loc>https://www.yzhu.name/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -552,567 +561,567 @@
   
   <url>
     <loc>https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E6%96%B9%E6%A1%88/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/%E5%88%86%E5%B8%83%E5%BC%8F/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/%E5%BE%AE%E6%9C%8D%E5%8A%A1/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/RPC/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/%E4%B8%80%E8%87%B4%E6%80%A7/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/%E7%BA%BF%E4%B8%8A%E9%97%AE%E9%A2%98/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/JVM/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/%E7%9B%91%E6%8E%A7/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/%E9%93%BE%E8%B7%AF%E8%B7%9F%E8%B8%AA/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/RPC/</loc>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/%E7%BA%BF%E4%B8%8A%E9%97%AE%E9%A2%98/</loc>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1/</loc>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/%E7%9B%91%E6%8E%A7/</loc>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/API-Gateway/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/APISIX/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/%E6%8A%80%E6%9C%AF%E9%80%89%E5%9E%8B/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/Java/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/Kong/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/Spring-Cloud-Gateway/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/OAuth2/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/gateway/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/troubleshooting/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/%E7%BD%91%E5%85%B3%EF%BC%8C%E6%95%85%E9%9A%9C%E6%8E%92%E6%9F%A5/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/%E5%B7%A5%E5%85%B7/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/%E6%95%88%E7%8E%87/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/%E5%BC%80%E5%8F%91%E5%B7%A5%E5%85%B7/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/%E5%9C%A8%E7%BA%BF%E5%B7%A5%E5%85%B7/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/JSON%E6%A0%BC%E5%BC%8F%E5%8C%96/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/%E6%97%B6%E9%97%B4%E6%88%B3%E8%BD%AC%E6%8D%A2/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/gateway/</loc>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/troubleshooting/</loc>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/iam/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/oauth2/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/oidc/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/identity-management/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/enterprise-architecture/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/sso/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/session/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/redis/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/cookie/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/jwt/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/microservice/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/architecture/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/api-gateway/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/token/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/authentication/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/security/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/oauth/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/EspoCRM/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/customization/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/upgrade-safe/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/module-architecture/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/deployment/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/integration/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/outlook/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/sync/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/metadata/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/many-to-many/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/rebuild/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/validation/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/dynamic-logic/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/hook/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/kanban/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/aggregation/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/ACL/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/custom-view/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/module-boundary/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/CRM/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/selection/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/comparison/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/tags/open-source/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/job/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/automation/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/scheduled-task/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/lead/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <loc>https://www.yzhu.name/tags/kanban/</loc>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/opportunity/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <loc>https://www.yzhu.name/tags/aggregation/</loc>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/sales-funnel/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <loc>https://www.yzhu.name/tags/ACL/</loc>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://www.yzhu.name/tags/conversion/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <loc>https://www.yzhu.name/tags/custom-view/</loc>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/module-boundary/</loc>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/Microsoft-Graph-API/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/Outlook-Integration/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/Recurring-Events/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/Delta-Sync/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/CRM/</loc>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/selection/</loc>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/comparison/</loc>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/open-source/</loc>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/lead/</loc>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/opportunity/</loc>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/sales-funnel/</loc>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/tags/conversion/</loc>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/Outlook/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/Graph-API/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/Recurring-Meetings/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/tags/Sync/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
@@ -1121,63 +1130,63 @@
   
   <url>
     <loc>https://www.yzhu.name/categories/%E5%BE%AE%E6%9C%8D%E5%8A%A1/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/categories/API-Gateway/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/categories/%E5%BE%AE%E6%9C%8D%E5%8A%A1/%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/</loc>
-    <lastmod>2026-04-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://www.yzhu.name/categories/API-Gateway/OAuth2/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/categories/%E5%B7%A5%E5%85%B7%E7%AB%99/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://www.yzhu.name/categories/API-Gateway/OAuth2/</loc>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/categories/Security/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/categories/Architecture/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/categories/EspoCRM/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
     <loc>https://www.yzhu.name/categories/Integration/</loc>
-    <lastmod>2026-04-26</lastmod>
+    <lastmod>2026-04-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>

@@ -30,7 +30,7 @@
 <meta property="og:description" content="在 OAuth2&#x2F;JWT 体系下，用 HMAC 签名 Cookie + Redis SID 双层结构管理浏览器会话，把浏览器登录态、令牌生命周期和撤销信号放到同一套治理模型里。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2026-04-25T14:30:17.000Z">
-<meta property="article:modified_time" content="2026-04-25T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-28T02:00:00.000Z">
 <meta property="article:author" content="yhzhu">
 <meta property="article:tag" content="cookie">
 <meta property="article:tag" content="iam">
@@ -227,7 +227,10 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>在一套基于 OAuth2&#x2F;OIDC 的 IAM 系统中，网关用 JWT 做 API 请求的准入控制。协议链路跑通之后，浏览器端的会话管理会变成一个独立的工程问题：JWT 发出后天然偏无状态，权限变更、主动登出、会话追踪都需要额外的治理手段。</p>
+        <blockquote>
+<p><strong>🌐 语言</strong>: <strong>中文版</strong> | <a href="/2026/04/25/hmac-cookie-redis-sid-browser-session-en/">English Version</a></p>
+</blockquote>
+<p>在一套基于 OAuth2&#x2F;OIDC 的 IAM 系统中，网关用 JWT 做 API 请求的准入控制。协议链路跑通之后，浏览器端的会话管理会变成一个独立的工程问题：JWT 发出后天然偏无状态，权限变更、主动登出、会话追踪都需要额外的治理手段。</p>
 <p>这篇文章记录一种 HMAC 签名 Cookie + Redis SID 的双层会话设计。浏览器登录态和上层 JWT 共享同一个 Session ID，让浏览器会话、API 令牌和撤销信号进入同一套生命周期模型。</p>
 <span id="more"></span>
 
@@ -551,7 +554,7 @@
 </tbody></table>
 <h2 id="延伸阅读"><a href="#延伸阅读" class="headerlink" title="延伸阅读"></a>延伸阅读</h2><ul>
 <li><a href="/2026/03/17/oauth2-oidc-session-timeout-boundaries/">OAuth2&#x2F;OIDC 会话超时的边界：前端 Token、Refresh Token 与 SSO Session</a></li>
-<li><a href="/2026/04/18/why-local-auth-alongside-federation/">联合登录之外：IAM 认证路径的韧性设计</a></li>
+<li><a href="/2026/04/06/why-local-auth-alongside-federation/">联合登录之外：IAM 认证路径的韧性设计</a></li>
 <li><a href="https://datatracker.ietf.org/doc/html/rfc9121">RFC 9121: Use of the HMAC Algorithm in JSON Object Signing and Encryption (JOSE)</a></li>
 </ul>
 
@@ -580,7 +583,10 @@
     <a href="/2026/04/06/why-local-auth-alongside-federation/" rel="prev" title="为什么企业 IAM 在联合登录之外还需要本地密码认证">
       <i class="fa fa-chevron-left"></i> 为什么企业 IAM 在联合登录之外还需要本地密码认证
     </a></div>
-      <div class="post-nav-item"></div>
+      <div class="post-nav-item">
+    <a href="/2026/04/25/hmac-cookie-redis-sid-browser-session-en/" rel="next" title="HMAC Cookie + Redis SID Dual-Layer Sessions: Browser Session Governance in an OAuth2/JWT System">
+      HMAC Cookie + Redis SID Dual-Layer Sessions: Browser Session Governance in an OAuth2/JWT System <i class="fa fa-chevron-right"></i>
+    </a></div>
     </div>
       </footer>
     
@@ -653,7 +659,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">54</span>
+          <span class="site-state-item-count">55</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

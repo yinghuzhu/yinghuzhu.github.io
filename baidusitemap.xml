@@ -1,35 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://www.yzhu.name/2026/04/25/hmac-cookie-redis-sid-browser-session-en/</loc>
+    <lastmod>2026-04-28</lastmod>
+  </url>
+  <url>
     <loc>https://www.yzhu.name/2026/04/25/hmac-cookie-redis-sid-browser-session/</loc>
-    <lastmod>2026-04-25</lastmod>
+    <lastmod>2026-04-28</lastmod>
   </url>
   <url>
     <loc>https://www.yzhu.name/2026/04/06/why-local-auth-alongside-federation/</loc>
     <lastmod>2026-04-06</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture/</loc>
-    <lastmod>2026-04-04</lastmod>
-  </url>
-  <url>
     <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture-en/</loc>
     <lastmod>2026-04-04</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/03/17/oauth2-oidc-session-timeout-boundaries/</loc>
-    <lastmod>2026-03-17</lastmod>
+    <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture/</loc>
+    <lastmod>2026-04-04</lastmod>
   </url>
   <url>
     <loc>https://www.yzhu.name/2026/03/17/oauth2-oidc-session-timeout-boundaries-en/</loc>
     <lastmod>2026-03-17</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/03/10/apisix-trusted-addresses-oauth2-redirect-en/</loc>
-    <lastmod>2026-03-10</lastmod>
+    <loc>https://www.yzhu.name/2026/03/17/oauth2-oidc-session-timeout-boundaries/</loc>
+    <lastmod>2026-03-17</lastmod>
   </url>
   <url>
     <loc>https://www.yzhu.name/2026/03/10/apisix-trusted-addresses-oauth2-redirect/</loc>
+    <lastmod>2026-03-10</lastmod>
+  </url>
+  <url>
+    <loc>https://www.yzhu.name/2026/03/10/apisix-trusted-addresses-oauth2-redirect-en/</loc>
     <lastmod>2026-03-10</lastmod>
   </url>
   <url>
@@ -93,11 +97,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2019/03/01/product-bug/</loc>
+    <loc>https://www.yzhu.name/2021/04/13/reliable-message-delivery/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2021/04/13/reliable-message-delivery/</loc>
+    <loc>https://www.yzhu.name/2019/03/01/product-bug/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -117,10 +121,6 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2020/09/05/The-Silence-City/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
     <loc>https://www.yzhu.name/2025/09/20/dify-custom-brand/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
@@ -129,11 +129,15 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
+    <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
     <loc>https://www.yzhu.name/2018/12/23/how-to-question/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
+    <loc>https://www.yzhu.name/2020/09/05/The-Silence-City/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -141,11 +145,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
+    <loc>https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/</loc>
+    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -161,11 +165,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/12/01/OOM-Casue-Snowslide/</loc>
+    <loc>https://www.yzhu.name/2018/06/18/Parepare-Service/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/06/18/Parepare-Service/</loc>
+    <loc>https://www.yzhu.name/2018/12/01/OOM-Casue-Snowslide/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -181,15 +185,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
     <loc>https://www.yzhu.name/2020/03/29/JVM-NEW/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -197,15 +193,23 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
+    <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
+    <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
     <loc>https://www.yzhu.name/2025/04/26/Biometric-Based-Payment-Product/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/07/06/Dubbo-Local-RPC-Switch/</loc>
+    <loc>https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/</loc>
+    <loc>https://www.yzhu.name/2018/07/06/Dubbo-Local-RPC-Switch/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
