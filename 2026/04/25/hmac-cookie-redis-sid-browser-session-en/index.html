@@ -230,33 +230,51 @@
         <blockquote>
 <p><strong>🌐 Language</strong>: <strong>English Version</strong> | <a href="/2026/04/25/hmac-cookie-redis-sid-browser-session/">中文版</a></p>
 </blockquote>
-<p>In an IAM system based on OAuth2&#x2F;OIDC, the gateway uses JWTs as the admission control mechanism for API requests. Once the protocol flow is working, browser-side session management becomes a separate engineering problem: JWTs are naturally stateless after issuance, while permission changes, explicit logout, and session tracking all require additional governance mechanisms.</p>
-<p>This article documents a dual-layer session design based on HMAC-signed cookies and Redis-backed SIDs. The browser login state and the upper-layer JWT share the same Session ID, so browser sessions, API tokens, and revocation signals can enter the same lifecycle model.</p>
+<p>In an OAuth2&#x2F;OIDC system, JWTs are well-suited as request admission credentials. The gateway can verify signatures locally, check expiration, and parse user and permission information without querying a session store for every request. Horizontal scaling is straightforward.</p>
+<p>But browser login state introduces a separate set of concerns: explicit logout, admin-initiated session termination, immediate enforcement of permission changes, and active session tracking. These are stateful governance problems, distinct from the stateless admission that JWTs handle.</p>
+<p>This article records a session governance design: adding a Redis SID layer alongside an existing OAuth2&#x2F;JWT system. The browser carries the SID in an HMAC-signed cookie, the server maintains the SID’s liveness in Redis, and the same SID propagates into the JWT. Browser sessions and API tokens share a single set of revocation signals.</p>
 <span id="more"></span>
 
-<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p>This article records a browser session governance design. It assumes readers are already familiar with the basics of OAuth2&#x2F;JWT, and focuses on architectural trade-offs and key design decisions.</p>
-<p>Core ideas:</p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p>Core ideas:</p>
 <ul>
-<li>The browser carries the session identifier in an HMAC-signed cookie, which is stateless and tamper-resistant</li>
+<li>The browser carries a session identifier in an HMAC-signed cookie, which is stateless and tamper-resistant</li>
 <li>Redis stores the Session ID (SID), which is stateful and revocable</li>
 <li>The SID flows from the browser cookie into the JWT; revoking one SID invalidates that browser session and the tokens derived from it</li>
-<li>Two revocation signals are used: a security stamp for account-level events such as password changes, and a permission version for role changes</li>
+<li>Two revocation signals: a security stamp for account-level events such as password changes, and a permission version for role changes</li>
 </ul>
-<h2 id="JWT-Governance-Gaps-in-the-Browser"><a href="#JWT-Governance-Gaps-in-the-Browser" class="headerlink" title="JWT Governance Gaps in the Browser"></a>JWT Governance Gaps in the Browser</h2><p>Using JWT validation at the gateway for API requests is fine at the protocol level. But when the system needs the following capabilities, the stateless nature of a pure JWT approach creates extra governance cost:</p>
+<h2 id="Problem-Boundary"><a href="#Problem-Boundary" class="headerlink" title="Problem Boundary"></a>Problem Boundary</h2><p>The strength of JWTs lies in stateless validation. That strength does not need to be challenged.</p>
+<p>The problem surfaces when the system begins to require stateful capabilities:</p>
 <ul>
-<li><strong>Session revocation</strong>: after an administrator disables a user, already-issued JWTs remain valid until expiration</li>
-<li><strong>Explicit logout</strong>: the frontend can clear local token storage, but the JWT itself does not become invalid; if intercepted, it can still be used</li>
-<li><strong>Permission changes taking effect</strong>: after user roles are changed, the permissions embedded in old JWTs are still being used</li>
-<li><strong>Session tracking</strong>: the system cannot count active sessions or kick out a specific session</li>
+<li>After a user explicitly logs out, can the old JWT still access APIs</li>
+<li>After an admin disables a user, does the old JWT become invalid immediately</li>
+<li>After a user’s roles are adjusted, are the permissions in the old JWT still trustworthy</li>
+<li>Can the system see how many active browser sessions a user has</li>
+<li>Can the system kick out only one device or one browser session</li>
 </ul>
-<p>The root cause is not that JWT is wrong. It is simply better suited for stateless validation. When revocation, specific-session kick-out, or active-session tracking is required, a stateful session signal needs to be added outside JWT.</p>
-<h2 id="Why-Not-Use-a-Traditional-Session-Directly"><a href="#Why-Not-Use-a-Traditional-Session-Directly" class="headerlink" title="Why Not Use a Traditional Session Directly"></a>Why Not Use a Traditional Session Directly</h2><p>Traditional server-side sessions can solve the problems above, but there are two concerns:</p>
-<ol>
-<li><strong>Every request needs a storage lookup</strong>: browser page requests are more frequent than API requests, and if every static resource request triggers a session lookup, the storage pressure is not ideal</li>
-<li><strong>Integration with the OAuth2 flow</strong>: the system already has a complete OAuth2 authorization code flow and JWT issuance mechanism. What it needs is a browser session layer parallel to the existing system, not a replacement for it</li>
-</ol>
-<p>The design goal is: <strong>add a lightweight browser session management layer outside the JWT system, support revocation and session tracking, and control the additional cost on each request.</strong></p>
-<h2 id="Dual-Layer-Architecture"><a href="#Dual-Layer-Architecture" class="headerlink" title="Dual-Layer Architecture"></a>Dual-Layer Architecture</h2><p>The overall structure has three validation layers:</p>
+<p>These capabilities fall outside the scope of “does the signature verify.” JWTs handle request admission; browser session governance handles the login state lifecycle. Mixing the two typically leads to one of two extremes: either waiting for tokens to expire naturally, or reverting to full server-side sessions.</p>
+<p>The third approach chosen here: preserve the OAuth2&#x2F;JWT request admission model, and only add a revocable SID for browser sessions.</p>
+<h2 id="Why-Not-Traditional-Sessions"><a href="#Why-Not-Traditional-Sessions" class="headerlink" title="Why Not Traditional Sessions"></a>Why Not Traditional Sessions</h2><p>Traditional server-side sessions can handle revocation, kick-out, and session tracking, but in this scenario, they are not the most suitable primary model.</p>
+<p>First, the system already has a complete OAuth2 authorization code flow and JWT issuance mechanism. The browser session layer needs to supplement revocation capability, not replace the existing token system.</p>
+<p>Second, browser page requests and static resource requests are frequent. If all requests depend on centralized session lookups, storage pressure and the blast radius of failures both increase.</p>
+<p>Third, business APIs are already under gateway-based JWT admission control. The session governance layer is better suited to providing a clear revocation signal than re-assuming the full authentication context.</p>
+<p>So the boundary of this design is:</p>
+<ul>
+<li>JWTs handle API request admission</li>
+<li>Cookies carry browser login state</li>
+<li>Redis SIDs provide session-level revocation signals</li>
+<li>Database security stamps handle account-level forced invalidation</li>
+<li>Permission version numbers handle authorization change synchronization</li>
+</ul>
+<p>This boundary matters more than the question of “Session vs. Token.”</p>
+<h2 id="Trade-Offs-Up-Front"><a href="#Trade-Offs-Up-Front" class="headerlink" title="Trade-Offs Up Front"></a>Trade-Offs Up Front</h2><p>Adding SIDs gives the system three categories of capability.</p>
+<p>First, session-level revocation. Deleting one SID invalidates the corresponding browser session and any JWTs issued through it, without maintaining a token blacklist.</p>
+<p>Second, finer-grained invalidation semantics. Logout and kick-out go through the SID; password changes and account disabling go through the security stamp; role adjustments and authorization changes go through the permission version number. Different events no longer crowd into a single field.</p>
+<p>Third, the OAuth2 flow remains intact. The SID flows from the Cookie into the OAuth2 Authorization and then into the JWT. The existing authorization chain still holds.</p>
+<p>The cost is equally direct.</p>
+<p>Redis is no longer just a cache. It becomes session infrastructure. When SID liveness is undeterminable, the system cannot continue to allow requests through. Otherwise, the promises of “logout takes effect immediately” and “admin kick-out takes effect immediately” are broken.</p>
+<p>Every browser login state restoration and every gateway authorization check incurs an additional SID lookup. The implementation also needs to handle Cookie signing, SID propagation, security stamp, and permission version number pathways.</p>
+<p>This is not free complexity. It suits systems that need session revocation, fast permission enforcement, and admin-initiated session termination. It does not suit pure public APIs with no browser session concept.</p>
+<h2 id="Dual-Layer-Session-Structure"><a href="#Dual-Layer-Session-Structure" class="headerlink" title="Dual-Layer Session Structure"></a>Dual-Layer Session Structure</h2><p>The overall structure can be viewed as three checks.</p>
 <pre class="mermaid">flowchart LR
     subgraph Browser["Browser"]
         Cookie["Signed Cookie\n(HMAC-SHA256)"]
@@ -267,19 +285,22 @@
         DB["Database\nuser.security_stamp"]
     end
 
-    Cookie -->|"1. HMAC verification + exp check"| Redis
+    Cookie -->|"1. HMAC verify + exp check"| Redis
     Redis -->|"2. SID alive + sliding renewal"| DB
     DB -->|"3. security_stamp match"| Cookie</pre>
 
-<p><strong>Layer 1: HMAC-signed cookie</strong> - stateless, tamper-resistant, and able to validate expiration independently. The cookie contains the user identifier, Session ID, security stamp, and expiration time. The whole payload is signed with HMAC-SHA256.</p>
-<p><strong>Layer 2: Redis SID</strong> - stateful, revocable, and capable of sliding renewal. A random Session ID is generated at login, stored in Redis, and assigned a TTL. After each successful validation, the TTL is reset so active users do not drop out because of inactivity timeout.</p>
-<p><strong>Layer 3: database security stamp</strong> - an account-level security signal. Each user has a security stamp field. Security events such as password changes and account disablement update this value. During validation, the stamp in the cookie is compared with the current value in the database. If they do not match, the authentication state is not restored.</p>
-<p>If any of the three layers fails, no valid authentication state can be restored. In scenarios where the server can determine the session is invalid, it can clear the cookie and treat the request as unauthenticated.</p>
-<h2 id="Cookie-Layer-Design"><a href="#Cookie-Layer-Design" class="headerlink" title="Cookie Layer Design"></a>Cookie Layer Design</h2><h3 id="Cookie-Format"><a href="#Cookie-Format" class="headerlink" title="Cookie Format"></a>Cookie Format</h3><p>All information is encoded into one cookie in this format:</p>
+<p>The first layer is the HMAC-signed cookie.</p>
+<p>The cookie contains the user identifier, SID, security stamp, and expiration time. The server can perform stateless signature verification and expiration checks first. A passing signature only means the cookie was not tampered with, not that the session is still valid.</p>
+<p>The second layer is the Redis SID.</p>
+<p>At login, a random SID is generated, written to Redis, and assigned a TTL. Subsequent requests check whether the SID still exists; if so, the browser session is still valid. Logout, kick-out, and expiration can all be handled by deleting the SID or waiting for the TTL to expire.</p>
+<p>The third layer is the database security stamp.</p>
+<p>Security events such as password changes, admin-initiated password resets, and account disabling update the <code>security_stamp</code> in the user table. Cookies and JWTs also carry the security stamp from the time they were issued. If the stamps do not match during validation, the authentication state is not restored.</p>
+<p>If any of the three layers fails, the request is treated as unauthenticated.</p>
+<h2 id="Cookie-Carries-Only-Essential-Information"><a href="#Cookie-Carries-Only-Essential-Information" class="headerlink" title="Cookie Carries Only Essential Information"></a>Cookie Carries Only Essential Information</h2><p>The cookie value uses a two-part structure:</p>
 <figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">base64url(JSON payload) . base64url(HMAC-SHA256(payload))</span><br></pre></td></tr></table></figure>
 
-<p>The dot separates the two parts. The first part is the base64url-encoded payload, and the second part is the HMAC-SHA256 signature over the first part. The structure is similar to JWT, but it uses symmetric HMAC rather than RSA, which makes validation faster and key management simpler.</p>
-<h3 id="Payload-Content"><a href="#Payload-Content" class="headerlink" title="Payload Content"></a>Payload Content</h3><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;uid&quot;</span><span class="punctuation">:</span> <span class="number">100</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;email&quot;</span><span class="punctuation">:</span> <span class="string">&quot;user@example.com&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;display_name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;张三&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;sid&quot;</span><span class="punctuation">:</span> <span class="string">&quot;a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;idp&quot;</span><span class="punctuation">:</span> <span class="string">&quot;EMAIL&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;security_stamp&quot;</span><span class="punctuation">:</span> <span class="string">&quot;abc123def456&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;exp&quot;</span><span class="punctuation">:</span> <span class="number">1745577600</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+<p>A payload example:</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;uid&quot;</span><span class="punctuation">:</span> <span class="number">100</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;email&quot;</span><span class="punctuation">:</span> <span class="string">&quot;user@example.com&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;display_name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;张三&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;sid&quot;</span><span class="punctuation">:</span> <span class="string">&quot;a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;idp&quot;</span><span class="punctuation">:</span> <span class="string">&quot;EMAIL&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;security_stamp&quot;</span><span class="punctuation">:</span> <span class="string">&quot;abc123def456&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;exp&quot;</span><span class="punctuation">:</span> <span class="number">1745577600</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
 
 <table>
 <thead>
@@ -294,15 +315,15 @@
 </tr>
 <tr>
 <td><code>sid</code></td>
-<td>Session ID, associated with the session record in Redis</td>
+<td>Current browser session ID, corresponding to the Redis key</td>
 </tr>
 <tr>
 <td><code>security_stamp</code></td>
-<td>Security stamp, compared with the current database value</td>
+<td>Account-level security stamp, used to force-invalidate old sessions</td>
 </tr>
 <tr>
 <td><code>exp</code></td>
-<td>Expiration time in epoch seconds, defaulting to 12 hours</td>
+<td>Cookie hard expiration time</td>
 </tr>
 <tr>
 <td><code>idp</code></td>
@@ -310,43 +331,29 @@
 </tr>
 <tr>
 <td><code>email</code> &#x2F; <code>display_name</code></td>
-<td>Basic user information</td>
+<td>Basic user information commonly used for page rendering</td>
 </tr>
 </tbody></table>
-<p>Putting <code>security_stamp</code> into the cookie is an important design choice: each validation checks not only the signature, but also whether the account security state has changed.</p>
-<h3 id="Signing-and-Verification"><a href="#Signing-and-Verification" class="headerlink" title="Signing and Verification"></a>Signing and Verification</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Issue: sign the payload with HMAC-SHA256</span></span><br><span class="line"><span class="type">Mac</span> <span class="variable">mac</span> <span class="operator">=</span> Mac.getInstance(<span class="string">&quot;HmacSHA256&quot;</span>);</span><br><span class="line">mac.init(<span class="keyword">new</span> <span class="title class_">SecretKeySpec</span>(secretKey, <span class="string">&quot;HmacSHA256&quot;</span>));</span><br><span class="line"><span class="type">byte</span>[] signature = mac.doFinal(encodedPayload.getBytes(UTF_8));</span><br><span class="line"><span class="type">String</span> <span class="variable">cookieValue</span> <span class="operator">=</span> base64url(encodedPayload) + <span class="string">&quot;.&quot;</span> + base64url(signature);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Verify: recompute the signature and compare in constant time</span></span><br><span class="line"><span class="type">byte</span>[] expected = mac.doFinal(receivedPayload.getBytes(UTF_8));</span><br><span class="line"><span class="type">byte</span>[] actual = base64urlDecode(receivedSignature);</span><br><span class="line"><span class="keyword">if</span> (!MessageDigest.isEqual(expected, actual)) &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;  <span class="comment">// Signature mismatch</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Signature comparison uses constant-time comparison, such as <code>MessageDigest.isEqual()</code>. Ordinary byte-by-byte comparison may expose timing attack risk.</p>
+<p>HMAC keys should be injected through a secure configuration service, key management system, or environment variables. They must not be committed to code repositories. Key rotation strategies also need to be defined in advance. Otherwise, the cookie signing mechanism becomes dependent on a long-lived fixed key.</p>
+<p>Cookie attributes should maintain basic constraints: <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite=Lax</code>, <code>Path=/</code>. If the service is deployed behind a TLS-terminating proxy, the <code>Secure</code> determination should align with the actual external HTTPS entry point.</p>
+<h2 id="Redis-SID-Does-One-Thing"><a href="#Redis-SID-Does-One-Thing" class="headerlink" title="Redis SID Does One Thing"></a>Redis SID Does One Thing</h2><p>Sessions in Redis are not designed as “fat sessions.” A thin structure is sufficient:</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Key:   session:sid:&#123;sid&#125;</span><br><span class="line">Value: &#123;&quot;uid&quot;: 100&#125;</span><br><span class="line">TTL:   43200 seconds</span><br></pre></td></tr></table></figure>
 
-<p>Signature comparison uses <code>MessageDigest.isEqual()</code> rather than <code>Arrays.equals()</code>. The former is a constant-time comparison and prevents guessing signature bytes through response timing differences, also known as a timing attack. This attack surface is easy to overlook.</p>
-<h3 id="Cookie-Attributes"><a href="#Cookie-Attributes" class="headerlink" title="Cookie Attributes"></a>Cookie Attributes</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">ResponseCookie</span> <span class="variable">cookie</span> <span class="operator">=</span> ResponseCookie.from(cookieName, value)</span><br><span class="line">    .httpOnly(<span class="literal">true</span>)</span><br><span class="line">    .secure(request.isSecure())  <span class="comment">// Dynamic check, depends on X-Forwarded-Proto</span></span><br><span class="line">    .sameSite(<span class="string">&quot;Lax&quot;</span>)</span><br><span class="line">    .path(<span class="string">&quot;/&quot;</span>)</span><br><span class="line">    .maxAge(Duration.ofSeconds(<span class="number">43200</span>))</span><br><span class="line">    .build();</span><br></pre></td></tr></table></figure>
-
+<p>The Redis SID is responsible for only two things:</p>
 <ul>
-<li><code>HttpOnly</code>: JavaScript cannot read the cookie, reducing the risk of XSS-based theft</li>
-<li><code>Secure</code>: transmitted only over HTTPS. <code>request.isSecure()</code> is evaluated dynamically because the service may be behind a TLS-terminating proxy; a high-priority filter needs to rewrite the result based on <code>X-Forwarded-Proto</code></li>
-<li><code>SameSite=Lax</code>: allows top-level navigation to carry the cookie while blocking cross-site POST, a trade-off between security and usability</li>
+<li>Marking whether this session is still valid</li>
+<li>Performing sliding renewal on active access</li>
 </ul>
-<h2 id="Redis-SID-Layer-Design"><a href="#Redis-SID-Layer-Design" class="headerlink" title="Redis SID Layer Design"></a>Redis SID Layer Design</h2><h3 id="Session-ID-Generation"><a href="#Session-ID-Generation" class="headerlink" title="Session ID Generation"></a>Session ID Generation</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">byte</span>[] bytes = <span class="keyword">new</span> <span class="title class_">byte</span>[<span class="number">16</span>];</span><br><span class="line">SecureRandom.getInstanceStrong().nextBytes(bytes);</span><br><span class="line"><span class="type">String</span> <span class="variable">sid</span> <span class="operator">=</span> HexFormat.of().formatHex(bytes);  <span class="comment">// 32-character hex</span></span><br></pre></td></tr></table></figure>
-
-<p>A 16-byte random value provides 128 bits of entropy, making collision probability negligible.</p>
-<h3 id="Redis-Storage"><a href="#Redis-Storage" class="headerlink" title="Redis Storage"></a>Redis Storage</h3><p>The Redis record is intentionally minimal and stores only the necessary user identifier. The key below is only illustrative; a real project can add prefixes and isolation dimensions according to its naming conventions:</p>
-<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Key:   session:sid:&#123;sid&#125;</span><br><span class="line">Value: &#123;&quot;uid&quot;: 100&#125;</span><br><span class="line">TTL:   43200 seconds (12 hours, configurable)</span><br></pre></td></tr></table></figure>
-
-<p>The full session context is not stored in Redis. It is distributed across the cookie (basic user information) and the database (permissions and security stamp). The only responsibilities of the Redis SID layer are to <strong>mark whether a session is still valid</strong> and to <strong>perform sliding renewal</strong>.</p>
-<p>Reasons for not using a “fat session”:</p>
+<p>Basic user information is already in the cookie. Permissions, security state, and account status remain authoritative in the database and policy cache. Storing large amounts of permission data in Redis sessions makes permission-change synchronization more complex and amplifies session storage maintenance costs.</p>
+<p>Cookie <code>exp</code> and Redis TTL represent two types of boundaries:</p>
 <ul>
-<li>Permission data can be large, sometimes containing hundreds of authorization records, which adds serialization cost and maintenance complexity</li>
-<li>When permissions change, only the version number in the database needs to be updated; there is no need to synchronize all sessions</li>
-<li>The cookie already carries basic user information, so Redis does not need to duplicate it</li>
+<li>Cookie <code>exp</code> is the hard upper bound for the browser-held credential, immutable by the browser after signing</li>
+<li>Redis TTL is the active window for the server-side session, renewable on access</li>
 </ul>
-<h3 id="Sliding-Renewal"><a href="#Sliding-Renewal" class="headerlink" title="Sliding Renewal"></a>Sliding Renewal</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">isSidActive</span><span class="params">(String sid)</span> &#123;</span><br><span class="line">    <span class="type">Boolean</span> <span class="variable">exists</span> <span class="operator">=</span> redis.hasKey(key(sid));</span><br><span class="line">    <span class="keyword">if</span> (Boolean.TRUE.equals(exists)) &#123;</span><br><span class="line">        redis.expire(key(sid), ttlSeconds, TimeUnit.SECONDS);  <span class="comment">// Reset TTL</span></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>Each SID validation also resets the TTL. Active users do not drop out because of timeout.</p>
-<p>There are two expiration mechanisms here:</p>
-<ul>
-<li>The embedded <code>exp</code> in the cookie is a hard upper bound, and cannot be modified after signing</li>
-<li>The Redis SID TTL is an elastic window, reset on each validation</li>
-</ul>
-<p>The practical effect is: <strong>cookie <code>exp</code> controls the hard upper bound, while Redis TTL controls the active window. Whether to allow a longer sliding session depends on the business trade-off between security and user experience.</strong></p>
-<h2 id="Three-Layer-Validation-Flow"><a href="#Three-Layer-Validation-Flow" class="headerlink" title="Three-Layer Validation Flow"></a>Three-Layer Validation Flow</h2><p>When a browser request attempts to restore login state, it goes through three validation layers:</p>
+<p>If the business needs to keep active users online, the server needs to refresh the cookie’s <code>exp</code> field and return a new signed cookie via <code>Set-Cookie</code>. Otherwise, Redis renewal only ensures the SID does not expire; the cookie will still become invalid at the hard limit.</p>
+<p>This trade-off belongs to session security policy, not just user experience configuration.</p>
+<h2 id="Validation-Flow"><a href="#Validation-Flow" class="headerlink" title="Validation Flow"></a>Validation Flow</h2><p>When restoring browser login state, the flow is roughly as follows:</p>
 <pre class="mermaid">flowchart TD
     A["Request arrives"] --> B{"Parse signed cookie"}
     B -->|"Missing"| Z["Unauthenticated"]
@@ -362,36 +369,35 @@
 
     Z --> H["Unauthenticated / cookie may be cleared"]</pre>
 
-<p>The corresponding core validation method:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> SessionClaims <span class="title function_">resolveActiveClaims</span><span class="params">(Request request, Response response)</span> &#123;</span><br><span class="line">    <span class="comment">// 1. Parse cookie + verify HMAC + check exp</span></span><br><span class="line">    <span class="type">SessionClaims</span> <span class="variable">claims</span> <span class="operator">=</span> decodeAndVerifyCookie(request);</span><br><span class="line">    <span class="keyword">if</span> (claims == <span class="literal">null</span> || claims.sid() == <span class="literal">null</span> || claims.securityStamp() == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 2. Redis SID alive check + sliding renewal</span></span><br><span class="line">    <span class="keyword">if</span> (sessionStore.isSidActive(claims.sid())) &#123;</span><br><span class="line">        <span class="comment">// 3. DB user status + security stamp match</span></span><br><span class="line">        <span class="type">User</span> <span class="variable">user</span> <span class="operator">=</span> userRepo.findActiveById(claims.userId());</span><br><span class="line">        <span class="keyword">if</span> (user != <span class="literal">null</span> &amp;&amp; claims.securityStamp().equals(user.getSecurityStamp())) &#123;</span><br><span class="line">            <span class="keyword">return</span> claims;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// If any layer fails, no valid authentication state can be restored</span></span><br><span class="line">    clearCookie(request, response);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> SessionClaims <span class="title function_">resolveActiveClaims</span><span class="params">(Request request, Response response)</span> &#123;</span><br><span class="line">    <span class="type">SessionClaims</span> <span class="variable">claims</span> <span class="operator">=</span> decodeAndVerifyCookie(request);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (claims == <span class="literal">null</span> || claims.sid() == <span class="literal">null</span> || claims.securityStamp() == <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (sessionStore.isSidActive(claims.sid())) &#123;</span><br><span class="line">        <span class="type">User</span> <span class="variable">user</span> <span class="operator">=</span> userRepo.findActiveById(claims.userId());</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (user != <span class="literal">null</span> &amp;&amp; claims.securityStamp().equals(user.getSecurityStamp())) &#123;</span><br><span class="line">            <span class="keyword">return</span> claims;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    clearCookie(request, response);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>Each layer has a different focus:</p>
+<p>The three checks correspond to three categories of system semantics:</p>
 <table>
 <thead>
 <tr>
 <th>Layer</th>
 <th>Check</th>
-<th>Threat Defended Against</th>
+<th>Problem Solved</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>HMAC signature</td>
-<td>Whether the cookie was tampered with</td>
-<td>Forged SID or exp</td>
+<td>HMAC Cookie</td>
+<td>Tampered or expired</td>
+<td>Prevent forged UID, SID, exp</td>
 </tr>
 <tr>
 <td>Redis SID</td>
-<td>Whether the session is still valid</td>
-<td>Logout, kick-out, expiration</td>
+<td>Session still valid</td>
+<td>Support logout, kick-out, session expiration</td>
 </tr>
 <tr>
 <td>DB security stamp</td>
-<td>Whether account security state has changed</td>
-<td>Password change, account disabled</td>
+<td>Account security state changed</td>
+<td>Support forced invalidation after password change or account disablement</td>
 </tr>
 </tbody></table>
-<p>If any layer fails, no valid authentication state can be restored. For scenarios that can be determined as invalid, the server can clear the cookie. For malformed input or signature mismatch, the request can simply be treated as unauthenticated. The key point is to avoid a fallback that “only verifies the cookie and skips the SID.”</p>
-<h2 id="SID-Lifecycle-Propagation"><a href="#SID-Lifecycle-Propagation" class="headerlink" title="SID Lifecycle Propagation"></a>SID Lifecycle Propagation</h2><p>The core design of this approach is: <strong>the browser-side SID is not isolated. It propagates into the JWT, allowing browser sessions and API tokens to use the same revocation signal.</strong></p>
+<p>For malformed input and signature errors, treat as unauthenticated directly. For requests that can be determined as invalid, the cookie can be cleared. Skipping the SID check after HMAC verification passes would regress “revocable session” back to “irrevocable cookie.”</p>
+<h2 id="How-the-SID-Enters-the-JWT"><a href="#How-the-SID-Enters-the-JWT" class="headerlink" title="How the SID Enters the JWT"></a>How the SID Enters the JWT</h2><p>The SID in the browser cookie does not exist in isolation. It propagates to the OAuth2 Authorization and then into the JWT.</p>
 <pre class="mermaid">sequenceDiagram
     participant B as Browser
     participant Auth as Auth Service
@@ -405,43 +411,33 @@
     B->>Auth: OAuth2 authorization request (with Cookie)
     Auth->>Auth: Extract sid from Cookie
     Auth->>Auth: Attach sid to OAuth2 Authorization
-    Auth->>Auth: Issue JWT (with sid + security stamp + permission version)
+    Auth->>Auth: Issue JWT (write sid + security stamp + permission version)
     Auth-->>B: Return JWT
 
     B->>GW: API request (Bearer JWT)
     GW->>Auth: Auth callback
-    Auth->>Auth: Decode JWT and extract sid
+    Auth->>Auth: Decode JWT, extract sid
     Auth->>Redis: Check SID alive
     Auth->>Auth: Policy decision
     Auth-->>GW: 200 + user headers
     GW-->>B: Business response</pre>
 
-<p>The propagation has three steps:</p>
-<h3 id="1-Create-SID-at-Login"><a href="#1-Create-SID-at-Login" class="headerlink" title="1. Create SID at Login"></a>1. Create SID at Login</h3><p>Whether the login uses a password or a federated identity provider, a SID is created after successful authentication:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">String</span> <span class="variable">sid</span> <span class="operator">=</span> sessionStore.createAndActivate(userId);</span><br><span class="line">cookieService.writeSignedCookie(request, response, auth, sid, userId);</span><br></pre></td></tr></table></figure>
+<p>At login, the auth service creates an SID and writes it into a signed cookie.</p>
+<p>When the browser subsequently initiates an OAuth2 authorization request, the auth service reads the SID from the cookie and attaches it to the OAuth2 Authorization object.</p>
+<p>During token issuance, the SID is written into the JWT claims:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">String</span> <span class="variable">sid</span> <span class="operator">=</span> context.getAuthorization().getAttribute(<span class="string">&quot;sid&quot;</span>);</span><br><span class="line"></span><br><span class="line">context.getClaims().claim(<span class="string">&quot;sid&quot;</span>, sid);</span><br><span class="line">context.getClaims().claim(<span class="string">&quot;security_stamp&quot;</span>, user.getSecurityStamp());</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isAccessToken) &#123;</span><br><span class="line">    context.getClaims().claim(<span class="string">&quot;token_version&quot;</span>, user.getPermissionVersion());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h3 id="2-SID-Flows-into-OAuth2-Authorization"><a href="#2-SID-Flows-into-OAuth2-Authorization" class="headerlink" title="2. SID Flows into OAuth2 Authorization"></a>2. SID Flows into OAuth2 Authorization</h3><p>When the browser starts the OAuth2 authorization request with the cookie, a decorator extracts the SID from the cookie and attaches it to the Authorization object:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Decorator for OAuth2AuthorizationService</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">save</span><span class="params">(OAuth2Authorization authorization)</span> &#123;</span><br><span class="line">    <span class="type">String</span> <span class="variable">sid</span> <span class="operator">=</span> authorization.getAttribute(<span class="string">&quot;sid&quot;</span>);</span><br><span class="line">    <span class="keyword">if</span> (sid == <span class="literal">null</span>) &#123;</span><br><span class="line">        sid = cookieService.resolveSidFromCurrentRequest();</span><br><span class="line">        authorization = OAuth2Authorization.from(authorization)</span><br><span class="line">                .attribute(<span class="string">&quot;sid&quot;</span>, sid)</span><br><span class="line">                .build();</span><br><span class="line">    &#125;</span><br><span class="line">    delegate.save(authorization);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h3 id="3-SID-Is-Written-into-the-JWT"><a href="#3-SID-Is-Written-into-the-JWT" class="headerlink" title="3. SID Is Written into the JWT"></a>3. SID Is Written into the JWT</h3><p>During token issuance, the SID is read from the Authorization and written into the JWT claims:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">String</span> <span class="variable">sid</span> <span class="operator">=</span> context.getAuthorization().getAttribute(<span class="string">&quot;sid&quot;</span>);</span><br><span class="line">context.getClaims().claim(<span class="string">&quot;sid&quot;</span>, sid);</span><br><span class="line">context.getClaims().claim(<span class="string">&quot;security_stamp&quot;</span>, user.getSecurityStamp());</span><br><span class="line"><span class="comment">// Permission version is written only to the access token</span></span><br><span class="line"><span class="keyword">if</span> (isAccessToken) &#123;</span><br><span class="line">    context.getClaims().claim(<span class="string">&quot;token_version&quot;</span>, user.getPermissionVersion());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>The SID in the JWT and the SID in the browser cookie are the same value. Once this SID is revoked in Redis, the browser session and the JWTs issued through that session become invalid in subsequent validation. For account-level revocation across all sessions, a global signal such as the security stamp is a better fit.</p>
-<h2 id="Two-Revocation-Signals"><a href="#Two-Revocation-Signals" class="headerlink" title="Two Revocation Signals"></a>Two Revocation Signals</h2><p>The system has two independent revocation signals with different responsibilities.</p>
-<h3 id="Security-Stamp-Account-Level-Security-Events"><a href="#Security-Stamp-Account-Level-Security-Events" class="headerlink" title="Security Stamp: Account-Level Security Events"></a>Security Stamp: Account-Level Security Events</h3><p>The security stamp is stored in the user table. Typical trigger scenarios include:</p>
+<p>The SID in the cookie and the SID in the JWT are the same value. Once this SID is revoked in Redis, both browser page requests and API requests fail in subsequent validation.</p>
+<p>A token blacklist operates at token granularity. The SID operates at session granularity. How many access tokens have been issued within a single browser session does not affect the revocation action; as long as they share the same SID, one session signal can invalidate them all uniformly.</p>
+<h2 id="Two-Revocation-Signals"><a href="#Two-Revocation-Signals" class="headerlink" title="Two Revocation Signals"></a>Two Revocation Signals</h2><p>Session governance should not compress all invalidation scenarios into a single field. Here they are split into two signals:</p>
 <ul>
-<li>User changes password</li>
-<li>Administrator resets password</li>
-<li>Account is disabled, or another security event requires forced re-authentication</li>
-<li>Any other event that needs to invalidate all sessions</li>
+<li><code>security_stamp</code>: account-level security events</li>
+<li><code>permission_version</code>: permission change events</li>
 </ul>
-<p>During validation, the security stamp in the cookie and JWT is compared with the current database value. If it does not match, the request is rejected.</p>
-<p>Effect: <strong>after a password change, the old cookie and old JWT both carry an outdated security stamp and become invalid.</strong> There is no need to find every token individually, and no need to wait for JWT natural expiration.</p>
-<h3 id="Permission-Version-Permission-Changes"><a href="#Permission-Version-Permission-Changes" class="headerlink" title="Permission Version: Permission Changes"></a>Permission Version: Permission Changes</h3><p><code>permission_version</code> is a monotonically increasing version number in the user table. It increments by 1 whenever permissions change. It is written only into the access token and compared during gateway authorization:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Policy decision engine</span></span><br><span class="line"><span class="keyword">if</span> (!currentPolicy.getPermissionVersion().equals(tokenVersion)) &#123;</span><br><span class="line">    <span class="keyword">return</span> denied(TOKEN_VERSION_MISMATCH);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>After permissions change, the version in the old JWT no longer matches the current version, so the request is rejected. The client can run the authorization flow again to obtain a new JWT.</p>
-<h3 id="Why-Split-Them"><a href="#Why-Split-Them" class="headerlink" title="Why Split Them"></a>Why Split Them</h3><table>
+<p><code>security_stamp</code> is stored in the user table, typically updated when a user changes their password, an admin resets a password, or an account is disabled. The security stamp is written into both the cookie and the JWT. When the current value in the database changes, old cookies and old JWTs both become invalid.</p>
+<p><code>permission_version</code> is also a field in the user table, incremented each time roles are adjusted or authorizations are added or removed. It is primarily written into access tokens and compared against the current policy version during gateway authorization. When the version in an old access token falls behind, the gateway rejects the request, and the client re-runs the authorization flow to obtain a new token.</p>
+<p>Splitting the two makes user experience more controllable:</p>
+<table>
 <thead>
 <tr>
 <th>Dimension</th>
@@ -455,72 +451,63 @@
 <td>Role adjustment, authorization added or removed</td>
 </tr>
 <tr>
-<td>Scope</td>
-<td>Cookie + JWT both invalidated</td>
-<td>Mainly affects JWT</td>
-</tr>
-<tr>
-<td>Validation location</td>
-<td>Cookie validation + gateway authorization</td>
-<td>Gateway authorization only</td>
-</tr>
-<tr>
-<td>Update frequency</td>
-<td>Low, security events</td>
-<td>Medium, permission changes</td>
+<td>Impact scope</td>
+<td>Cookie + JWT</td>
+<td>Primarily access token</td>
 </tr>
 <tr>
 <td>User experience</td>
-<td>Requires re-login</td>
-<td>Frontend can obtain a new JWT automatically</td>
+<td>Usually requires re-login</td>
+<td>Usually just re-obtains token</td>
+</tr>
+<tr>
+<td>Update frequency</td>
+<td>Low</td>
+<td>Medium</td>
 </tr>
 </tbody></table>
-<p>Permission changes are much more frequent than security events. If only one field is used, every permission change may force the user to log in again. After the split, permission changes mainly trigger token refresh, while password changes and session revocation trigger re-login.</p>
-<h2 id="Gateway-Authorization"><a href="#Gateway-Authorization" class="headerlink" title="Gateway Authorization"></a>Gateway Authorization</h2><p>API requests go through a separate validation path using the gateway’s forward-auth mechanism:</p>
+<p>If only one field is used, every permission change could force a full re-login across all devices. Permission changes are typically more frequent than security events. After the split, the invalidation scope more closely matches the actual business event.</p>
+<h2 id="Gateway-Authorization-Chain"><a href="#Gateway-Authorization-Chain" class="headerlink" title="Gateway Authorization Chain"></a>Gateway Authorization Chain</h2><p>When API requests go through the gateway, JWT validation checks not only signature and expiration, but also SID and policy version.</p>
 <pre class="mermaid">flowchart LR
     Client["Client"] -->|"Bearer JWT"| GW["API Gateway"]
-    GW -->|"forward-auth\nAuthorization header"| Auth["Auth Service"]
+    GW -->|"forward-auth\nforward Authorization header"| Auth["Auth Service"]
     Auth -->|"1. Decode JWT"| Auth
     Auth -->|"2. SID alive check"| Redis["Redis"]
     Auth -->|"3. Policy decision"| Policy["Policy cache / DB"]
     Auth -->|"200 + user headers"| GW
     GW -->|"Inject request headers"| Svc["Business Service"]</pre>
 
-<p>Two modes are supported:</p>
+<p>A typical forward-auth flow:</p>
+<ol>
+<li>Client sends a <code>Bearer JWT</code> request to the API gateway</li>
+<li>Gateway forwards the Authorization header to the auth service</li>
+<li>Auth service decodes the JWT, reads <code>uid</code>, <code>sid</code>, <code>security_stamp</code>, <code>token_version</code></li>
+<li>Checks whether the Redis SID still exists</li>
+<li>Reads the user policy, compares security stamp and permission version</li>
+<li>After authorization passes, the gateway injects user header information and forwards to the business service</li>
+</ol>
+<p>Two modes can be supported here:</p>
 <ul>
-<li><strong>entitled mode</strong> (default): full RBAC, including user status, permission version, security stamp, and application authorization</li>
-<li><strong>authenticated mode</strong>: checks only user status, permission version, and security stamp, without application authorization. This is suitable for scenarios that only need to confirm “who sent this request”</li>
+<li><code>authenticated</code>: only confirms who sent the request, checks user status, SID, security stamp, and permission version</li>
+<li><code>entitled</code>: continues with RBAC, application authorization, and resource authorization on top of authenticated</li>
 </ul>
-<p>The difference between the two modes is the entitlement check. SID validation and the two revocation signals are required in both.</p>
-<h2 id="Policy-Cache-and-Fallback"><a href="#Policy-Cache-and-Fallback" class="headerlink" title="Policy Cache and Fallback"></a>Policy Cache and Fallback</h2><p>Policy data uses Redis as the primary source and the database as fallback:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> UserPolicy <span class="title function_">getUserPolicy</span><span class="params">(Long uid)</span> &#123;</span><br><span class="line">    <span class="comment">// Prefer Redis</span></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="type">UserPolicy</span> <span class="variable">cached</span> <span class="operator">=</span> redis.get(policyCacheKey(uid));</span><br><span class="line">        <span class="keyword">if</span> (cached != <span class="literal">null</span>) <span class="keyword">return</span> cached;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        log.warn(<span class="string">&quot;Redis unavailable, fallback to DB&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Fallback to DB</span></span><br><span class="line">    <span class="type">User</span> <span class="variable">user</span> <span class="operator">=</span> userRepo.findActiveById(uid);</span><br><span class="line">    <span class="keyword">if</span> (user != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="type">UserPolicy</span> <span class="variable">policy</span> <span class="operator">=</span> UserPolicy.from(user);</span><br><span class="line">        <span class="comment">// Try to refill Redis</span></span><br><span class="line">        <span class="keyword">try</span> &#123; redis.set(policyCacheKey(uid), policy, <span class="number">300</span>, SECONDS); &#125;</span><br><span class="line">        <span class="keyword">catch</span> (Exception ex) &#123; log.warn(<span class="string">&quot;Cache refill failed&quot;</span>); &#125;</span><br><span class="line">        <span class="keyword">return</span> policy;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">null</span>;  <span class="comment">// Both Redis and DB are unavailable</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>The difference between the two modes is in authorization depth, not session validation. SID and security stamp remain the common foundational layer.</p>
+<h2 id="When-Redis-Is-Unavailable"><a href="#When-Redis-Is-Unavailable" class="headerlink" title="When Redis Is Unavailable"></a>When Redis Is Unavailable</h2><p>This design introduces a Redis dependency, so failure semantics must be defined.</p>
+<p>If the policy cache is unavailable, the system can fall back to the database. Policy data has an authoritative source; Redis is only a cache.</p>
+<p>SID liveness checks are different. The SID is the source of truth for whether a session is still valid. When Redis is unavailable, the system does not know whether the session has been revoked. Continuing to allow requests through would break the promises of “logout takes effect immediately” and “admin kick-out takes effect immediately.”</p>
+<p>Therefore, the SID validation path is better suited to fail-closed behavior: when Redis is unavailable, reject session restoration and API authorization.</p>
+<p>This also means Redis high availability is not optional. Master-replica replication with Sentinel, Redis Cluster, or other high-availability solutions that meet deployment requirements need to be designed as part of the session infrastructure, not added after going live.</p>
+<h2 id="Logout-and-Kick-Out"><a href="#Logout-and-Kick-Out" class="headerlink" title="Logout and Kick-Out"></a>Logout and Kick-Out</h2><p>Logout clears both layers:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">logout</span><span class="params">(Request request, Response response)</span> &#123;</span><br><span class="line">    <span class="type">String</span> <span class="variable">sid</span> <span class="operator">=</span> cookieService.resolveSid(request);</span><br><span class="line"></span><br><span class="line">    sessionStore.invalidateSid(sid);</span><br><span class="line">    cookieService.clearCookie(request, response);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>When both Redis and DB are unavailable, the policy cannot be determined and the decision should be rejected. This is a choice that prioritizes security over availability.</p>
-<p>When permissions change, the cache is actively deleted:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">redis.delete(policyCacheKey(uid));</span><br></pre></td></tr></table></figure>
-
-<p>The next request triggers a cache miss and reloads from the database. Cache TTL is only a fallback. The normal path should rely on active invalidation and permission versions, so old tokens are rejected as quickly as possible.</p>
-<h2 id="Logout"><a href="#Logout" class="headerlink" title="Logout"></a>Logout</h2><p>Logout clears both layers:</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">logout</span><span class="params">(Request request, Response response, Authentication auth)</span> &#123;</span><br><span class="line">    <span class="type">String</span> <span class="variable">sid</span> <span class="operator">=</span> cookieService.resolveSid(request);</span><br><span class="line">    sessionStore.invalidateSid(sid);           <span class="comment">// Delete Redis SID</span></span><br><span class="line">    cookieService.clearCookie(request, response);  <span class="comment">// Clear Cookie</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>After the Redis SID is deleted:</p>
+<p>After the Redis SID is deleted, the impact covers both pathways simultaneously:</p>
 <ul>
-<li>Subsequent browser requests: cookie signature verification may pass, but the SID check fails, so the path is fail-closed</li>
-<li>Already-issued JWTs: gateway authorization fails at the SID check, so the request is rejected</li>
-<li>For a single browser session, there is no need to maintain a token blacklist or wait for JWT natural expiration</li>
+<li>Browser requests: the cookie signature may still verify, but the SID check fails</li>
+<li>API requests: the JWT may not have expired, but the SID check in the JWT fails</li>
 </ul>
-<h2 id="Trade-Off-Analysis"><a href="#Trade-Off-Analysis" class="headerlink" title="Trade-Off Analysis"></a>Trade-Off Analysis</h2><h3 id="Benefits"><a href="#Benefits" class="headerlink" title="Benefits"></a>Benefits</h3><ul>
-<li><strong>Session-level revocation</strong>: revoking one SID invalidates both the browser session and the corresponding API tokens, without a token blacklist</li>
-<li><strong>Layered dual signals</strong>: security events force re-login, while permission changes only require obtaining a new JWT</li>
-<li><strong>Natural integration with OAuth2</strong>: the SID flows from the cookie into OAuth2 and then into the JWT, with no additional token management layer</li>
-<li><strong>Sliding session</strong>: Redis TTL supports the active window, while cookie <code>exp</code> preserves the hard upper bound</li>
-</ul>
-<h3 id="Costs"><a href="#Costs" class="headerlink" title="Costs"></a>Costs</h3><ul>
-<li><strong>Redis dependency</strong>: SID validation depends on Redis. The design should not fall back to “HMAC verified, so skip SID.” Production environments need Redis high availability and clear failure semantics</li>
-<li><strong>Additional request cost</strong>: restoring browser login state and gateway authorization each require an extra SID check and renewal</li>
-<li><strong>Implementation complexity</strong>: compared with pure JWT, this adds cookie signing, Redis SID, security stamp comparison, SID propagation, and policy cache fallback</li>
-</ul>
-<h3 id="Suitable-Scenarios"><a href="#Suitable-Scenarios" class="headerlink" title="Suitable Scenarios"></a>Suitable Scenarios</h3><table>
+<p>Kicking out a specific browser session is essentially the same: delete the corresponding SID.</p>
+<p>Invalidating all sessions for a user is better handled by updating the <code>security_stamp</code>. This causes the security stamp in all of that user’s old cookies and old JWTs to mismatch.</p>
+<h2 id="Applicability-Boundary"><a href="#Applicability-Boundary" class="headerlink" title="Applicability Boundary"></a>Applicability Boundary</h2><table>
 <thead>
 <tr>
 <th>Scenario</th>
@@ -528,11 +515,15 @@
 </tr>
 </thead>
 <tbody><tr>
-<td>Internal systems that need revocation and kick-out</td>
+<td>Internal systems requiring immediate logout</td>
 <td>Suitable</td>
 </tr>
 <tr>
-<td>Permission changes need to take effect quickly</td>
+<td>Admin consoles requiring admin kick-out</td>
+<td>Suitable</td>
+</tr>
+<tr>
+<td>Permission changes need fast enforcement</td>
 <td>Suitable</td>
 </tr>
 <tr>
@@ -540,18 +531,27 @@
 <td>Suitable</td>
 </tr>
 <tr>
-<td>Pure public API with no session concept</td>
-<td>Not suitable; JWT is simpler</td>
+<td>Pure public APIs with no browser session concept</td>
+<td>Not very suitable</td>
 </tr>
 <tr>
 <td>Cross-top-level-domain SSO</td>
-<td>Not suitable; cookies are constrained, a protocol-level solution is needed</td>
+<td>Requires a protocol-level solution, not just cookies</td>
 </tr>
 <tr>
-<td>Extremely high concurrency where centralized session dependency is unacceptable</td>
-<td>Not suitable; Redis architecture and fallback strategy need to be reassessed</td>
+<td>Extremely high concurrency that cannot bear centralized session dependency</td>
+<td>Needs Redis architecture reassessment</td>
 </tr>
 </tbody></table>
+<p>This design is not meant to prove that cookies are better than JWTs, or that sessions are more secure than tokens. What it does is separation of concerns:</p>
+<ul>
+<li>JWTs handle request admission credentials</li>
+<li>Cookies carry browser login state</li>
+<li>Redis SIDs provide session revocation signals</li>
+<li>Security stamps handle account-level forced invalidation</li>
+<li>Permission version numbers handle authorization change synchronization</li>
+</ul>
+<p>After these signals are separated, what each field affects, where it is validated, and how it behaves during failures all become clearer. The architectural benefit comes not just from “adding a Redis layer,” but from invalidation semantics being split to the right granularity.</p>
 <h2 id="Further-Reading"><a href="#Further-Reading" class="headerlink" title="Further Reading"></a>Further Reading</h2><ul>
 <li><a href="/2026/03/17/oauth2-oidc-session-timeout-boundaries-en/">OAuth2&#x2F;OIDC Session Timeout Boundaries: Frontend Tokens, Refresh Tokens, and SSO Sessions</a></li>
 <li><a href="/2026/04/06/why-local-auth-alongside-federation/">Beyond Federated Login: Resilience Design for IAM Authentication Paths</a></li>
@@ -642,7 +642,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#JWT-Governance-Gaps-in-the-Browser"><span class="nav-number">2.</span> <span class="nav-text">JWT Governance Gaps in the Browser</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Why-Not-Use-a-Traditional-Session-Directly"><span class="nav-number">3.</span> <span class="nav-text">Why Not Use a Traditional Session Directly</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Dual-Layer-Architecture"><span class="nav-number">4.</span> <span class="nav-text">Dual-Layer Architecture</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Cookie-Layer-Design"><span class="nav-number">5.</span> <span class="nav-text">Cookie Layer Design</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Cookie-Format"><span class="nav-number">5.1.</span> <span class="nav-text">Cookie Format</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Payload-Content"><span class="nav-number">5.2.</span> <span class="nav-text">Payload Content</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Signing-and-Verification"><span class="nav-number">5.3.</span> <span class="nav-text">Signing and Verification</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Cookie-Attributes"><span class="nav-number">5.4.</span> <span class="nav-text">Cookie Attributes</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Redis-SID-Layer-Design"><span class="nav-number">6.</span> <span class="nav-text">Redis SID Layer Design</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Session-ID-Generation"><span class="nav-number">6.1.</span> <span class="nav-text">Session ID Generation</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Redis-Storage"><span class="nav-number">6.2.</span> <span class="nav-text">Redis Storage</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Sliding-Renewal"><span class="nav-number">6.3.</span> <span class="nav-text">Sliding Renewal</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Three-Layer-Validation-Flow"><span class="nav-number">7.</span> <span class="nav-text">Three-Layer Validation Flow</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#SID-Lifecycle-Propagation"><span class="nav-number">8.</span> <span class="nav-text">SID Lifecycle Propagation</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-Create-SID-at-Login"><span class="nav-number">8.1.</span> <span class="nav-text">1. Create SID at Login</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-SID-Flows-into-OAuth2-Authorization"><span class="nav-number">8.2.</span> <span class="nav-text">2. SID Flows into OAuth2 Authorization</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-SID-Is-Written-into-the-JWT"><span class="nav-number">8.3.</span> <span class="nav-text">3. SID Is Written into the JWT</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Two-Revocation-Signals"><span class="nav-number">9.</span> <span class="nav-text">Two Revocation Signals</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Security-Stamp-Account-Level-Security-Events"><span class="nav-number">9.1.</span> <span class="nav-text">Security Stamp: Account-Level Security Events</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Permission-Version-Permission-Changes"><span class="nav-number">9.2.</span> <span class="nav-text">Permission Version: Permission Changes</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Why-Split-Them"><span class="nav-number">9.3.</span> <span class="nav-text">Why Split Them</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Gateway-Authorization"><span class="nav-number">10.</span> <span class="nav-text">Gateway Authorization</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Policy-Cache-and-Fallback"><span class="nav-number">11.</span> <span class="nav-text">Policy Cache and Fallback</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Logout"><span class="nav-number">12.</span> <span class="nav-text">Logout</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Trade-Off-Analysis"><span class="nav-number">13.</span> <span class="nav-text">Trade-Off Analysis</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Benefits"><span class="nav-number">13.1.</span> <span class="nav-text">Benefits</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Costs"><span class="nav-number">13.2.</span> <span class="nav-text">Costs</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Suitable-Scenarios"><span class="nav-number">13.3.</span> <span class="nav-text">Suitable Scenarios</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Further-Reading"><span class="nav-number">14.</span> <span class="nav-text">Further Reading</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Problem-Boundary"><span class="nav-number">2.</span> <span class="nav-text">Problem Boundary</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Why-Not-Traditional-Sessions"><span class="nav-number">3.</span> <span class="nav-text">Why Not Traditional Sessions</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Trade-Offs-Up-Front"><span class="nav-number">4.</span> <span class="nav-text">Trade-Offs Up Front</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Dual-Layer-Session-Structure"><span class="nav-number">5.</span> <span class="nav-text">Dual-Layer Session Structure</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Cookie-Carries-Only-Essential-Information"><span class="nav-number">6.</span> <span class="nav-text">Cookie Carries Only Essential Information</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Redis-SID-Does-One-Thing"><span class="nav-number">7.</span> <span class="nav-text">Redis SID Does One Thing</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Validation-Flow"><span class="nav-number">8.</span> <span class="nav-text">Validation Flow</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#How-the-SID-Enters-the-JWT"><span class="nav-number">9.</span> <span class="nav-text">How the SID Enters the JWT</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Two-Revocation-Signals"><span class="nav-number">10.</span> <span class="nav-text">Two Revocation Signals</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Gateway-Authorization-Chain"><span class="nav-number">11.</span> <span class="nav-text">Gateway Authorization Chain</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#When-Redis-Is-Unavailable"><span class="nav-number">12.</span> <span class="nav-text">When Redis Is Unavailable</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Logout-and-Kick-Out"><span class="nav-number">13.</span> <span class="nav-text">Logout and Kick-Out</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Applicability-Boundary"><span class="nav-number">14.</span> <span class="nav-text">Applicability Boundary</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Further-Reading"><span class="nav-number">15.</span> <span class="nav-text">Further Reading</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
