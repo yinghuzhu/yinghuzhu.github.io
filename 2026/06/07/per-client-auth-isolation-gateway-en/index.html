@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="A gateway-level Per-Client authorization isolation design for protecting multiple applications with one IAM platform, covering X-Expected-Client-Id, access levels, and entitlement policy boundaries.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Per-Client Authorization Isolation at the Gateway: One IAM Platform for Multiple Applications">
+<meta property="og:url" content="https://www.yzhu.name/2026/06/07/per-client-auth-isolation-gateway-en/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="A gateway-level Per-Client authorization isolation design for protecting multiple applications with one IAM platform, covering X-Expected-Client-Id, access levels, and entitlement policy boundaries.">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-06-07T02:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-07T02:00:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="api-gateway">
+<meta property="article:tag" content="apisix">
+<meta property="article:tag" content="forward-auth">
+<meta property="article:tag" content="iam">
+<meta property="article:tag" content="multi-tenant">
+<meta property="article:tag" content="oauth2">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2026/06/07/per-client-auth-isolation-gateway-en/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en-US'
+  };
+</script>
+
+  <title>Per-Client Authorization Isolation at the Gateway: One IAM Platform for Multiple Applications | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en-US">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2026/06/07/per-client-auth-isolation-gateway-en/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Per-Client Authorization Isolation at the Gateway: One IAM Platform for Multiple Applications
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2026-06-07 10:00:00" itemprop="dateCreated datePublished" datetime="2026-06-07T10:00:00+08:00">2026-06-07</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Security/" itemprop="url" rel="index"><span itemprop="name">Security</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">A gateway-level Per-Client authorization isolation design for protecting multiple applications with one IAM platform, covering X-Expected-Client-Id, access levels, and entitlement policy boundaries.</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p><strong>🌐 Language</strong>: <strong>English Version</strong> | <a href="/2026/06/07/per-client-auth-isolation-gateway/">中文版</a></p>
+</blockquote>
+<blockquote>
+<p><strong>Context</strong>: This design assumes an OAuth2&#x2F;OIDC-based IAM platform and an API gateway, such as APISIX, using the forward-auth plugin for centralized authorization. For the surrounding routing and browser-session design, see <a href="/2026/02/27/microservice-gateway-oauth2-routing-en/">Microservice Gateway Routing</a> and <a href="/2026/04/25/hmac-cookie-redis-sid-browser-session-en/">HMAC Cookie + Redis SID Dual-Layer Sessions</a>.</p>
+</blockquote>
+<span id="more"></span>
+
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p>This article focuses on one specific problem in a shared IAM platform: preventing a token issued for one application from being used against another application. The core mechanism is to declare the expected OAuth2 Client at the APISIX route level, pass it to forward-auth through <code>X-Expected-Client-Id</code>, and let the authorization service compare it with the <code>client_id</code> claim in the JWT.</p>
+<p>This mechanism answers only one question: <strong>which client does this token belong to?</strong> It does not replace user admission policy, organization entitlement, session revocation, or application-level permissions. Application names, Client IDs, and route prefixes in this article are neutral examples and do not represent any real deployment.</p>
+<h2 id="1-The-Problem-Token-Overreach-in-a-Shared-IAM-Platform"><a href="#1-The-Problem-Token-Overreach-in-a-Shared-IAM-Platform" class="headerlink" title="1. The Problem: Token Overreach in a Shared IAM Platform"></a>1. The Problem: Token Overreach in a Shared IAM Platform</h2><p>When multiple internal applications share one IAM platform, the naive model is straightforward: a user logs in, receives a JWT, and every application accepts that token. The problem is:</p>
+<blockquote>
+<p><strong>Can a token issued for Application A be used to access Application B?</strong></p>
+</blockquote>
+<p>In OAuth2, tokens are issued for a specific Client. If the gateway only checks whether a token is valid, but does not verify which Client the token belongs to, any request carrying a valid token can pass through to any backend service. That may look harmless inside an enterprise network, but it creates real risks:</p>
+<ul>
+<li><strong>Access policy bypass</strong>: Application B may have its own admission policy, but the gateway only checks “is the token valid.”</li>
+<li><strong>Cross-application data exposure</strong>: Browser-side code or manual API calls can reuse a token against another application’s API.</li>
+<li><strong>Broken audit boundaries</strong>: The gateway cannot reliably distinguish which application client initiated a request.</li>
+</ul>
+<p>The core gap is simple: <strong>the gateway performs authentication, but not client binding.</strong></p>
+<hr>
+<h2 id="2-Architecture-Decision-Inject-the-Expected-Client-ID-at-the-Gateway"><a href="#2-Architecture-Decision-Inject-the-Expected-Client-ID-at-the-Gateway" class="headerlink" title="2. Architecture Decision: Inject the Expected Client ID at the Gateway"></a>2. Architecture Decision: Inject the Expected Client ID at the Gateway</h2><h3 id="2-1-Options-Considered"><a href="#2-1-Options-Considered" class="headerlink" title="2.1 Options Considered"></a>2.1 Options Considered</h3><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Approach</th>
+<th>Problem</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Per-application authorization</td>
+<td>Each backend validates the token’s <code>client_id</code></td>
+<td>Authorization logic spreads across services, and policy changes require repeated code changes</td>
+</tr>
+<tr>
+<td>Gateway validates only token liveness</td>
+<td>forward-auth checks JWT signature and expiration</td>
+<td>Does not prevent cross-application token reuse</td>
+</tr>
+<tr>
+<td><strong>Gateway injects expected Client ID</strong></td>
+<td>Route config declares which Client is allowed for this route; the authorization service validates the binding</td>
+<td>Centralized control, and adding a new application does not require changes to the authorization service</td>
+</tr>
+</tbody></table>
+<p>The third option is the chosen design. The route configuration is declarative: adding a new application requires a new gateway route config, not a code change in the authorization service.</p>
+<h3 id="2-2-Mechanism-Overview"><a href="#2-2-Mechanism-Overview" class="headerlink" title="2.2 Mechanism Overview"></a>2.2 Mechanism Overview</h3><pre class="mermaid">sequenceDiagram
+    participant Client as Browser / Client
+    participant GW as APISIX Gateway
+    participant Auth as Authorization Service
+    participant Backend as Business Backend
+
+    Client->>GW: Request /api/app-a/tasks with Bearer token
+    Note over GW: 1. Route matches Application A
+    Note over GW: 2. Lua injects X-Expected-Client-Id: app-a-web
+    GW->>Auth: forward-auth (Authorization + X-Expected-Client-Id)
+    Note over Auth: 3. Decode JWT and read client_id
+    Note over Auth: 4. Compare JWT.client_id with X-Expected-Client-Id
+    alt Client ID matches and admission passes
+        Auth-->>GW: 200 OK + X-User-Id, X-Sid, etc.
+        GW->>Backend: Forward request with identity headers
+        Backend-->>Client: Return business data
+    else Client ID mismatch
+        Auth-->>GW: 401 Unauthorized
+        GW-->>Client: 401 Unauthorized
+    end</pre>
+
+<p>Key design points:</p>
+<ol>
+<li><strong>Route config declares the Client ID</strong>: Each protected route declares the OAuth2 Client it expects.</li>
+<li><strong>Lua injects a request header</strong>: <code>serverless-pre-function</code> writes <code>X-Expected-Client-Id</code> before forward-auth runs.</li>
+<li><strong>forward-auth forwards the header</strong>: <code>request_headers</code> must include <code>X-Expected-Client-Id</code>.</li>
+<li><strong>The authorization service validates the binding</strong>: It reads the JWT <code>client_id</code> claim and compares it with <code>X-Expected-Client-Id</code>.</li>
+</ol>
+<hr>
+<h2 id="3-APISIX-Route-Configuration"><a href="#3-APISIX-Route-Configuration" class="headerlink" title="3. APISIX Route Configuration"></a>3. APISIX Route Configuration</h2><h3 id="3-1-Route-Config-Structure"><a href="#3-1-Route-Config-Structure" class="headerlink" title="3.1 Route Config Structure"></a>3.1 Route Config Structure</h3><p>Each application owns an independent gateway route config that declares the route, upstream, and authentication behavior. Application A is used here as a neutral example:</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;routes&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;app-a-api-route&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;uri&quot;</span><span class="punctuation">:</span> <span class="string">&quot;/api/app-a/*&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;hosts&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;apps.example.com&quot;</span><span class="punctuation">,</span> <span class="string">&quot;console.example.com&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;priority&quot;</span><span class="punctuation">:</span> <span class="number">91</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;upstream_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;app-a-upstream&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;plugin_config_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;protected-api-auth&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;plugins&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;serverless-pre-function&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;phase&quot;</span><span class="punctuation">:</span> <span class="string">&quot;access&quot;</span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;functions&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">            <span class="string">&quot;return function() ngx.req.set_header(\&quot;X-Expected-Client-Id\&quot;, \&quot;app-a-web\&quot;) end&quot;</span></span><br><span class="line">          <span class="punctuation">]</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>Execution order:</p>
+<ol>
+<li><code>serverless-pre-function</code> in the <code>access</code> phase sets <code>X-Expected-Client-Id</code></li>
+<li><code>forward-auth</code>, through the reusable <code>protected-api-auth</code> config, sends that header and <code>Authorization</code> to the authorization service</li>
+<li>After authorization succeeds, the gateway forwards the request to the backend</li>
+</ol>
+<h3 id="3-2-Reusable-forward-auth-Config"><a href="#3-2-Reusable-forward-auth-Config" class="headerlink" title="3.2 Reusable forward-auth Config"></a>3.2 Reusable forward-auth Config</h3><p>The reusable plugin config looks like this:</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;protected-api-auth&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;plugins&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;forward-auth&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;uri&quot;</span><span class="punctuation">:</span> <span class="string">&quot;http://127.0.0.1:9080/__internal/auth/gateway/verify?gateway_secret=$&#123;GATEWAY_AUTH_SECRET&#125;&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;request_headers&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;Authorization&quot;</span><span class="punctuation">,</span> <span class="string">&quot;X-Trace-Id&quot;</span><span class="punctuation">,</span> <span class="string">&quot;X-Request-Id&quot;</span><span class="punctuation">,</span> <span class="string">&quot;X-Expected-Client-Id&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;upstream_headers&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;X-User-Id&quot;</span><span class="punctuation">,</span> <span class="string">&quot;X-Sid&quot;</span><span class="punctuation">,</span> <span class="string">&quot;X-User-Email&quot;</span><span class="punctuation">,</span> <span class="string">&quot;X-User-Display-Name&quot;</span><span class="punctuation">,</span> <span class="string">&quot;X-Client-Id&quot;</span><span class="punctuation">,</span> <span class="string">&quot;X-Idp&quot;</span><span class="punctuation">,</span> <span class="string">&quot;X-Idp-User-Id&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;timeout&quot;</span><span class="punctuation">:</span> <span class="number">5000</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;status_on_error&quot;</span><span class="punctuation">:</span> <span class="number">503</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p><code>X-Expected-Client-Id</code> in <code>request_headers</code> is the critical part. Without it, the forward-auth subrequest will not carry the expected Client ID. If a route does not set this header, the authorization service should reject the request instead of falling back to a permissive mode.</p>
+<h3 id="3-3-Protecting-the-Internal-Authorization-Route"><a href="#3-3-Protecting-the-Internal-Authorization-Route" class="headerlink" title="3.3 Protecting the Internal Authorization Route"></a>3.3 Protecting the Internal Authorization Route</h3><p>The forward-auth subrequest targets an APISIX internal route on <code>127.0.0.1:9080</code>. This route must not be reachable from the public edge:</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;auth-gateway-verify-internal&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;uri&quot;</span><span class="punctuation">:</span> <span class="string">&quot;/__internal/auth/gateway/verify&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;hosts&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;127.0.0.1&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;priority&quot;</span><span class="punctuation">:</span> <span class="number">110</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;vars&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="punctuation">[</span><span class="string">&quot;arg_gateway_secret&quot;</span><span class="punctuation">,</span> <span class="string">&quot;==&quot;</span><span class="punctuation">,</span> <span class="string">&quot;$&#123;GATEWAY_AUTH_SECRET&#125;&quot;</span><span class="punctuation">]</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;upstream_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;auth-service-upstream&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>Three layers of protection:</p>
+<ul>
+<li><strong><code>hosts: 127.0.0.1</code></strong>: Accept only loopback requests</li>
+<li><strong><code>gateway_secret</code> variable check</strong>: Require a shared secret in the query string</li>
+<li><strong>High priority</strong>: Ensure the internal route wins over business routes</li>
+</ul>
+<hr>
+<h2 id="4-Two-Authorization-Modes"><a href="#4-Two-Authorization-Modes" class="headerlink" title="4. Two Authorization Modes"></a>4. Two Authorization Modes</h2><p>Not every endpoint needs strict Client binding. A profile endpoint such as <code>/me</code> may be valid from any logged-in application. This leads to two modes.</p>
+<h3 id="4-1-Protected-Mode"><a href="#4-1-Protected-Mode" class="headerlink" title="4.1 Protected Mode"></a>4.1 Protected Mode</h3><p>Protected mode is the default for business APIs and enforces Client binding.</p>
+<ul>
+<li>Lua sets <code>X-Expected-Client-Id</code></li>
+<li>forward-auth calls <code>/__internal/auth/gateway/verify</code></li>
+<li>The authorization service checks <code>JWT.client_id == X-Expected-Client-Id</code>; mismatch returns 401</li>
+</ul>
+<h3 id="4-2-Authenticated-Mode"><a href="#4-2-Authenticated-Mode" class="headerlink" title="4.2 Authenticated Mode"></a>4.2 Authenticated Mode</h3><p>Authenticated mode is for shared user-info endpoints. It requires a valid login state, but does not enforce a specific Client binding.</p>
+<ul>
+<li>Lua sets <code>X-Auth-Mode: authenticated</code></li>
+<li>forward-auth calls <code>/__internal/auth/gateway/session</code></li>
+<li>The authorization service skips Client ID matching and validates only token liveness, user state, and active session state</li>
+</ul>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;account-profile-authenticated-route&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;uri&quot;</span><span class="punctuation">:</span> <span class="string">&quot;/api/account/profile/*&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;priority&quot;</span><span class="punctuation">:</span> <span class="number">95</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;plugin_config_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;authenticated-api-auth&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;plugins&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;serverless-pre-function&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;phase&quot;</span><span class="punctuation">:</span> <span class="string">&quot;access&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;functions&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="string">&quot;return function() ngx.req.set_header(\&quot;X-Auth-Mode\&quot;, \&quot;authenticated\&quot;) end&quot;</span></span><br><span class="line">      <span class="punctuation">]</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>Both modes ultimately reach the same internal authorization capability. <code>X-Auth-Mode</code> selects the behavior:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>X-Expected-Client-Id</th>
+<th>X-Auth-Mode</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Protected</td>
+<td>Required, must match JWT <code>client_id</code></td>
+<td>Not set</td>
+<td>Client binding + full admission policy</td>
+</tr>
+<tr>
+<td>Authenticated</td>
+<td>Not required</td>
+<td><code>authenticated</code></td>
+<td>Login state only</td>
+</tr>
+</tbody></table>
+<h3 id="4-3-Route-Priority"><a href="#4-3-Route-Priority" class="headerlink" title="4.3 Route Priority"></a>4.3 Route Priority</h3><p>Route priority keeps exact routes from being captured by broader API routes:</p>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Route Type</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>110</td>
+<td>Internal authorization route</td>
+<td><code>/__internal/auth/gateway/verify</code></td>
+</tr>
+<tr>
+<td>100</td>
+<td>Public callback &#x2F; webhook</td>
+<td><code>/callback/app-a/*</code></td>
+</tr>
+<tr>
+<td>95-96</td>
+<td>Authenticated API</td>
+<td><code>/api/account/profile/*</code></td>
+</tr>
+<tr>
+<td>91</td>
+<td>Protected API</td>
+<td><code>/api/app-a/*</code>, <code>/api/app-b/*</code></td>
+</tr>
+<tr>
+<td>80-83</td>
+<td>Static UI &#x2F; SPA</td>
+<td><code>/ui/app-a/*</code></td>
+</tr>
+<tr>
+<td>69-70</td>
+<td>SPA root and fallback</td>
+<td><code>/*</code></td>
+</tr>
+</tbody></table>
+<p>The profile route has higher priority than business API routes, so “read my own profile” goes through Authenticated mode instead of being captured by a Protected route.</p>
+<hr>
+<h2 id="5-Authorization-Service-Policy-Decision-Chain"><a href="#5-Authorization-Service-Policy-Decision-Chain" class="headerlink" title="5. Authorization Service: Policy Decision Chain"></a>5. Authorization Service: Policy Decision Chain</h2><p>The gateway handles the question “does this token belong to this Client.” The authorization service then evaluates the admission policy:</p>
+<pre class="mermaid">flowchart TD
+    A[Receive forward-auth request] --> B{X-Auth-Mode?}
+    B -->|authenticated| C[Skip Client check<br>validate active session]
+    B -->|entitled/default| D{X-Expected-Client-Id present?}
+    D -->|missing| E[500 config error]
+    D -->|present| F{JWT.client_id<br>== Expected?}
+    F -->|mismatch| G[401 Client mismatch]
+    F -->|match| H[Check Client status]
+    H -->|disabled| I[403 Client disabled]
+    H -->|active| J{Access Level?}
+    J -->|PUBLIC| K[Allow]
+    J -->|AUTHENTICATED| L[Check user state<br>+ token version]
+    J -->|PRIVATE| M[Full admission policy]
+    M --> N{User state?}
+    N -->|disabled/left| O[403]
+    N -->|active| P{Token Version<br>matches?}
+    P -->|mismatch| Q[401 stale token<br>force re-auth]
+    P -->|match| R{Security Stamp<br>matches?}
+    R -->|mismatch| S[401 security stamp changed]
+    R -->|match| T{Platform admin?}
+    T -->|yes| U[Allow]
+    T -->|no| V{Application admin?}
+    V -->|yes| U
+    V -->|no| W{User entitlement}
+    W -->|explicit DENY| X[403]
+    W -->|explicit ALLOW| U
+    W -->|none| Y{Organization entitlement}
+    Y -->|any DENY| X
+    Y -->|any ALLOW| U
+    Y -->|none| Z[403 default deny]</pre>
+
+<h3 id="5-1-Three-Access-Levels"><a href="#5-1-Three-Access-Levels" class="headerlink" title="5.1 Three Access Levels"></a>5.1 Three Access Levels</h3><p>Each OAuth2 Client has an <code>access_level</code> that determines how strict admission should be:</p>
+<table>
+<thead>
+<tr>
+<th>Access Level</th>
+<th>Value</th>
+<th>Meaning</th>
+<th>Suitable For</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>PRIVATE</strong></td>
+<td>1</td>
+<td>Full entitlement policy chain required</td>
+<td>Core business apps and admin applications</td>
+</tr>
+<tr>
+<td><strong>AUTHENTICATED</strong></td>
+<td>2</td>
+<td>Logged-in user with valid state is enough</td>
+<td>Shared internal tools and documentation sites</td>
+</tr>
+<tr>
+<td><strong>PUBLIC</strong></td>
+<td>3</td>
+<td>Client binding passes, then allow</td>
+<td>Low-risk endpoints that still need Client identity</td>
+</tr>
+</tbody></table>
+<p>This lets the authorization service short-circuit lower-risk Clients instead of forcing every application through the heaviest policy chain.</p>
+<h3 id="5-2-Entitlement-Chain-for-PRIVATE-Clients"><a href="#5-2-Entitlement-Chain-for-PRIVATE-Clients" class="headerlink" title="5.2 Entitlement Chain for PRIVATE Clients"></a>5.2 Entitlement Chain for PRIVATE Clients</h3><p>For <code>PRIVATE</code> applications, admission follows a deterministic order:</p>
+<p><strong>1. Platform role bypass</strong></p>
+<p>Platform administrators and global application administrators are allowed directly. This is an operational escape path for emergencies.</p>
+<p><strong>2. Application administrator</strong></p>
+<p>Application-admin configuration records which users administer each Client. Application admins have full access to their own application.</p>
+<p><strong>3. User-level entitlement</strong></p>
+<p>User-level entitlement records explicit <code>ALLOW</code> or <code>DENY</code> decisions for one user and one application. If a user-level record exists, it wins.</p>
+<p><strong>4. Organization-level entitlement</strong></p>
+<p>The system resolves all organization units a user belongs to, including ancestors, and evaluates organization-level entitlement:</p>
+<ul>
+<li>Any <code>DENY</code> wins over all <code>ALLOW</code> records</li>
+<li>If there is no <code>DENY</code>, at least one <code>ALLOW</code> grants access</li>
+<li>User-level records take precedence over organization-level records</li>
+</ul>
+<p><strong>5. Default deny</strong></p>
+<p>If nothing matches, deny access.</p>
+<h3 id="5-3-Version-Consistency-Checks"><a href="#5-3-Version-Consistency-Checks" class="headerlink" title="5.3 Version Consistency Checks"></a>5.3 Version Consistency Checks</h3><p>Token Version and Security Stamp are independent revocation signals:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Trigger</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Token Version</strong></td>
+<td>Admin changes roles or access policy</td>
+<td>Version increments, and active tokens become stale</td>
+</tr>
+<tr>
+<td><strong>Security Stamp</strong></td>
+<td>User changes password or account is disabled</td>
+<td>Stamp changes, forcing re-authentication</td>
+</tr>
+</tbody></table>
+<p>These two signals are discussed in more detail in <a href="/2026/04/25/hmac-cookie-redis-sid-browser-session-en/">HMAC Cookie + Redis SID Dual-Layer Sessions</a>.</p>
+<hr>
+<h2 id="6-Client-ID-Mapping-for-Multiple-Applications"><a href="#6-Client-ID-Mapping-for-Multiple-Applications" class="headerlink" title="6. Client ID Mapping for Multiple Applications"></a>6. Client ID Mapping for Multiple Applications</h2><p>In the examples, Client ID formats are intentionally generic:</p>
+<table>
+<thead>
+<tr>
+<th>Application</th>
+<th>Client ID</th>
+<th>Format</th>
+<th>Route Prefix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Admin Console</td>
+<td><code>admin-console</code></td>
+<td>Readable name</td>
+<td><code>/api/admin/*</code></td>
+</tr>
+<tr>
+<td>Workbench</td>
+<td><code>workbench-web</code></td>
+<td>Readable name</td>
+<td><code>/api/workbench/*</code></td>
+</tr>
+<tr>
+<td>Application A</td>
+<td><code>app-a-web</code></td>
+<td>App + endpoint type</td>
+<td><code>/api/app-a/*</code></td>
+</tr>
+<tr>
+<td>Application B</td>
+<td><code>app-b-service</code></td>
+<td>App + endpoint type</td>
+<td><code>/api/app-b/*</code></td>
+</tr>
+<tr>
+<td>Application C</td>
+<td><code>app-c-web-r7k3</code></td>
+<td>App + endpoint type + suffix</td>
+<td><code>/api/app-c/*</code></td>
+</tr>
+</tbody></table>
+<p>Several formats are useful:</p>
+<ul>
+<li><strong>Readable name</strong>, such as <code>admin-console</code>: easy to recognize during operations</li>
+<li><strong>Application + endpoint type</strong>, such as <code>app-a-web</code>: distinguishes Web, mobile, and service Clients for the same application</li>
+<li><strong>Random suffix</strong>, such as <code>app-c-web-r7k3</code>: reduces naming collision and enumeration risk, but is not a security boundary</li>
+</ul>
+<p>The Client ID format does not change the isolation mechanism. The gateway and authorization service perform exact matching. Token forgery prevention still depends on JWT signatures, issuer&#x2F;audience&#x2F;client_id validation, client secret, PKCE, and related OAuth2 controls.</p>
+<hr>
+<h2 id="7-Onboarding-a-New-Application"><a href="#7-Onboarding-a-New-Application" class="headerlink" title="7. Onboarding a New Application"></a>7. Onboarding a New Application</h2><p>With this model, adding a new application has three steps.</p>
+<p><strong>Step 1: Register an OAuth2 Client</strong></p>
+<p>Create a Client through the management API, set <code>access_level</code>, and configure the appropriate client authentication method. The platform generates or records the Client ID.</p>
+<p><strong>Step 2: Add Gateway Route Config</strong></p>
+<p>Add a route config that declares the route and injects the expected Client ID:</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;routes&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;app-x-api-route&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;uri&quot;</span><span class="punctuation">:</span> <span class="string">&quot;/api/app-x/*&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;hosts&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;apps.example.com&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;priority&quot;</span><span class="punctuation">:</span> <span class="number">91</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;upstream_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;app-x-upstream&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;plugin_config_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;protected-api-auth&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;plugins&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;serverless-pre-function&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;phase&quot;</span><span class="punctuation">:</span> <span class="string">&quot;access&quot;</span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;functions&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">            <span class="string">&quot;return function() ngx.req.set_header(\&quot;X-Expected-Client-Id\&quot;, \&quot;app-x-web\&quot;) end&quot;</span></span><br><span class="line">          <span class="punctuation">]</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>Step 3: Configure Entitlements</strong></p>
+<p>Use the management interface to assign access to users or organizations.</p>
+<p>The gateway and authorization service remain generic infrastructure. Business applications only declare their routing and access policy.</p>
+<hr>
+<h2 id="8-Key-Takeaways"><a href="#8-Key-Takeaways" class="headerlink" title="8. Key Takeaways"></a>8. Key Takeaways</h2><p>The Per-Client authorization isolation mechanism is built on four decisions:</p>
+<ol>
+<li><strong>Declarative binding</strong>: Route config declares the expected Client ID instead of hardcoding route-to-Client mapping in the authorization service.</li>
+<li><strong>Two-layer validation</strong>: The gateway layer enforces Client binding; the authorization service evaluates whether the user may enter the application.</li>
+<li><strong>Tiered admission</strong>: <code>access_level</code> keeps low-risk applications away from the heaviest policy chain.</li>
+<li><strong>Mode separation</strong>: Protected mode secures business APIs, while Authenticated mode supports shared user-info endpoints.</li>
+</ol>
+<p>The trade-off is clear: Lua header injection and the forward-auth subrequest add latency, typically a small internal loopback cost. In return, the system gains centralized control and cross-application token isolation.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/iam/" rel="tag"># iam</a>
+              <a href="/tags/oauth2/" rel="tag"># oauth2</a>
+              <a href="/tags/api-gateway/" rel="tag"># api-gateway</a>
+              <a href="/tags/multi-tenant/" rel="tag"># multi-tenant</a>
+              <a href="/tags/forward-auth/" rel="tag"># forward-auth</a>
+              <a href="/tags/apisix/" rel="tag"># apisix</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2026/06/07/per-client-auth-isolation-gateway/" rel="prev" title="网关层 Per-Client 鉴权隔离：一个 IAM 平台保护多个业务应用">
+      <i class="fa fa-chevron-left"></i> 网关层 Per-Client 鉴权隔离：一个 IAM 平台保护多个业务应用
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-The-Problem-Token-Overreach-in-a-Shared-IAM-Platform"><span class="nav-number">2.</span> <span class="nav-text">1. The Problem: Token Overreach in a Shared IAM Platform</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-Architecture-Decision-Inject-the-Expected-Client-ID-at-the-Gateway"><span class="nav-number">3.</span> <span class="nav-text">2. Architecture Decision: Inject the Expected Client ID at the Gateway</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-Options-Considered"><span class="nav-number">3.1.</span> <span class="nav-text">2.1 Options Considered</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-Mechanism-Overview"><span class="nav-number">3.2.</span> <span class="nav-text">2.2 Mechanism Overview</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-APISIX-Route-Configuration"><span class="nav-number">4.</span> <span class="nav-text">3. APISIX Route Configuration</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-Route-Config-Structure"><span class="nav-number">4.1.</span> <span class="nav-text">3.1 Route Config Structure</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-Reusable-forward-auth-Config"><span class="nav-number">4.2.</span> <span class="nav-text">3.2 Reusable forward-auth Config</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-Protecting-the-Internal-Authorization-Route"><span class="nav-number">4.3.</span> <span class="nav-text">3.3 Protecting the Internal Authorization Route</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-Two-Authorization-Modes"><span class="nav-number">5.</span> <span class="nav-text">4. Two Authorization Modes</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-Protected-Mode"><span class="nav-number">5.1.</span> <span class="nav-text">4.1 Protected Mode</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-Authenticated-Mode"><span class="nav-number">5.2.</span> <span class="nav-text">4.2 Authenticated Mode</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-3-Route-Priority"><span class="nav-number">5.3.</span> <span class="nav-text">4.3 Route Priority</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-Authorization-Service-Policy-Decision-Chain"><span class="nav-number">6.</span> <span class="nav-text">5. Authorization Service: Policy Decision Chain</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-Three-Access-Levels"><span class="nav-number">6.1.</span> <span class="nav-text">5.1 Three Access Levels</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-2-Entitlement-Chain-for-PRIVATE-Clients"><span class="nav-number">6.2.</span> <span class="nav-text">5.2 Entitlement Chain for PRIVATE Clients</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-3-Version-Consistency-Checks"><span class="nav-number">6.3.</span> <span class="nav-text">5.3 Version Consistency Checks</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-Client-ID-Mapping-for-Multiple-Applications"><span class="nav-number">7.</span> <span class="nav-text">6. Client ID Mapping for Multiple Applications</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-Onboarding-a-New-Application"><span class="nav-number">8.</span> <span class="nav-text">7. Onboarding a New Application</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-Key-Takeaways"><span class="nav-number">9.</span> <span class="nav-text">8. Key Takeaways</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">57</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">9</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">84</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>
