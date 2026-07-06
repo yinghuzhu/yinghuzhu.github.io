@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://www.yzhu.name/2026/07/06/postgresql-index-bloat-remediation/</loc>
+    <lastmod>2026-07-06</lastmod>
+  </url>
+  <url>
+    <loc>https://www.yzhu.name/2026/07/06/postgresql-index-bloat-remediation-en/</loc>
+    <lastmod>2026-07-06</lastmod>
+  </url>
+  <url>
     <loc>https://www.yzhu.name/2026/06/07/per-client-auth-isolation-gateway-en/</loc>
     <lastmod>2026-06-07</lastmod>
   </url>
@@ -9,11 +17,11 @@
     <lastmod>2026-06-07</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/04/25/hmac-cookie-redis-sid-browser-session/</loc>
+    <loc>https://www.yzhu.name/2026/04/25/hmac-cookie-redis-sid-browser-session-en/</loc>
     <lastmod>2026-04-28</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/04/25/hmac-cookie-redis-sid-browser-session-en/</loc>
+    <loc>https://www.yzhu.name/2026/04/25/hmac-cookie-redis-sid-browser-session/</loc>
     <lastmod>2026-04-28</lastmod>
   </url>
   <url>
@@ -29,11 +37,11 @@
     <lastmod>2026-04-04</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/03/17/oauth2-oidc-session-timeout-boundaries/</loc>
+    <loc>https://www.yzhu.name/2026/03/17/oauth2-oidc-session-timeout-boundaries-en/</loc>
     <lastmod>2026-03-17</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/03/17/oauth2-oidc-session-timeout-boundaries-en/</loc>
+    <loc>https://www.yzhu.name/2026/03/17/oauth2-oidc-session-timeout-boundaries/</loc>
     <lastmod>2026-03-17</lastmod>
   </url>
   <url>
@@ -153,11 +161,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
+    <loc>https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/</loc>
+    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -173,11 +181,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/12/01/OOM-Casue-Snowslide/</loc>
+    <loc>https://www.yzhu.name/2018/06/18/Parepare-Service/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/06/18/Parepare-Service/</loc>
+    <loc>https://www.yzhu.name/2018/12/01/OOM-Casue-Snowslide/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -189,19 +197,19 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
     <loc>https://www.yzhu.name/2020/03/29/JVM-NEW/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
     <loc>https://www.yzhu.name/2019/12/27/Jaeger-Thread/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
+    <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
+    <loc>https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>

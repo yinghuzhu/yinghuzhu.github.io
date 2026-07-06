@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="A PostgreSQL index bloat remediation note: why tables with little data can still carry huge B-tree indexes, why ordinary VACUUM does not shrink them, and how to combine REINDEX, redundant-index cleanu">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PostgreSQL Index Bloat: Why Small Tables Can Have Huge Indexes">
+<meta property="og:url" content="https://www.yzhu.name/2026/07/06/postgresql-index-bloat-remediation-en/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="A PostgreSQL index bloat remediation note: why tables with little data can still carry huge B-tree indexes, why ordinary VACUUM does not shrink them, and how to combine REINDEX, redundant-index cleanu">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-07-06T02:56:16.000Z">
+<meta property="article:modified_time" content="2026-07-06T02:56:16.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="PostgreSQL">
+<meta property="article:tag" content="REINDEX">
+<meta property="article:tag" content="autovacuum">
+<meta property="article:tag" content="database-architecture">
+<meta property="article:tag" content="index-bloat">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2026/07/06/postgresql-index-bloat-remediation-en/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en-US'
+  };
+</script>
+
+  <title>PostgreSQL Index Bloat: Why Small Tables Can Have Huge Indexes | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en-US">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2026/07/06/postgresql-index-bloat-remediation-en/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          PostgreSQL Index Bloat: Why Small Tables Can Have Huge Indexes
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2026-07-06 10:56:16" itemprop="dateCreated datePublished" datetime="2026-07-06T10:56:16+08:00">2026-07-06</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Database/" itemprop="url" rel="index"><span itemprop="name">Database</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">A PostgreSQL index bloat remediation note: why tables with little data can still carry huge B-tree indexes, why ordinary VACUUM does not shrink them, and how to combine REINDEX, redundant-index cleanup, and write-model changes.</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p><strong>🌐 Language</strong>: <strong>English Version</strong> | <a href="/2026/07/06/postgresql-index-bloat-remediation/">中文版</a></p>
+</blockquote>
+<p>During a production database capacity review, we ran into a typical PostgreSQL index bloat case: several tables did not contain much live data, and one table had no live rows at all, yet their index files still occupied a large amount of disk space. Ordinary <code>VACUUM</code> had already run. <code>n_dead_tup</code> did not look alarming. The database files, however, did not shrink.<span id="more"></span></p>
+<p>This kind of issue is easy to misread as “the database needs cleanup.” The real question is more specific: is the space pressure coming from heap bloat or index bloat? This article focuses on the diagnosis path: why the issue happens, why <code>VACUUM</code> did not fix it, what can stop the bleeding in the short term, and what should change in the write model over time.</p>
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
+<li>Ordinary PostgreSQL <code>VACUUM</code> can clean dead tuples in heap pages and make that space reusable, but it does not automatically shrink already-bloated B-tree index files.</li>
+<li>When table data is small but indexes are huge, first separate heap bloat from index bloat. Looking only at <code>n_dead_tup</code> is not enough.</li>
+<li>Frequently deleted, rebuilt, and batch-updated derived tables can create long-term index write amplification when they are stored as heavily indexed primary business tables.</li>
+<li>Short-term remediation usually means dropping confirmed-unused indexes and rebuilding bloated ones with <code>REINDEX CONCURRENTLY</code>.</li>
+<li>Long-term remediation must change the write model: use staging + diff instead of broad <code>DELETE</code> + <code>bulk_create</code>, and make index lifecycle review part of engineering practice.</li>
+</ul>
+<h2 id="1-The-Symptom-Small-Tables-Huge-Indexes"><a href="#1-The-Symptom-Small-Tables-Huge-Indexes" class="headerlink" title="1. The Symptom: Small Tables, Huge Indexes"></a>1. The Symptom: Small Tables, Huge Indexes</h2><p>The first step in a capacity investigation is not to run a cleanup script. It is to split table data size from index size.</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span></span><br><span class="line">    c.relname <span class="keyword">AS</span> table_name,</span><br><span class="line">    pg_size_pretty(pg_total_relation_size(c.oid)) <span class="keyword">AS</span> total_size,</span><br><span class="line">    pg_size_pretty(pg_relation_size(c.oid)) <span class="keyword">AS</span> table_data,</span><br><span class="line">    pg_size_pretty(pg_total_relation_size(c.oid) <span class="operator">-</span> pg_relation_size(c.oid)) <span class="keyword">AS</span> indexes,</span><br><span class="line">    c.reltuples::<span class="type">bigint</span> <span class="keyword">AS</span> approx_rows</span><br><span class="line"><span class="keyword">FROM</span> pg_class c</span><br><span class="line"><span class="keyword">JOIN</span> pg_namespace n <span class="keyword">ON</span> n.oid <span class="operator">=</span> c.relnamespace</span><br><span class="line"><span class="keyword">WHERE</span> c.relkind <span class="operator">=</span> <span class="string">&#x27;r&#x27;</span></span><br><span class="line">  <span class="keyword">AND</span> n.nspname <span class="operator">=</span> <span class="string">&#x27;public&#x27;</span></span><br><span class="line"><span class="keyword">ORDER</span> <span class="keyword">BY</span> pg_total_relation_size(c.oid) <span class="keyword">DESC</span>;</span><br></pre></td></tr></table></figure>
+
+<p>The shape of the problem looked roughly like this:</p>
+<table>
+<thead>
+<tr>
+<th>Table type</th>
+<th align="right">Total size</th>
+<th align="right">Table data</th>
+<th align="right">Indexes</th>
+<th align="right">Estimated rows</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Periodic derived table</td>
+<td align="right">50+ GB</td>
+<td align="right">A few MB</td>
+<td align="right">50+ GB</td>
+<td align="right">Tens of thousands</td>
+</tr>
+<tr>
+<td>Rule detail table</td>
+<td align="right">Several GB</td>
+<td align="right">Hundreds of KB</td>
+<td align="right">Several GB</td>
+<td align="right">Thousands</td>
+</tr>
+<tr>
+<td>Execution record table</td>
+<td align="right">Hundreds of MB</td>
+<td align="right">0 bytes</td>
+<td align="right">Hundreds of MB</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>Extended attribute table</td>
+<td align="right">Hundreds of MB</td>
+<td align="right">Hundreds of KB</td>
+<td align="right">Hundreds of MB</td>
+<td align="right">Thousands</td>
+</tr>
+</tbody></table>
+<p>That shape tells us the issue is not “too much live business data.” Historical write behavior has inflated index files.</p>
+<p>Then check autovacuum statistics:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span></span><br><span class="line">    relname,</span><br><span class="line">    n_live_tup,</span><br><span class="line">    n_dead_tup,</span><br><span class="line">    last_autovacuum,</span><br><span class="line">    last_autoanalyze,</span><br><span class="line">    autovacuum_count,</span><br><span class="line">    autoanalyze_count,</span><br><span class="line">    vacuum_count</span><br><span class="line"><span class="keyword">FROM</span> pg_stat_user_tables</span><br><span class="line"><span class="keyword">ORDER</span> <span class="keyword">BY</span> n_dead_tup <span class="keyword">DESC</span>;</span><br></pre></td></tr></table></figure>
+
+<p>This is where misdiagnosis often starts. Some tables may already have <code>n_dead_tup = 0</code>, so it is tempting to conclude that autovacuum has handled the bloat. But if disk usage is still high, the main issue is probably not the heap. It is the indexes.</p>
+<p>Next, inspect index size and usage:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span></span><br><span class="line">    relname <span class="keyword">AS</span> table_name,</span><br><span class="line">    indexrelname <span class="keyword">AS</span> index_name,</span><br><span class="line">    pg_size_pretty(pg_relation_size(indexrelid)) <span class="keyword">AS</span> index_size,</span><br><span class="line">    idx_scan,</span><br><span class="line">    idx_tup_read,</span><br><span class="line">    idx_tup_fetch</span><br><span class="line"><span class="keyword">FROM</span> pg_stat_user_indexes</span><br><span class="line"><span class="keyword">ORDER</span> <span class="keyword">BY</span> pg_relation_size(indexrelid) <span class="keyword">DESC</span></span><br><span class="line">LIMIT <span class="number">30</span>;</span><br></pre></td></tr></table></figure>
+
+<p>Common findings:</p>
+<ul>
+<li>A single B-tree index can grow to tens of GB.</li>
+<li>Some indexes have <code>idx_scan = 0</code> but still occupy significant disk space.</li>
+<li>Some tables may be empty while their indexes still exist on disk.</li>
+<li>Primary key indexes, time-based indexes, and ORM-generated foreign-key indexes can all be inflated by historical churn.</li>
+</ul>
+<p>At this point, continuing to run ordinary <code>VACUUM (ANALYZE)</code> usually will not produce the expected result.</p>
+<h2 id="2-Why-Ordinary-VACUUM-Did-Not-Shrink-the-Indexes"><a href="#2-Why-Ordinary-VACUUM-Did-Not-Shrink-the-Indexes" class="headerlink" title="2. Why Ordinary VACUUM Did Not Shrink the Indexes"></a>2. Why Ordinary VACUUM Did Not Shrink the Indexes</h2><p>PostgreSQL uses MVCC. An <code>UPDATE</code> does not overwrite a row in place. It writes a new row version and marks the old version as no longer visible. A <code>DELETE</code> also does not immediately return physical space to the operating system. It first creates reclaimable space.</p>
+<p>The main job of ordinary <code>VACUUM</code> is to clean dead tuples in heap pages and make that space reusable inside the same table file. It can also remove index entries pointing to dead tuples. What it does not do is automatically shrink an already-expanded B-tree index file back to a small file.</p>
+<p>So the database can reach this state:</p>
+<ul>
+<li><code>n_dead_tup = 0</code></li>
+<li>table data is only a few MB</li>
+<li>indexes are still tens of GB</li>
+<li>repeated <code>VACUUM</code> runs do not materially reduce disk usage</li>
+</ul>
+<p>That does not mean <code>VACUUM</code> failed. It means <code>VACUUM</code> solved a different problem from the one we were facing.</p>
+<p>If the goal is to shrink bloated index files, typical options are:</p>
+<ul>
+<li><code>REINDEX INDEX CONCURRENTLY index_name</code></li>
+<li><code>REINDEX TABLE CONCURRENTLY table_name</code></li>
+<li>a table&#x2F;index rewrite tool such as <code>pg_repack</code></li>
+</ul>
+<p><code>VACUUM FULL</code> can also rewrite objects and reclaim space, but it requires heavier locking and is usually not the first choice for online systems. Since PostgreSQL 12, <code>REINDEX CONCURRENTLY</code> is a practical option for online index remediation. It still consumes IO, and the old and new indexes coexist for a period of time, so disk headroom must be checked before execution.</p>
+<h2 id="3-Root-Cause-High-Churn-Derived-Data-Stored-Like-Stable-Primary-Data"><a href="#3-Root-Cause-High-Churn-Derived-Data-Stored-Like-Stable-Primary-Data" class="headerlink" title="3. Root Cause: High-Churn Derived Data Stored Like Stable Primary Data"></a>3. Root Cause: High-Churn Derived Data Stored Like Stable Primary Data</h2><p>The root cause is rarely one database parameter. It is usually a mismatch between the write model and the storage model.</p>
+<p>Consider derived data such as reporting results, rule-hit details, execution windows, and temporary computation outputs. Their characteristics are often similar:</p>
+<ul>
+<li>upstream data refreshes periodically</li>
+<li>configuration changes can trigger broad recalculation</li>
+<li>historical periods expire</li>
+<li>calculation rules may change and require recomputing a future range</li>
+</ul>
+<p>This data is naturally high churn. But in many systems it is stored as long-lived primary data, with many indexes added for read paths. The write model then becomes:</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Delete derived records for a target object over a future range</span><br><span class="line">Bulk create new period records</span><br><span class="line">Bulk create detail records</span><br><span class="line">Bulk create associated state records</span><br></pre></td></tr></table></figure>
+
+<p>Or:</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Calculation rule changes</span><br><span class="line">Clear the old derived structure</span><br><span class="line">Regenerate according to the new configuration</span><br></pre></td></tr></table></figure>
+
+<p>At a small scale this is simple and usually correct. Under PostgreSQL MVCC, however, running this pattern for a long time continuously creates dead tuples and index garbage. The more important point is write amplification: every extra B-tree index must be maintained during deletes, inserts, and updates. The application thinks it is only rebuilding a derived result set. The database is maintaining multiple indexes for every rewrite.</p>
+<p>This is why simply making autovacuum more aggressive is not enough. Autovacuum can reduce accumulation. It cannot remove the root cause of storing high-churn derived data as heavily indexed long-lived primary data.</p>
+<h2 id="4-Another-Root-Cause-ORM-Defaults-Plus-Accumulated-Business-Indexes"><a href="#4-Another-Root-Cause-ORM-Defaults-Plus-Accumulated-Business-Indexes" class="headerlink" title="4. Another Root Cause: ORM Defaults Plus Accumulated Business Indexes"></a>4. Another Root Cause: ORM Defaults Plus Accumulated Business Indexes</h2><p>Another common source is that indexes are not designed as a whole. They accumulate over time.</p>
+<p>For example:</p>
+<ul>
+<li>an ORM creates a single-column index for a foreign-key field</li>
+<li>a business query adds a composite index</li>
+<li>an ordering column gets <code>db_index=True</code></li>
+<li>a unique constraint creates its own index</li>
+<li>a historical LIKE query adds another index</li>
+<li>the query pattern changes later, but the old index is never removed</li>
+</ul>
+<p>A high-write table may end up with indexes like:</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">(entity_id)</span><br><span class="line">(rule_id)</span><br><span class="line">(effective_date)</span><br><span class="line">(entity_id, rule_id)</span><br><span class="line">(entity_id, effective_date)</span><br><span class="line">(entity_id, status, effective_date)</span><br><span class="line">PRIMARY KEY (id)</span><br><span class="line">UNIQUE (entity_id, attribute_id, value_id)</span><br></pre></td></tr></table></figure>
+
+<p>Some of these indexes may still serve hot queries. Some may be historical leftovers. Some may be covered by the prefix of a composite index.</p>
+<p>Do not drop an index only because <code>idx_scan = 0</code>. At minimum, check whether statistics have just been reset:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> datname, stats_reset</span><br><span class="line"><span class="keyword">FROM</span> pg_stat_database</span><br><span class="line"><span class="keyword">WHERE</span> datname <span class="operator">=</span> current_database();</span><br></pre></td></tr></table></figure>
+
+<p>Also confirm:</p>
+<ul>
+<li>whether the index backs a unique constraint or primary key</li>
+<li>whether it is required by foreign-key maintenance</li>
+<li>whether low-frequency but critical background jobs use it</li>
+<li>whether ORM-generated query paths depend on it</li>
+<li>whether an existing composite index already covers it</li>
+<li>whether key queries regress under <code>EXPLAIN</code></li>
+</ul>
+<p>A safer workflow is to observe candidate indexes over a meaningful period, combine <code>pg_stat_user_indexes</code> with slow-query logs and <code>EXPLAIN</code>, and only then remove confirmed-unused indexes with <code>DROP INDEX CONCURRENTLY</code>.</p>
+<h2 id="5-Short-Term-Remediation-Drop-Unused-Indexes-and-Rebuild-Bloated-Ones"><a href="#5-Short-Term-Remediation-Drop-Unused-Indexes-and-Rebuild-Bloated-Ones" class="headerlink" title="5. Short-Term Remediation: Drop Unused Indexes and Rebuild Bloated Ones"></a>5. Short-Term Remediation: Drop Unused Indexes and Rebuild Bloated Ones</h2><p>Short-term remediation has three parts.</p>
+<p>First, record the before state.</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span></span><br><span class="line">    relname,</span><br><span class="line">    pg_size_pretty(pg_total_relation_size(oid)) <span class="keyword">AS</span> total_before</span><br><span class="line"><span class="keyword">FROM</span> pg_class</span><br><span class="line"><span class="keyword">WHERE</span> relkind <span class="operator">=</span> <span class="string">&#x27;r&#x27;</span></span><br><span class="line"><span class="keyword">ORDER</span> <span class="keyword">BY</span> pg_total_relation_size(oid) <span class="keyword">DESC</span></span><br><span class="line">LIMIT <span class="number">20</span>;</span><br></pre></td></tr></table></figure>
+
+<p>Also check long-running transactions and invalid indexes:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span></span><br><span class="line">    pid,</span><br><span class="line">    usename,</span><br><span class="line">    state,</span><br><span class="line">    xact_start,</span><br><span class="line">    now() <span class="operator">-</span> xact_start <span class="keyword">AS</span> xact_age,</span><br><span class="line">    query</span><br><span class="line"><span class="keyword">FROM</span> pg_stat_activity</span><br><span class="line"><span class="keyword">WHERE</span> xact_start <span class="keyword">IS</span> <span class="keyword">NOT NULL</span></span><br><span class="line"><span class="keyword">ORDER</span> <span class="keyword">BY</span> xact_start;</span><br><span class="line"></span><br><span class="line"><span class="keyword">SELECT</span></span><br><span class="line">    c.relname <span class="keyword">AS</span> index_name,</span><br><span class="line">    i.indisvalid,</span><br><span class="line">    i.indisready</span><br><span class="line"><span class="keyword">FROM</span> pg_index i</span><br><span class="line"><span class="keyword">JOIN</span> pg_class c <span class="keyword">ON</span> c.oid <span class="operator">=</span> i.indexrelid</span><br><span class="line"><span class="keyword">WHERE</span> <span class="keyword">NOT</span> i.indisvalid <span class="keyword">OR</span> <span class="keyword">NOT</span> i.indisready;</span><br></pre></td></tr></table></figure>
+
+<p>Second, drop confirmed-unused indexes:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">DROP</span> INDEX CONCURRENTLY IF <span class="keyword">EXISTS</span> idx_unused_column;</span><br></pre></td></tr></table></figure>
+
+<p><code>CONCURRENTLY</code> reduces the impact on normal reads and writes, but it still consumes database resources. Process a small number of indexes at a time and watch database IO and application metrics.</p>
+<p>Third, rebuild bloated indexes online:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">REINDEX INDEX CONCURRENTLY idx_large_active_index;</span><br></pre></td></tr></table></figure>
+
+<p>If multiple indexes on the same table are bloated, evaluate:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">REINDEX <span class="keyword">TABLE</span> CONCURRENTLY high_churn_table;</span><br></pre></td></tr></table></figure>
+
+<p>Operational notes:</p>
+<ul>
+<li><code>REINDEX CONCURRENTLY</code> cannot run inside a transaction block.</li>
+<li>If it fails, it may leave an invalid <code>_ccnew</code> index that must be cleaned up before retrying.</li>
+<li>The old and new indexes coexist during the rebuild, so disk headroom is required.</li>
+<li>Reindexing creates IO pressure and should be batched during low-traffic windows.</li>
+<li>After rebuilding, compare object sizes and key query plans again.</li>
+</ul>
+<p>Use the same query for before&#x2F;after validation. Do not change the measurement after remediation:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span></span><br><span class="line">    c.relname <span class="keyword">AS</span> table_name,</span><br><span class="line">    pg_size_pretty(pg_total_relation_size(c.oid)) <span class="keyword">AS</span> total_size,</span><br><span class="line">    pg_size_pretty(pg_relation_size(c.oid)) <span class="keyword">AS</span> table_data,</span><br><span class="line">    pg_size_pretty(pg_total_relation_size(c.oid) <span class="operator">-</span> pg_relation_size(c.oid)) <span class="keyword">AS</span> indexes</span><br><span class="line"><span class="keyword">FROM</span> pg_class c</span><br><span class="line"><span class="keyword">JOIN</span> pg_namespace n <span class="keyword">ON</span> n.oid <span class="operator">=</span> c.relnamespace</span><br><span class="line"><span class="keyword">WHERE</span> c.relkind <span class="operator">=</span> <span class="string">&#x27;r&#x27;</span></span><br><span class="line">  <span class="keyword">AND</span> n.nspname <span class="operator">=</span> <span class="string">&#x27;public&#x27;</span></span><br><span class="line"><span class="keyword">ORDER</span> <span class="keyword">BY</span> pg_total_relation_size(c.oid) <span class="keyword">DESC</span>;</span><br></pre></td></tr></table></figure>
+
+<p>Then sample core queries with <code>EXPLAIN ANALYZE</code> to ensure that index cleanup did not introduce obvious query regressions.</p>
+<h2 id="6-Medium-Term-Governance-Give-Indexes-a-Lifecycle"><a href="#6-Medium-Term-Governance-Give-Indexes-a-Lifecycle" class="headerlink" title="6. Medium-Term Governance: Give Indexes a Lifecycle"></a>6. Medium-Term Governance: Give Indexes a Lifecycle</h2><p>Index cleanup should not start only after disk alerts. A useful medium-term practice has four parts.</p>
+<p>First, monitor index size and usage.</p>
+<p>Track:</p>
+<ul>
+<li>individual index size</li>
+<li>table-data-to-index-size ratio</li>
+<li><code>idx_scan</code> growth</li>
+<li><code>idx_tup_read</code> &#x2F; <code>idx_tup_fetch</code></li>
+<li><code>pg_stat_database.stats_reset</code></li>
+</ul>
+<p>If statistics were reset recently, <code>idx_scan = 0</code> only means “not used since the reset.” It does not prove long-term non-use.</p>
+<p>Second, tune autovacuum per high-churn table.</p>
+<p>Global defaults are often conservative. For frequently updated tables, table-level reloptions can be more appropriate:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">ALTER TABLE</span> high_churn_table <span class="keyword">SET</span> (</span><br><span class="line">    autovacuum_vacuum_scale_factor <span class="operator">=</span> <span class="number">0.05</span>,</span><br><span class="line">    autovacuum_vacuum_threshold <span class="operator">=</span> <span class="number">1000</span>,</span><br><span class="line">    autovacuum_analyze_scale_factor <span class="operator">=</span> <span class="number">0.02</span>,</span><br><span class="line">    autovacuum_vacuum_cost_limit <span class="operator">=</span> <span class="number">1000</span></span><br><span class="line">);</span><br></pre></td></tr></table></figure>
+
+<p>If updated columns are not indexed, consider <code>fillfactor</code> to leave room for HOT updates:</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">ALTER TABLE</span> high_churn_table <span class="keyword">SET</span> (</span><br><span class="line">    fillfactor <span class="operator">=</span> <span class="number">90</span></span><br><span class="line">);</span><br></pre></td></tr></table></figure>
+
+<p>Third, create a low-traffic REINDEX procedure.</p>
+<p>Not every index needs scheduled rebuilding. But indexes on known high-churn tables should have a review rule:</p>
+<ul>
+<li>bloat ratio crosses a threshold</li>
+<li>an individual index crosses a size threshold</li>
+<li>write&#x2F;delete volume remains high</li>
+<li>a code change is planned and the table already shows bloat symptoms</li>
+</ul>
+<p>Fourth, clean up temporary backup tables.</p>
+<p>Many databases accumulate <code>_backup</code>, <code>_bak</code>, <code>_copy</code>, or date-suffixed tables. They may not cause index bloat directly, but they consume capacity and add noise to investigations. If a temporary backup table enters the main database, it needs a retention window, an owner, and a cleanup rule.</p>
+<h2 id="7-Long-Term-Remediation-Reduce-Write-Amplification"><a href="#7-Long-Term-Remediation-Reduce-Write-Amplification" class="headerlink" title="7. Long-Term Remediation: Reduce Write Amplification"></a>7. Long-Term Remediation: Reduce Write Amplification</h2><p>Database-level <code>REINDEX</code> can fix already-bloated files. It cannot prevent recurrence. Long-term remediation has to change the write model.</p>
+<p>For periodic derived data, staging + diff is usually a better pattern:</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">Upstream raw data</span><br><span class="line">        |</span><br><span class="line">        v</span><br><span class="line">staging table or in-memory structure</span><br><span class="line">        |</span><br><span class="line">        v</span><br><span class="line">Diff against current effective rows by business key</span><br><span class="line">        |</span><br><span class="line">        +-- New: insert</span><br><span class="line">        +-- Changed: update</span><br><span class="line">        +-- Missing: soft disable or small-batch cleanup</span><br><span class="line">        +-- Same: no write</span><br></pre></td></tr></table></figure>
+
+<p>The key is to stop deleting and rebuilding a broad future range on every run. Only rows that actually changed should be written.</p>
+<p>Configuration screens should follow the same idea. Saving configuration should distinguish:</p>
+<ul>
+<li>normal state, threshold, or priority changes: update by primary key or business key</li>
+<li>incompatible structural changes: clear and rebuild only when necessary</li>
+<li>expired historical data: archive or partition cleanup, not unbounded deletes on the primary table</li>
+</ul>
+<p>If data has a natural time lifecycle, partitioning may also be worth evaluating:</p>
+<ul>
+<li>current and future periods stay in active partitions</li>
+<li>historical partitions become read-only or archived</li>
+<li>data beyond retention is removed with <code>DROP PARTITION</code></li>
+<li>broad deletes on a large primary table are avoided</li>
+</ul>
+<p>Finally, index design should enter engineering review. Each new index should answer:</p>
+<ul>
+<li>which interface or SQL does it serve</li>
+<li>what are the typical <code>WHERE</code>, <code>JOIN</code>, and <code>ORDER BY</code> clauses</li>
+<li>is it covered by the prefix of an existing composite index</li>
+<li>is it on a high-churn table</li>
+<li>how will it be verified after release with <code>pg_stat_user_indexes</code> and <code>EXPLAIN</code></li>
+<li>who owns its removal if the query path disappears</li>
+</ul>
+<p>Indexes are not free. They trade space and write cost for read performance. More indexes may be acceptable on read-heavy stable tables. On high-churn derived tables, every additional index is a persistent write-amplification multiplier.</p>
+<h2 id="8-Takeaways"><a href="#8-Takeaways" class="headerlink" title="8. Takeaways"></a>8. Takeaways</h2><p>The visible problem was PostgreSQL index bloat. The deeper issue was the combination of write-model design, ORM-generated defaults, accumulated business indexes, and missing operational lifecycle.</p>
+<p>The short-term path is:</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Find large objects</span><br><span class="line">Separate heap size from index size</span><br><span class="line">Confirm the boundary of ordinary VACUUM</span><br><span class="line">Drop confirmed-unused indexes</span><br><span class="line">REINDEX bloated indexes concurrently</span><br><span class="line">Validate capacity and query plans</span><br></pre></td></tr></table></figure>
+
+<p>The long-term changes are more important:</p>
+<ul>
+<li>Do not store frequently rebuilt derived data as if it were stable primary data.</li>
+<li>Do not allow ORM defaults and business indexes to accumulate without review.</li>
+<li>Do not treat <code>idx_scan = 0</code> as the only signal for dropping an index.</li>
+<li>Do not wait for disk alerts before maintaining database objects.</li>
+<li>Do not use broad <code>DELETE</code> + <code>bulk_create</code> when a diff-based write model would work.</li>
+</ul>
+<p>When a table with only a few MB of data carries tens of GB of indexes, the issue is no longer just “clean up the database.” It is evidence that the data model, write path, index design, and maintenance process need to be designed together.</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/PostgreSQL/" rel="tag"># PostgreSQL</a>
+              <a href="/tags/index-bloat/" rel="tag"># index-bloat</a>
+              <a href="/tags/autovacuum/" rel="tag"># autovacuum</a>
+              <a href="/tags/REINDEX/" rel="tag"># REINDEX</a>
+              <a href="/tags/database-architecture/" rel="tag"># database-architecture</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2026/06/07/per-client-auth-isolation-gateway-en/" rel="prev" title="Per-Client Authorization Isolation at the Gateway: One IAM Platform for Multiple Applications">
+      <i class="fa fa-chevron-left"></i> Per-Client Authorization Isolation at the Gateway: One IAM Platform for Multiple Applications
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2026/07/06/postgresql-index-bloat-remediation/" rel="next" title="PostgreSQL 索引膨胀复盘：为什么表很小，索引却很大">
+      PostgreSQL 索引膨胀复盘：为什么表很小，索引却很大 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-The-Symptom-Small-Tables-Huge-Indexes"><span class="nav-number">2.</span> <span class="nav-text">1. The Symptom: Small Tables, Huge Indexes</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-Why-Ordinary-VACUUM-Did-Not-Shrink-the-Indexes"><span class="nav-number">3.</span> <span class="nav-text">2. Why Ordinary VACUUM Did Not Shrink the Indexes</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#3-Root-Cause-High-Churn-Derived-Data-Stored-Like-Stable-Primary-Data"><span class="nav-number">4.</span> <span class="nav-text">3. Root Cause: High-Churn Derived Data Stored Like Stable Primary Data</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#4-Another-Root-Cause-ORM-Defaults-Plus-Accumulated-Business-Indexes"><span class="nav-number">5.</span> <span class="nav-text">4. Another Root Cause: ORM Defaults Plus Accumulated Business Indexes</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#5-Short-Term-Remediation-Drop-Unused-Indexes-and-Rebuild-Bloated-Ones"><span class="nav-number">6.</span> <span class="nav-text">5. Short-Term Remediation: Drop Unused Indexes and Rebuild Bloated Ones</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#6-Medium-Term-Governance-Give-Indexes-a-Lifecycle"><span class="nav-number">7.</span> <span class="nav-text">6. Medium-Term Governance: Give Indexes a Lifecycle</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#7-Long-Term-Remediation-Reduce-Write-Amplification"><span class="nav-number">8.</span> <span class="nav-text">7. Long-Term Remediation: Reduce Write Amplification</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#8-Takeaways"><span class="nav-number">9.</span> <span class="nav-text">8. Takeaways</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">59</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">89</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>
