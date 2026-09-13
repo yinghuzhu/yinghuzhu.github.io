@@ -229,7 +229,7 @@
         <blockquote>
 <p><strong>🌐 Language</strong>: <a href="/2026/07/06/postgresql-index-bloat-remediation-en/">English Version</a> | <strong>中文版</strong></p>
 </blockquote>
-<p>一次生产库容量排查中，我们遇到一个很典型的 PostgreSQL 索引膨胀问题：几张业务表的数据量并不大，有的表甚至已经没有有效数据，但索引文件仍然占用了大量磁盘空间。普通 <code>VACUUM</code> 已经运行过，<code>n_dead_tup</code> 看起来也不高，但库文件大小没有明显下降。<span id="more"></span></p>
+<p>上周生产环境触发了一次数据库容量报警。第一眼看上去，像是某几张表突然变大了；但真正开始排查以后，发现事情没有那么直接。几张业务表的数据量并不大，有的表甚至已经没有有效数据，但索引文件仍然占用了大量磁盘空间。普通 <code>VACUUM</code> 已经运行过，<code>n_dead_tup</code> 看起来也不高，但库文件大小没有明显下降。<span id="more"></span></p>
 <p>这类问题很容易被误判为“数据库该清理了”，但真正的关键不在清理命令本身，而在判断问题到底发生在 heap 还是 index。本文重点整理判断过程：为什么会发生、为什么 <code>VACUUM</code> 没解决、短期怎么止血，以及长期应该改哪些架构和流程。</p>
 <h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><ul>
 <li>PostgreSQL 的普通 <code>VACUUM</code> 可以清理 heap 中的 dead tuple，让空间可复用，但不会自动把已经膨胀的 B-tree 索引文件缩小。</li>
@@ -477,10 +477,13 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2026/07/06/postgresql-index-bloat-remediation-en/" rel="prev" title="PostgreSQL Index Bloat: Why Small Tables Can Have Huge Indexes">
-      <i class="fa fa-chevron-left"></i> PostgreSQL Index Bloat: Why Small Tables Can Have Huge Indexes
+    <a href="/2026/06/07/per-client-auth-isolation-gateway/" rel="prev" title="网关层 Per-Client 鉴权隔离：一个 IAM 平台保护多个业务应用">
+      <i class="fa fa-chevron-left"></i> 网关层 Per-Client 鉴权隔离：一个 IAM 平台保护多个业务应用
     </a></div>
-      <div class="post-nav-item"></div>
+      <div class="post-nav-item">
+    <a href="/2026/07/06/postgresql-index-bloat-remediation-en/" rel="next" title="PostgreSQL Index Bloat: Why Small Tables Can Have Huge Indexes">
+      PostgreSQL Index Bloat: Why Small Tables Can Have Huge Indexes <i class="fa fa-chevron-right"></i>
+    </a></div>
     </div>
       </footer>
     
@@ -553,18 +556,18 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">59</span>
+          <span class="site-state-item-count">60</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
-        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-count">11</span>
         <span class="site-state-item-name">分类</span>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">89</span>
+        <span class="site-state-item-count">93</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>

@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="从成本约束出发，讨论设计 API 接入、凭据池调度、本地上下文缓存与校验，以及编码 Agent 的职责和验收边界。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从 Figma 到编码 Agent：设计上下文的结构化、缓存与校验">
+<meta property="og:url" content="https://www.yzhu.name/2026/09/13/design-api-context-architecture/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="从成本约束出发，讨论设计 API 接入、凭据池调度、本地上下文缓存与校验，以及编码 Agent 的职责和验收边界。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-09-13T02:00:00.000Z">
+<meta property="article:modified_time" content="2026-09-13T02:00:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="Agent">
+<meta property="article:tag" content="Figma">
+<meta property="article:tag" content="上下文工程">
+<meta property="article:tag" content="架构设计">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2026/09/13/design-api-context-architecture/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>从 Figma 到编码 Agent：设计上下文的结构化、缓存与校验 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2026/09/13/design-api-context-architecture/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          从 Figma 到编码 Agent：设计上下文的结构化、缓存与校验
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2026-09-13 10:00:00" itemprop="dateCreated datePublished" datetime="2026-09-13T10:00:00+08:00">2026-09-13</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/" itemprop="url" rel="index"><span itemprop="name">架构设计</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">从成本约束出发，讨论设计 API 接入、凭据池调度、本地上下文缓存与校验，以及编码 Agent 的职责和验收边界。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>将设计稿交给编码 Agent，需要先解决设计数据从哪里来。官方集成提供了现成入口；直接调用设计平台 API，则把数据获取和请求调度的控制权留在自己的工具中。</p>
+<p>选择从成本约束开始：如果需求集中在读取节点、导出截图和资产，已有 API 权限与额度能够覆盖这些操作，就有机会在不增加设计平台订阅支出的情况下完成设计获取。接下来需要衡量的是，为此承担多少集成和维护工作。</p>
+<p>本文以 Figma 为例，讨论一种将设计获取与页面实现分开的架构：通过可调度的 API 获取层准备本地上下文包，再由多模态 Agent 完成实现与验证。这里的获取层指承担数据获取与请求调度的模块，CLI 是本地调用入口；工具则包含获取层、包管理和校验等模块。成本、请求复用、凭据分配和输入质量共同决定这层工具的边界。</p>
+<span id="more"></span>
+
+<h2 id="TL-DR"><a href="#TL-DR" class="headerlink" title="TL;DR"></a>TL;DR</h2><p>直接接 API 的收益来自两个方面：在已有权限和额度内控制新增费用，以及自行决定请求如何合并、缓存、分配和重试。相应代价是维护获取层与数据契约。</p>
+<p>确定性 CLI 负责获取、归一化、缓存和结构校验，多模态 Agent 负责理解设计、结合现有工程实现页面，并在真实浏览器中验证。两者通过本地上下文包交接。</p>
+<p>这套划分让输入失败有明确的状态和恢复路径，也保留了几个必要边界：包完整不代表选对了设计范围，缓存命中不代表远端设计没有变化，视觉通过也不代表业务行为通过。</p>
+<h2 id="已有-Figma-MCP，为什么选择直接接-API"><a href="#已有-Figma-MCP，为什么选择直接接-API" class="headerlink" title="已有 Figma MCP，为什么选择直接接 API"></a>已有 Figma MCP，为什么选择直接接 API</h2><p>官方 Figma MCP 提供<a href="https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/">设计上下文、截图等工具</a>，并能结合 <a href="https://developers.figma.com/docs/figma-mcp-server/code-connect-integration/">Code Connect</a> 提供设计组件对应的代码实现信息。对于已经具备合适套餐和席位、需要这些集成能力的场景，直接使用官方工具可以减少自建维护。</p>
+<p>当需求集中在设计读取时，可以把成本拆成平台访问、编码 Agent 和工具维护三部分。API 方案主要改变第一部分，并增加第三部分；它不会消除模型调用费用。在已有权限和额度足够的场景下，设计获取可以接近零新增费用，但这是一种有条件的成本结构。</p>
+<p>MCP 本身是连接协议，费用和访问条件由具体服务决定。Figma 官方 MCP 提供<a href="https://developers.figma.com/docs/figma-mcp-server/rate-limits-access/">有限额度的访问</a>，<a href="https://developers.figma.com/docs/rest-api/rate-limits/">REST API 的限流规则</a>也与套餐、席位和端点等因素有关，入口选择取决于这些条件能否覆盖实际工作量。</p>
+<table>
+<thead>
+<tr>
+<th>决策维度</th>
+<th>官方集成</th>
+<th>自建 API 获取层</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>使用成本</td>
+<td>使用现有套餐、席位与服务额度</td>
+<td>利用已有 API 额度，承担工具维护投入</td>
+</tr>
+<tr>
+<td>数据组织</td>
+<td>使用集成提供的上下文</td>
+<td>自定上下文包和校验规则</td>
+</tr>
+<tr>
+<td>请求策略</td>
+<td>使用现成工具，再配套外围流程</td>
+<td>控制缓存、批处理、凭据选择和重试</td>
+</tr>
+<tr>
+<td>组件关联</td>
+<td>可利用 Code Connect 等集成</td>
+<td>按需求决定是否承担额外关联工作</td>
+</tr>
+<tr>
+<td>演进责任</td>
+<td>跟随官方服务</td>
+<td>维护接口适配和格式兼容</td>
+</tr>
+</tbody></table>
+<p>直接接 API 的价值在于把获取策略变成可以设计的工程模块。缓存减少请求量，调度管理可用额度，本地包支持跨会话复用。这些机制同样可以放在 MCP 调用之外；差异在于选择哪一层承担这些责任，以及相应的维护投入是否与收益匹配。</p>
+<h2 id="先明确工具要解决哪一段问题"><a href="#先明确工具要解决哪一段问题" class="headerlink" title="先明确工具要解决哪一段问题"></a>先明确工具要解决哪一段问题</h2><p>设计稿进入代码仓库之前，需要回答三个问题：拿到了什么、这些内容是否足够、它们对应哪个实现目标。</p>
+<p>拿到了什么，可以通过截图、节点结构和资产清单记录下来。内容是否足够，需要检查文件和引用关系，也需要结合目标看图判断。对应哪个实现目标，则依赖目标仓库、页面或路由，以及已有项目的业务约束。</p>
+<p>三类信息的来源不同。设计平台能够提供节点与导出结果，却不能替项目决定路由和接口；CLI 能检查文件，却不能仅凭文件存在判断一个弹窗是否包含了全部内容；Agent 能理解图片，但下载失败、缓存替换这些操作没有必要每次重新组织。</p>
+<p>因此，工具的目标收敛为：为 Agent 准备一份来源明确、内容可检查、失败可解释的设计输入。页面应该采用什么组件、如何适配现有布局、哪些行为必须保留，仍放在目标项目中判断。</p>
+<p>将范围收敛到输入准备，可以避免工具同时承担完整代码生成平台的复杂度。输入检查可以跨页面复用，页面实现则依赖各自的组件和业务约束，因此两者分开处理。</p>
+<h2 id="用本地上下文包划分职责"><a href="#用本地上下文包划分职责" class="headerlink" title="用本地上下文包划分职责"></a>用本地上下文包划分职责</h2><p>从责任分配看，有三种可选方式。</p>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>适用之处</th>
+<th>需要承担的问题</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Agent 直接获取设计并实现</td>
+<td>一次性探索，流程短</td>
+<td>获取、重试、输入检查依赖每次执行过程</td>
+</tr>
+<tr>
+<td>工具获取设计并直接生成页面</td>
+<td>输出范围固定、生成规则明确</td>
+<td>工具需要承担组件选择、框架适配和业务集成</td>
+</tr>
+<tr>
+<td>工具准备上下文包，Agent 实现</td>
+<td>输入处理需要复用，目标工程存在差异</td>
+<td>需要维护包格式，以及工具与 Agent 之间的约定</td>
+</tr>
+</tbody></table>
+<p>这里选择第三种职责划分。CLI 接收设计节点，下载资源，转换为统一结构；Agent 读取结果，再在目标仓库里工作。</p>
+<pre class="mermaid">flowchart TD
+    A["Figma 选定节点"] --> B["CLI：获取、归一化、校验"]
+    B --> C["本地上下文包"]
+    C --> D["Agent：查看截图、确认范围"]
+    E["目标项目与受保护业务行为"] --> F["页面实现"]
+    D --> F
+    F --> G["真实浏览器：视觉比较与业务验证"]
+    G --> H["人工验收"]</pre>
+
+<p>这里有意保留了一次明确的交接。输入准备结束后，可以检查包的内容、重新运行校验，也可以在后续任务中复用同一份本地输入。页面实现失败时，排查起点也更清晰：先判断输入是否正确，再看实现是否偏离。</p>
+<p>本地流程可以采用 CLI 和文件系统作为载体，无需额外常驻服务。对本地编码流程来说，这减少了服务启动、连接状态和部署方面的维护。代价是状态主要保存在本机；跨机器共享、多人同步和缓存清理需要另行处理。</p>
+<h2 id="将多凭据放进请求调度层"><a href="#将多凭据放进请求调度层" class="headerlink" title="将多凭据放进请求调度层"></a>将多凭据放进请求调度层</h2><p>直接接 API 的另一个考虑，是请求不必固定绑定一把 key。获取层可以接收多组凭据，将具体凭据的选择从业务操作中抽离。上层只表达“获取这个节点和关联资产”，下层负责决定由哪个可用凭据执行、是否等待，以及何时重试。</p>
+<p>多凭据调度需要先识别额度归属。key 是认证材料，额度池是容量边界，两者未必一一对应。例如，按 <a href="https://developers.figma.com/docs/rest-api/rate-limits/">Figma 的额度计量规则</a>，personal access token 按用户和套餐计量，同一用户生成多把 token 不会得到多份独立额度；plan access token 则按 token 和套餐计量。调度器应依据上游规则归组，避免把共享额度误认为可用的新容量。</p>
+<pre class="mermaid">flowchart TD
+    A["节点与资产获取任务"] --> B{"有效缓存是否命中"}
+    B -->|是| C["复用本地上下文"]
+    B -->|否| D["请求合并与等待队列"]
+    D --> E["按访问权限筛选凭据"]
+    E --> F["按额度池与冷却状态调度"]
+    F --> G["设计平台 API"]
+    G -->|成功| H["校验并保存上下文"]
+    G -->|限流| I["记录冷却时间与重试预算"]
+    I --> D</pre>
+
+<p>在权限和额度均可用的候选集合中，可以采用不同的分配策略。</p>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>选择理由</th>
+<th>需要处理的代价</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>随机或轮询</td>
+<td>凭据容量接近，调度逻辑简单</td>
+<td>不能保证负载均衡，需要排除冷却中的额度池</td>
+</tr>
+<tr>
+<td>按文档分片</td>
+<td>同一文档保持相对稳定的访问路径</td>
+<td>热点文档可能集中，需要允许重新分配</td>
+</tr>
+<tr>
+<td>按容量加权</td>
+<td>不同额度池的容量存在差异</td>
+<td>需要维护容量估计和运行状态</td>
+</tr>
+</tbody></table>
+<p>选择策略之前先过滤权限，能够避免一次随机分配把任务交给无权读取该文件的凭据。缓存隔离也应沿用相同的访问边界，不能因为某个凭据获取过数据，就让其他调用者自动获得读取资格。</p>
+<p>遇到 429 时，应按上游返回的 <code>Retry-After</code> 冷却相应额度池。存在具有访问权限、额度独立且仍可用的其他候选时，可以重新调度；候选全部不可用时进入等待，并受最大等待时间和重试次数约束。认证失败、权限不足和临时网络错误需要分别处理，避免把所有错误都变成无休止的换 key 重试。</p>
+<p>这一设计将限流影响收敛到获取层：页面实现无需知道凭据如何分配，也无需处理冷却与重试。多凭据利用可用容量，缓存和批处理减少所需容量，两者配合才能稳定降低远端请求压力。多进程共享凭据时，还需要共享额度池状态，否则各进程分别控制并发，合计请求仍可能超过上游限制。</p>
+<p>凭据由运行环境或秘密管理设施注入，上下文包只保留来源和结果，运行日志通过不包含密钥的内部标识定位请求。这样可以调整调度策略，而不把认证材料传播到 Agent 上下文和业务仓库。</p>
+<h2 id="截图、结构和资产分别提供什么"><a href="#截图、结构和资产分别提供什么" class="headerlink" title="截图、结构和资产分别提供什么"></a>截图、结构和资产分别提供什么</h2><p>上下文包的核心内容很少：一张设计截图、一份归一化节点数据、一组本地资产，以及描述这些文件的 manifest。</p>
+<p>截图提供整体视觉依据。层次、留白、对齐和颜色关系，最终都要回到图片上判断。节点数据补充图片难以准确表达的信息，例如文字、几何尺寸和组件关系。资产则保留需要直接使用的图标与图片，减少实现时重新猜测或绘制的空间。</p>
+<p>manifest 记录来源节点、导出参数、文件位置、资产映射和诊断信息，让这些内容形成一份可以检查的输入。</p>
+<p>这里接受了一定冗余。截图和结构可能描述同一个元素，归一化数据之外还保留清理敏感字段后的平台原始数据。它们服务于不同目的：常规读取使用统一结构；遇到转换差异时，可以回查来源数据。Agent 也不需要一次读完所有内容，可以先看截图，再定向读取相关节点和资产。</p>
+<p>归一化还有一个边界：统一结构不可能完整表达所有平台特性。可以通过来源适配层隔离平台字段，使核心包格式保持稳定。适配层负责解释各平台语义，无法无损转换的部分保留来源信息，避免把不相同的概念强行映射为同一字段。</p>
+<h2 id="完整性校验之后，还要确认设计范围"><a href="#完整性校验之后，还要确认设计范围" class="headerlink" title="完整性校验之后，还要确认设计范围"></a>完整性校验之后，还要确认设计范围</h2><p>一个背景矩形可以是合法节点，也可以正常导出截图。假设目标是实现一个支付弹窗，但链接只选中了背景矩形，那么请求成功、文件可读、JSON 合法都无法证明输入满足任务要求。</p>
+<p>包状态可以分为三类：</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>含义与处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>complete</code></td>
+<td>通过当前包校验，可以进入设计范围确认</td>
+</tr>
+<tr>
+<td><code>partial</code></td>
+<td>存在缺失或诊断信息，保留结果供检查与恢复</td>
+</tr>
+<tr>
+<td><code>invalid</code></td>
+<td>核心结构或必需文件不满足要求，不能作为有效输入</td>
+</tr>
+</tbody></table>
+<p>这里需要区分“结果允许保存”和“允许继续完整复刻”。非关键资产失败时，CLI 可以保留 partial 包，便于诊断；完整复刻流程仍要求输入达到 complete，并确认截图范围正确。</p>
+<p>结构检查可以采用较窄的启发式规则：根节点属于基础图形，没有子节点、有效文字和可导出资产时，标记为设计范围可疑。它用于发现明显可疑的输入，不负责判断所有设计是否完整。一个有文字但缺少主体内容的节点，仍然可能通过结构检查。</p>
+<p>因此，Agent 必须在实现前查看截图，将其与用户描述的目标对照。发现主要内容缺失，就重新确认来源节点。工具不会静默向上寻找父节点，因为父节点也可能包含多个页面、旧版本或无关区域，扩大范围同样是在改变任务输入。</p>
+<p>这种处理会增加一次人工沟通，但减少了输入未确认时的实现投入。尤其当根因是选错节点时，重复下载同一个链接没有修复作用。</p>
+<h2 id="缓存解决复用，刷新解决新鲜度"><a href="#缓存解决复用，刷新解决新鲜度" class="headerlink" title="缓存解决复用，刷新解决新鲜度"></a>缓存解决复用，刷新解决新鲜度</h2><p>设计截图和资产适合保存在本地。持续调整同一个页面时，可以复用已有输入，也避免把页面实现绑定在每一次远端访问上。</p>
+<p>容易混淆的是缓存标识的含义。一种缓存键设计是对来源平台、文档 ID、节点 ID、导出格式和缩放参数生成 fingerprint。它标识同一组获取参数，没有包含远端内容版本。</p>
+<p>例如，生成 fingerprint 的输入可以是下面这组参数，标识均为示意值：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;provider&quot;</span><span class="punctuation">:</span> <span class="string">&quot;figma&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;documentId&quot;</span><span class="punctuation">:</span> <span class="string">&quot;example-document&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;nodeId&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1:2&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;format&quot;</span><span class="punctuation">:</span> <span class="string">&quot;png&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;scale&quot;</span><span class="punctuation">:</span> <span class="number">2</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>对参数做稳定序列化后再计算哈希，可以得到缓存标识。这里没有设计版本或内容摘要字段；导出参数发生变化会改变标识，远端内容变化则不会自动反映进来。</p>
+<p>因此，同一个链接命中缓存，只能说明本地存在通过校验、参数匹配的包。设计内容发生变化而节点 ID 不变时，这个 fingerprint 不会自动改变。</p>
+<p>可以选择显式刷新：新任务或已知设计更新时重新获取；确认设计来源未变化的持续任务可以复用。这样保留了离线复用能力，也把新鲜度判断的责任暴露出来。若业务要求每次自动追踪最新版，就需要增加远端版本检查，并接受相应的请求、延迟和失败处理。</p>
+<p>刷新本身还涉及旧数据保护。一种做法是先在同级临时目录准备新包，校验后再切换到正式目录；替换过程中保留旧目录备份，捕获到发布失败时尝试恢复。</p>
+<p>这样可以避免下载到一半直接破坏旧包，但这套目录操作不等于完整的事务系统。多步重命名之间存在切换窗口，也不能据此声称已经解决并发读写或进程崩溃恢复。若需要并发读取或崩溃恢复，可以进一步采用不可变版本目录、指针切换和恢复记录；这些机制也会增加状态管理成本，应由实际要求驱动。</p>
+<h2 id="工具状态与项目代码分开存放"><a href="#工具状态与项目代码分开存放" class="headerlink" title="工具状态与项目代码分开存放"></a>工具状态与项目代码分开存放</h2><p>截图、原始 JSON、缓存和浏览器证据有自己的生命周期。它们可能体积较大，也会随着设计变化而重复生成。如果默认放进业务工作树，每个目标项目都要处理忽略规则、临时文件和误提交问题。</p>
+<p>状态和缓存可以放在工作树外，通过稳定的工作空间标识关联目标仓库。标识设计需要考虑路径变化，避免一次目录改名就让原有缓存和任务状态失去关联。</p>
+<p>这个决策减少了工具对业务仓库的侵入，同时也带来可发现性成本：查看和清理文件时，需要通过 CLI 找到实际路径。另一台机器重新克隆仓库，也不会自动获得这台机器的本地状态。</p>
+<p>这里区分的是文件用途。设计来源包和验证证据由工具管理；页面运行确实需要的图片，则仍应进入目标项目约定的资产目录，并接受正常代码审查。</p>
+<h2 id="页面验收需要两组证据"><a href="#页面验收需要两组证据" class="headerlink" title="页面验收需要两组证据"></a>页面验收需要两组证据</h2><p>上下文准备完成，只是实现的起点。</p>
+<p>迁移已有页面时，还需要明确哪些业务行为受保护，例如路由、API 调用、状态流转、表单校验和错误提示。设计截图通常不包含这些约束，它们必须从任务说明和既有实现中获得。</p>
+<p>验收因此分成两组证据：视觉比较关注布局、字号、间距和资产使用；业务验证关注操作之后是否仍发生正确的请求、状态变化和错误处理。静态截图无法证明提交行为正确，接口请求成功也不能证明页面符合设计。</p>
+<p>由多模态 Agent 对照原稿与真实应用截图，按需要迭代，再运行相关业务验证。CLI 只提供输入与状态支持，不输出视觉评分，也不负责最终验收判断。</p>
+<p>这仍然存在主观性。图片比较的结论受视口、字体、页面状态和判断标准影响，所以需要保存具体证据，并保留人工验收。验收应保留差异项及其依据，单一的“还原度百分比”很难表达业务行为和视觉差异。</p>
+<h2 id="这层工具适用于什么范围"><a href="#这层工具适用于什么范围" class="headerlink" title="这层工具适用于什么范围"></a>这层工具适用于什么范围</h2><p>当同一设计需要多轮实现、任务经常跨会话继续、已有页面还带着业务约束时，本地上下文包能提供一个稳定的检查起点。排查时可以分别处理来源、输入质量、实现和验收，减少不同阶段之间的猜测。</p>
+<p>如果只是根据一张截图做一次性原型，维护包格式、workspace 和状态可能比任务本身还重。引入这层工具的前提，是输入处理已经成为重复工作，或者错误输入的代价足够高。</p>
+<p>这套职责划分提供了可检查的输入格式、明确的失败状态和工具分工。缓存新鲜度仍需要显式管理，设计范围仍需要看图确认，跨机器协作也不在本地状态方案的承诺之内。保留这些边界，后续才容易判断新增能力应该进入 CLI、Agent 工作流程，还是独立的协作系统。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Figma/" rel="tag"># Figma</a>
+              <a href="/tags/Agent/" rel="tag"># Agent</a>
+              <a href="/tags/%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/" rel="tag"># 架构设计</a>
+              <a href="/tags/%E4%B8%8A%E4%B8%8B%E6%96%87%E5%B7%A5%E7%A8%8B/" rel="tag"># 上下文工程</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2026/07/06/postgresql-index-bloat-remediation-en/" rel="prev" title="PostgreSQL Index Bloat: Why Small Tables Can Have Huge Indexes">
+      <i class="fa fa-chevron-left"></i> PostgreSQL Index Bloat: Why Small Tables Can Have Huge Indexes
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#TL-DR"><span class="nav-number">1.</span> <span class="nav-text">TL;DR</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B7%B2%E6%9C%89-Figma-MCP%EF%BC%8C%E4%B8%BA%E4%BB%80%E4%B9%88%E9%80%89%E6%8B%A9%E7%9B%B4%E6%8E%A5%E6%8E%A5-API"><span class="nav-number">2.</span> <span class="nav-text">已有 Figma MCP，为什么选择直接接 API</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%88%E6%98%8E%E7%A1%AE%E5%B7%A5%E5%85%B7%E8%A6%81%E8%A7%A3%E5%86%B3%E5%93%AA%E4%B8%80%E6%AE%B5%E9%97%AE%E9%A2%98"><span class="nav-number">3.</span> <span class="nav-text">先明确工具要解决哪一段问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%A8%E6%9C%AC%E5%9C%B0%E4%B8%8A%E4%B8%8B%E6%96%87%E5%8C%85%E5%88%92%E5%88%86%E8%81%8C%E8%B4%A3"><span class="nav-number">4.</span> <span class="nav-text">用本地上下文包划分职责</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%86%E5%A4%9A%E5%87%AD%E6%8D%AE%E6%94%BE%E8%BF%9B%E8%AF%B7%E6%B1%82%E8%B0%83%E5%BA%A6%E5%B1%82"><span class="nav-number">5.</span> <span class="nav-text">将多凭据放进请求调度层</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%88%AA%E5%9B%BE%E3%80%81%E7%BB%93%E6%9E%84%E5%92%8C%E8%B5%84%E4%BA%A7%E5%88%86%E5%88%AB%E6%8F%90%E4%BE%9B%E4%BB%80%E4%B9%88"><span class="nav-number">6.</span> <span class="nav-text">截图、结构和资产分别提供什么</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%8C%E6%95%B4%E6%80%A7%E6%A0%A1%E9%AA%8C%E4%B9%8B%E5%90%8E%EF%BC%8C%E8%BF%98%E8%A6%81%E7%A1%AE%E8%AE%A4%E8%AE%BE%E8%AE%A1%E8%8C%83%E5%9B%B4"><span class="nav-number">7.</span> <span class="nav-text">完整性校验之后，还要确认设计范围</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BC%93%E5%AD%98%E8%A7%A3%E5%86%B3%E5%A4%8D%E7%94%A8%EF%BC%8C%E5%88%B7%E6%96%B0%E8%A7%A3%E5%86%B3%E6%96%B0%E9%B2%9C%E5%BA%A6"><span class="nav-number">8.</span> <span class="nav-text">缓存解决复用，刷新解决新鲜度</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B7%A5%E5%85%B7%E7%8A%B6%E6%80%81%E4%B8%8E%E9%A1%B9%E7%9B%AE%E4%BB%A3%E7%A0%81%E5%88%86%E5%BC%80%E5%AD%98%E6%94%BE"><span class="nav-number">9.</span> <span class="nav-text">工具状态与项目代码分开存放</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%A1%B5%E9%9D%A2%E9%AA%8C%E6%94%B6%E9%9C%80%E8%A6%81%E4%B8%A4%E7%BB%84%E8%AF%81%E6%8D%AE"><span class="nav-number">10.</span> <span class="nav-text">页面验收需要两组证据</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%99%E5%B1%82%E5%B7%A5%E5%85%B7%E9%80%82%E7%94%A8%E4%BA%8E%E4%BB%80%E4%B9%88%E8%8C%83%E5%9B%B4"><span class="nav-number">11.</span> <span class="nav-text">这层工具适用于什么范围</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">60</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">93</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>

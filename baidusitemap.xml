@@ -1,19 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://www.yzhu.name/2026/07/06/postgresql-index-bloat-remediation/</loc>
-    <lastmod>2026-07-06</lastmod>
+    <loc>https://www.yzhu.name/2026/09/13/design-api-context-architecture/</loc>
+    <lastmod>2026-09-13</lastmod>
   </url>
   <url>
     <loc>https://www.yzhu.name/2026/07/06/postgresql-index-bloat-remediation-en/</loc>
     <lastmod>2026-07-06</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/06/07/per-client-auth-isolation-gateway-en/</loc>
-    <lastmod>2026-06-07</lastmod>
+    <loc>https://www.yzhu.name/2026/07/06/postgresql-index-bloat-remediation/</loc>
+    <lastmod>2026-07-06</lastmod>
   </url>
   <url>
     <loc>https://www.yzhu.name/2026/06/07/per-client-auth-isolation-gateway/</loc>
+    <lastmod>2026-06-07</lastmod>
+  </url>
+  <url>
+    <loc>https://www.yzhu.name/2026/06/07/per-client-auth-isolation-gateway-en/</loc>
     <lastmod>2026-06-07</lastmod>
   </url>
   <url>
@@ -29,11 +33,11 @@
     <lastmod>2026-04-06</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture-en/</loc>
+    <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture/</loc>
     <lastmod>2026-04-04</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture/</loc>
+    <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture-en/</loc>
     <lastmod>2026-04-04</lastmod>
   </url>
   <url>
@@ -57,11 +61,11 @@
     <lastmod>2026-03-01</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/02/27/microservice-gateway-oauth2-routing-en/</loc>
+    <loc>https://www.yzhu.name/2026/02/27/microservice-gateway-oauth2-routing/</loc>
     <lastmod>2026-02-27</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/02/27/microservice-gateway-oauth2-routing/</loc>
+    <loc>https://www.yzhu.name/2026/02/27/microservice-gateway-oauth2-routing-en/</loc>
     <lastmod>2026-02-27</lastmod>
   </url>
   <url>
@@ -133,7 +137,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2023/12/10/User-Tag/</loc>
+    <loc>https://www.yzhu.name/2020/09/05/The-Silence-City/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -141,11 +145,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/05/22/distributed-transaction/</loc>
+    <loc>https://www.yzhu.name/2023/12/10/User-Tag/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2020/09/05/The-Silence-City/</loc>
+    <loc>https://www.yzhu.name/2018/05/22/distributed-transaction/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -161,11 +165,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/</loc>
+    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
+    <loc>https://www.yzhu.name/2022/10/22/Session-Memcached-To-Redis/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -177,7 +181,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2025/07/08/Nacos-Consul-Zk-Etcd/</loc>
+    <loc>https://www.yzhu.name/2018/12/01/OOM-Casue-Snowslide/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -185,7 +189,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/12/01/OOM-Casue-Snowslide/</loc>
+    <loc>https://www.yzhu.name/2025/07/08/Nacos-Consul-Zk-Etcd/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -197,14 +201,6 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2020/03/29/JVM-NEW/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2019/12/27/Jaeger-Thread/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
     <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
@@ -213,15 +209,23 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
+    <loc>https://www.yzhu.name/2019/12/27/Jaeger-Thread/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
+    <loc>https://www.yzhu.name/2020/03/29/JVM-NEW/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
     <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2025/04/26/Biometric-Based-Payment-Product/</loc>
+    <loc>https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2023/09/09/Data-Memcached-To-Redis/</loc>
+    <loc>https://www.yzhu.name/2025/04/26/Biometric-Based-Payment-Product/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
