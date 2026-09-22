@@ -260,7 +260,6 @@
 <pre class="mermaid">flowchart LR
     U[用户] --> R[角色]
     O[组织] --> R
-    G[群组] --> R
     R --> P[权限项]
     P -. 引用 .-> M[菜单]</pre>
 
@@ -308,7 +307,6 @@
 <pre class="mermaid">flowchart TD
     A[用户直授] --> U[合并角色集合]
     B[组织继承] --> U
-    C[群组继承] --> U
     U --> E[移除用户级 deny 命中的角色]
     E --> F[过滤未启用角色]
     F --> G[展开为权限集合]</pre>
@@ -375,13 +373,10 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2026/09/13/design-api-context-architecture/" rel="prev" title="从 Figma 到编码 Agent：设计上下文的结构化、缓存与校验">
-      <i class="fa fa-chevron-left"></i> 从 Figma 到编码 Agent：设计上下文的结构化、缓存与校验
+    <a href="/2026/09/20/rbac-starter-design-decisions-en/" rel="prev" title="Pulling Permissions Out of the Menu: Design Trade-offs in an Authorization Kernel">
+      <i class="fa fa-chevron-left"></i> Pulling Permissions Out of the Menu: Design Trade-offs in an Authorization Kernel
     </a></div>
-      <div class="post-nav-item">
-    <a href="/2026/09/20/rbac-starter-design-decisions-en/" rel="next" title="Pulling Permissions Out of the Menu: Design Trade-offs in an Authorization Kernel">
-      Pulling Permissions Out of the Menu: Design Trade-offs in an Authorization Kernel <i class="fa fa-chevron-right"></i>
-    </a></div>
+      <div class="post-nav-item"></div>
     </div>
       </footer>
     
