@@ -233,7 +233,7 @@
 </blockquote>
 <p>In many admin systems, permissions grow out of the menu: the menu comes first, an access level is attached to each menu item, and roles are then bound to menus. The order is natural, because the earliest requirement is simply “different people see different menus”.</p>
 <p>The trouble starts when requirements move one step further. Buttons on a page need to be controlled individually, and so do the APIs exposed to third parties. Neither has a place in a menu-based model, so an otherwise clear model starts accumulating patches.</p>
-<p>While converging the authorization part of a business system into a standalone component, I went through these trade-offs again. This article records the decisions that mattered most.</p>
+<p>While converging an authorization layer into a standalone component, I went through these trade-offs again. This article records the decisions that mattered most, and why the alternative was not taken each time.</p>
 <p>None of them depend on a specific technology stack. The component can be a library inside a framework or a standalone service; whether it is implemented in Java, Go, or Python does not change any of these judgments. What has to be worked out is the model itself and its boundaries.</p>
 <span id="more"></span>
 
@@ -267,7 +267,7 @@
     P -. references .-> M[Menu]</pre>
 
 <p>Menu visibility is decided by two explicit states: visible once authenticated, or visible only when a specific permission is held.</p>
-<p>One detail is worth calling out. There is a principle: <strong>business semantics must be modeled explicitly — never encode meaning in a null value</strong>. And a menu that is visible once authenticated genuinely has no permission attached.</p>
+<p>One detail took some deliberation at the time. There is a principle: <strong>business semantics must be modeled explicitly — never encode meaning in a null value</strong>. And a menu that is visible once authenticated genuinely has no permission attached.</p>
 <p>The two do not conflict: the semantics are carried by the explicit access-state field, and the absent permission only means “this field does not apply here”. Reverse it — use “no permission attached” to mean “visible once authenticated” — and the meaning hides inside the null value; the moment a third access mode appears, the implicit convention breaks.</p>
 <p>The direct gain is that permissions no longer depend on the menu’s existence: a permission can exist before its menu, and several menus can point at the same permission. The menu becomes a projection of permissions in the presentation layer.</p>
 <h2 id="3-Decision-2-Stable-Identifier-vs-Display-Name"><a href="#3-Decision-2-Stable-Identifier-vs-Display-Name" class="headerlink" title="3. Decision 2: Stable Identifier vs. Display Name"></a>3. Decision 2: Stable Identifier vs. Display Name</h2><p>Both roles and menus are split into two fields:</p>
@@ -297,7 +297,7 @@
 <li>The role is locked before writing, so nothing interleaves between delete and insert;</li>
 <li>The managed scope is determined server-side and is not accepted from the client.</li>
 </ul>
-<p>This decision applies well beyond authorization. Anywhere multiple parties co-manage one piece of configuration, the same problem appears: full overwrite clobbers, incremental changes cannot express “clear”. “Managed scope plus selected set” makes the scope explicit and gets both benefits.</p>
+<p>I have since run into the same class of problem elsewhere: whenever multiple parties co-manage one piece of configuration, the same dilemma appears — full overwrite clobbers, incremental changes cannot express “clear”. “Managed scope plus selected set” makes the scope explicit and gets both benefits.</p>
 <p>One boundary trade-off: when permission registration hits a concurrent conflict, the component <strong>does not retry or upsert internally — it fails and lets the caller retry</strong>. Registration usually happens inside the caller’s own transaction, and an internal retry would blur the transaction boundary: which write actually took effect may be understood differently by the caller and by the component. Handing the decision back keeps the caller’s retry semantics clear.</p>
 <h2 id="5-Decision-4-Keep-Exactly-One-Deny-Case"><a href="#5-Decision-4-Keep-Exactly-One-Deny-Case" class="headerlink" title="5. Decision 4: Keep Exactly One Deny Case"></a>5. Decision 4: Keep Exactly One Deny Case</h2><p>The first version uses a pure allow-union model: roles from all sources are unioned, with no deny.</p>
 <p>The single exception is this scenario:</p>
@@ -345,11 +345,11 @@
 <li><strong>Complex deny and attribute-based policy</strong>: see Decision 4.</li>
 <li><strong>Admin UI</strong>: the kernel provides capability only; the UI belongs to the business system.</li>
 </ul>
-<p>Writing down “what we are not doing” matters as much as writing down what we are doing. These items were not overlooked — they were deferred deliberately, once the cost was understood. When the time comes to build them, at least the original reason for not building them is on record.</p>
+<p>My habit now is to write down “what we are not doing” alongside what we are doing. These items were not overlooked — they were deferred deliberately, once the cost was understood. When the time comes to build them, at least the original reason for not building them is on record.</p>
 <h2 id="9-Key-Takeaways"><a href="#9-Key-Takeaways" class="headerlink" title="9. Key Takeaways"></a>9. Key Takeaways</h2><p>Looking back, these decisions share one thread: <strong>settle what things are before discussing what they do</strong>.</p>
 <p>A permission is not an attribute hanging off a menu; it is a standalone entity that multiple consumers can reference. A stable identifier is not a display name; it is a contract referenced by code. An authorization write is not a single write; it needs a declared scope first. Identity and organization are not local data that can be copied; they are an external source of truth that must be asked each time. Auditing is not a feature; it is an integration point.</p>
 <p>None of these problems is hard to bypass at the feature level — one more field, one more branch, one more table solves the immediate need. But after enough bypasses the model loses its explanatory power bit by bit, until one day nobody can explain why a given user has a given permission.</p>
-<p>This design is still in a pre-release state, and these trade-offs will keep moving as integrators give feedback. Recording the decisions and their reasons now means that later, looking back at which ones held up and which were wrong will be far clearer than staring at a finished design.</p>
+<p>Recording the decisions and their reasons now means that later, looking back at which ones held up and which were wrong will be far clearer than staring at a finished design.</p>
 <h2 id="Further-Reading"><a href="#Further-Reading" class="headerlink" title="Further Reading"></a>Further Reading</h2><ul>
 <li><a href="/2026/04/04/enterprise-unified-identity-architecture-en/">Enterprise Unified Identity Governance Architecture with OAuth2&#x2F;OIDC</a></li>
 <li><a href="/2026/06/07/per-client-auth-isolation-gateway-en/">Per-Client Authorization Isolation at the Gateway: One IAM Platform for Multiple Applications</a></li>
