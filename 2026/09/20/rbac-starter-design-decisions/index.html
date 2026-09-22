@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN,en,default">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 8.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="google1af80b6c61bd600f">
+  <meta name="msvalidate.01" content="E18D12EB1C64C9161ABB448E78886243">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"www.yzhu.name","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="记录把授权部分从菜单模型中拆出来、收敛成独立组件过程中的几个关键设计决策，以及当时为什么不选另一条路。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="把权限从菜单里拆出来：授权内核的几个设计取舍">
+<meta property="og:url" content="https://www.yzhu.name/2026/09/20/rbac-starter-design-decisions/index.html">
+<meta property="og:site_name" content="yhzhu的随手记">
+<meta property="og:description" content="记录把授权部分从菜单模型中拆出来、收敛成独立组件过程中的几个关键设计决策，以及当时为什么不选另一条路。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-09-20T02:00:00.000Z">
+<meta property="article:modified_time" content="2026-09-20T02:00:00.000Z">
+<meta property="article:author" content="yhzhu">
+<meta property="article:tag" content="RBAC">
+<meta property="article:tag" content="授权">
+<meta property="article:tag" content="权限模型">
+<meta property="article:tag" content="架构设计">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://www.yzhu.name/2026/09/20/rbac-starter-design-decisions/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>把权限从菜单里拆出来：授权内核的几个设计取舍 | yhzhu的随手记</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LHJSJTXY25"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LHJSJTXY25');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+  
+  <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "oaj954o08q");
+  </script>
+<link rel="alternate" href="/atom.xml" title="yhzhu的随手记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">yhzhu的随手记</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://www.yzhu.name/2026/09/20/rbac-starter-design-decisions/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yhzhu">
+      <meta itemprop="description" content="互联网 分布式 微服务 高并发">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="yhzhu的随手记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          把权限从菜单里拆出来：授权内核的几个设计取舍
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2026-09-20 10:00:00" itemprop="dateCreated datePublished" datetime="2026-09-20T10:00:00+08:00">2026-09-20</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/" itemprop="url" rel="index"><span itemprop="name">架构设计</span></a>
+                </span>
+            </span>
+
+          
+            <div class="post-description">记录把授权部分从菜单模型中拆出来、收敛成独立组件过程中的几个关键设计决策，以及当时为什么不选另一条路。</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p><strong>🌐 语言</strong>: <strong>中文版</strong> | <a href="/2026/09/20/rbac-starter-design-decisions-en/">English Version</a></p>
+</blockquote>
+<p>很多后台系统的权限是从菜单开始长出来的：先有菜单，再给菜单挂一个访问级别，最后把角色和菜单绑在一起。这个顺序很自然，因为最早的需求就是”不同的人看到不同的菜单”。</p>
+<p>问题出现在需求往下一步走的时候。页面上的按钮要单独控制，对外暴露的接口也要单独控制，而这两样东西在菜单模型里没有位置。于是一个本来还算清楚的模型开始不断打补丁。</p>
+<p>最近在把一个业务系统的授权部分收敛成独立组件时，重新把这些取舍梳理了一遍。这篇记录其中影响比较大的几个决策。</p>
+<p>认证解决”你是谁”，授权解决”你能做什么”。前面写的几篇身份治理文章都在认证这一侧，这篇是同一条线上的授权侧配套——两者共用一套身份与组织真源，边界分开划（见<a href="/2026/04/04/enterprise-unified-identity-architecture/">《基于 OAuth2&#x2F;OIDC 协议的企业级统一身份治理架构实践》</a>）。</p>
+<span id="more"></span>
+
+
+<ul>
+<li>权限主模型从菜单换成独立的”权限项”，菜单退回为权限的一个消费方。</li>
+<li>稳定标识与显示名称分离，标识生成后不可变。</li>
+<li>授权覆盖采用”先声明范围，再覆盖”的语义，避免多处共管一份配置时互相踩踏。</li>
+<li>deny 只保留一种场景，其余明确推迟。</li>
+<li>身份与组织不落本地，群组权限不做物化。</li>
+<li>审计做成扩展点，而不是内置功能。</li>
+</ul>
+<h2 id="起点：权限长在菜单上"><a href="#起点：权限长在菜单上" class="headerlink" title="起点：权限长在菜单上"></a>起点：权限长在菜单上</h2><p>改造前的模型大致是三件套：</p>
+<ul>
+<li>角色与菜单、权限的绑定关系；</li>
+<li>菜单上的一个字段，用来表达访问级别；</li>
+<li>一个硬编码的管理员标识，在若干判断处直接短路。</li>
+</ul>
+<p>这三样东西各自都能工作，放在一起会暴露三个问题。</p>
+<p>第一，<strong>按钮和接口权限无处安放</strong>。菜单描述的是导航项。一个页面里的”导出”按钮、一个给第三方调用的接口，都不是导航项。硬塞进菜单，就要靠约定去区分哪些菜单行其实是按钮，模型开始失去解释力。</p>
+<p>第二，<strong>菜单的调整会影响权限语义</strong>。菜单既要负责展示（层级、排序、图标、路由），又要负责授权，两个变化频率完全不同的东西被绑在同一条记录上。改一次菜单排序，动的是同一份数据。</p>
+<p>第三，<strong>硬编码的管理员标识绕过了整个模型</strong>。一旦有”如果是管理员就直接放行”的分支，权限体系就不再是可推理的——你没法从数据上回答”这个人为什么能访问”，只能去代码里找。</p>
+<p>这三个问题指向同一件事：菜单承担了不该由它承担的职责。</p>
+<h2 id="决策一：权限成为主模型，菜单退回消费方"><a href="#决策一：权限成为主模型，菜单退回消费方" class="headerlink" title="决策一：权限成为主模型，菜单退回消费方"></a>决策一：权限成为主模型，菜单退回消费方</h2><p>第一个决策是把主模型换成独立的<strong>权限项</strong>。</p>
+<p>权限项是最小授权单元，用一个类型字段区分三类用途：菜单访问、页面操作、接口调用。这三类在授权计算上没有区别，区分只是为了管理界面分组、后端校验分类和日志可读性。</p>
+<p>菜单则退回成一个普通的导航配置，只通过权限标识引用某个权限项：</p>
+<pre class="mermaid">flowchart LR
+    U[用户] --> R[角色]
+    O[组织] --> R
+    G[群组] --> R
+    R --> P[权限项]
+    P -. 引用 .-> M[菜单]</pre>
+
+<p>菜单是否可见由两个显式状态决定：登录即可见，或者必须持有某个权限才可见。</p>
+<p>这里有个细节值得一提。有一条原则是：<strong>业务语义必须显式建模，不要用”空值”表达业务意义</strong>。而”登录即可见”的菜单确实没有关联权限。</p>
+<p>两者并不冲突：语义由那个显式的访问状态字段承载，没有关联权限只是表示”这一项不适用”。如果反过来，用”权限为空”来表达”登录即可见”，语义就藏在空值里了——新增第三种访问模式时，这套隐式约定会立刻失效。</p>
+<p>这个调整带来的直接收益是，权限不再依赖菜单存在：可以先有权限、后有菜单，也可以有多个菜单指向同一个权限项。菜单变成权限在展示层的一个投影。</p>
+<h2 id="决策二：稳定标识与显示名称分离"><a href="#决策二：稳定标识与显示名称分离" class="headerlink" title="决策二：稳定标识与显示名称分离"></a>决策二：稳定标识与显示名称分离</h2><p>角色和菜单都拆成两个字段：</p>
+<ul>
+<li>稳定标识：供代码、配置、初始化数据、日志引用；</li>
+<li>显示名称：随时可改。</li>
+</ul>
+<p>规则是：<strong>稳定标识生成后不可修改</strong>。用户可以随意编辑角色名称、描述、状态，但标识一旦生成就固定下来。</p>
+<p>标识由系统生成，而不是让用户填写，并且带一段不可预测的随机后缀，避免同名角色在合并或迁移时撞在一起。</p>
+<p>为什么不让用户直接填？因为稳定标识是<strong>被引用方</strong>。权限判断写在代码里是”导出订单”这样的标识，初始化数据里写的是角色标识，日志里打的也是它。如果允许随意修改，一次重命名就会让代码里的引用失效，而且失效发生在运行期，不会有任何编译期提示。</p>
+<p>代价是稳定标识不可读，必须靠名称字段展示。这个代价比运行期引用失效要小得多。</p>
+<h2 id="决策三：授权覆盖要先声明范围"><a href="#决策三：授权覆盖要先声明范围" class="headerlink" title="决策三：授权覆盖要先声明范围"></a>决策三：授权覆盖要先声明范围</h2><p>角色授权界面有一个绕不开的问题：提交上来的是一份全量清单，还是增量变更？</p>
+<p>全量覆盖实现简单，也符合”所见即所得”，但有个前提——<strong>这个角色的权限只能由一处管理</strong>。只要有两个模块都在给同一个角色配权限，先提交的那一方的修改就会被后提交的一方整体覆盖掉，而且没有任何提示。</p>
+<p>增量变更没有这个问题，但它需要区分”新增””删除””未变化”，而且无法处理”清空”这个操作——空集合既可能是”什么都不改”，也可能是”全部撤销”。</p>
+<p>这里选择的做法是<strong>声明范围后再覆盖</strong>：</p>
+<ol>
+<li>调用方先声明”我管辖哪些权限”（管辖范围）；</li>
+<li>再给出”当前选中哪些”（选中集合）；</li>
+<li>写入时只删除管辖范围内的绑定，范围外的绑定保持原样；</li>
+<li>然后按选中集合重建管辖范围内的绑定。</li>
+</ol>
+<p>这样每个模块看到的是自己那部分的全量状态——语义上仍然是覆盖，实现简单；同时作用域被限制在自己声明的范围内，不会踩到别人的。清空操作也有了明确含义：选中集合为空，而管辖范围不变。</p>
+<p>配套的几条约束：</p>
+<ul>
+<li>选中集合必须是管辖范围的子集，越界直接拒绝；</li>
+<li>菜单类型的权限不允许走这个入口，避免两条路径改同一份数据；</li>
+<li>写入前对角色加锁，保证删除和插入之间不被插队；</li>
+<li>管辖范围由服务端确定，不接受前端直接传。</li>
+</ul>
+<p>这个决策的适用面其实比授权更广。凡是”多处共管同一份配置”的场景，都会遇到同样的问题：全量覆盖会互相覆盖，增量变更无法表达清空。”管辖范围 + 选中集合”把作用域显式化，两边的好处都能拿到。</p>
+<p>还有一个边界上的取舍：权限项注册遇到并发冲突时，<strong>不在组件内部重试或覆盖写入，而是报错让调用方重试</strong>。原因是注册通常发生在调用方自己的事务里，内部重试会掩盖事务边界——到底是哪一次写入生效了，调用方和组件的理解可能不一致。把决定权交回去，调用方的重试语义是清楚的。</p>
+<h2 id="决策四：deny-只保留一种场景"><a href="#决策四：deny-只保留一种场景" class="headerlink" title="决策四：deny 只保留一种场景"></a>决策四：deny 只保留一种场景</h2><p>第一版采用纯 allow 的并集模型：所有来源的角色取并集，没有 deny。</p>
+<p>唯一的例外是这一个场景：</p>
+<ul>
+<li>某个组织被授予了一个角色；</li>
+<li>该组织下绝大多数人继承这个角色；</li>
+<li>只有某一个人需要被排除。</li>
+</ul>
+<p>实现方式是，组织、群组这类来源的绑定都只表示 allow，用户直授的关系里保留一种 deny 类型，命中时把对应角色从并集中移除。</p>
+<pre class="mermaid">flowchart TD
+    A[用户直授] --> U[合并角色集合]
+    B[组织继承] --> U
+    C[群组继承] --> U
+    U --> E[移除用户级 deny 命中的角色]
+    E --> F[过滤未启用角色]
+    F --> G[展开为权限集合]</pre>
+
+<p>明确不做的是：角色对权限的 deny、多规则的优先级仲裁、操作与接口之间独立的 deny 求值、通用表达式策略。</p>
+<p>理由是，收集到的真实需求几乎全部集中在上面那一种，而通用的策略引擎会把”这个人最终有哪些权限”从一个可查表的计算，变成一个需要求值器的推理。后者在排障时成本高得多——你得先搞清楚规则是怎么求值的，才能回答一个具体用户为什么没有某个权限。</p>
+<p>先只做一种，如果以后需求确实扩散了，再引入求值器也不迟；反过来，做了再想删就难了。</p>
+<h2 id="决策五：身份与组织不落本地，群组权限不物化"><a href="#决策五：身份与组织不落本地，群组权限不物化" class="headerlink" title="决策五：身份与组织不落本地，群组权限不物化"></a>决策五：身份与组织不落本地，群组权限不物化</h2><p>这个组件的定位是<strong>应用内授权内核</strong>，身份与组织的真源在统一的身份服务。边界是：</p>
+<ul>
+<li>身份服务负责：用户身份、组织结构、系统准入，以及网关侧的令牌校验与头信息透传（隔离方式见<a href="/2026/06/07/per-client-auth-isolation-gateway/">《网关层 Per-Client 鉴权隔离》</a>）；</li>
+<li>授权内核负责：角色、权限、菜单树、绑定关系、权限判断、审计扩展点。</li>
+</ul>
+<p>明确禁止在授权侧复制用户主数据或组织主数据。授权表里只存标识引用，不存姓名、部门、层级。</p>
+<p>群组（项目组、跨部门协作这类非行政组织集合）的处理有一个特别的取舍：<strong>群组的角色不物化到用户直授关系</strong>。用户加入或退出群组以后，权限通过查询群组成员关系的当前结果自然生效或失效，不需要跑任何同步任务。</p>
+<p>物化能让权限判断变快——只需查一张用户直授表。但它引入了一个更难的问题：成员关系变化后，什么时候、由谁来更新物化结果？同步延迟、同步失败、部分成功，都会让实际权限和配置不一致，而且这种不一致很难被发现。</p>
+<p>不物化的代价是每次解析都要多查一次群组成员关系。第一版接受这个代价。</p>
+<p>由于不落本地，解析权限时需要访问身份服务。这里用一个适配接口把依赖隔离掉，允许测试环境用桩实现替换——接入方只需要提供这一种实现。</p>
+<h2 id="决策六：审计是扩展点，不是内置功能"><a href="#决策六：审计是扩展点，不是内置功能" class="headerlink" title="决策六：审计是扩展点，不是内置功能"></a>决策六：审计是扩展点，不是内置功能</h2><p>授权变更需要留痕，但留到哪里各个系统并不一样：有的写自己的审计表，有的发消息队列，有的接外部审计中心。</p>
+<p>所以这里的做法是：</p>
+<ul>
+<li>只负责在写操作成功后发布标准化的审计事件；</li>
+<li>默认提供一个空实现，未接入审计时不影响启动；</li>
+<li><strong>不创建审计表，不内置任何业务系统专属的存储逻辑</strong>；</li>
+<li>审计失败不应反向影响授权主流程，容错由接入方自己处理。</li>
+</ul>
+<p>事件模型固定了几个字段——操作人、事件类型、目标、结果、时间、链路 ID。事件类型按第一版需要收敛为角色与菜单的增删改，以及各类绑定变更。</p>
+<p>关键取舍是**”发布”和”落库”分开**。内核决定什么算一次授权变更、事件里该带哪些字段；落到哪里由接入方决定。要接消息队列或者外部审计中心，新增一个实现即可，不需要动核心逻辑。</p>
+<h2 id="被明确推迟的部分"><a href="#被明确推迟的部分" class="headerlink" title="被明确推迟的部分"></a>被明确推迟的部分</h2><p>第一版有一份显式的非目标清单，其中影响较大的几项：</p>
+<ul>
+<li><strong>分布式缓存与跨节点失效</strong>：第一版不引入外部缓存，缓存只作为可选能力，默认是进程内的。权限版本号、跨节点失效广播留到后续版本。</li>
+<li><strong>数据权限与查询自动改写</strong>：这是行级、列级的另一类问题，和功能权限混在一起会让两边的模型都变复杂。</li>
+<li><strong>复杂 deny 与属性化策略</strong>：同决策四。</li>
+<li><strong>管理界面</strong>：内核只提供能力，界面由业务系统自己做。</li>
+</ul>
+<p>把”不做什么”写进设计文档，和写”要做什么”同样重要。这些项不是没想到，而是知道代价以后主动推迟——后面真要做的时候，至少知道当初是为什么没做。</p>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>回过头看，这几个决策有一条共同的线索：<strong>先把”什么是什么”定清楚，再谈功能</strong>。</p>
+<p>权限不是菜单的附属属性，而是一个独立的、可被多种消费方引用的东西；稳定标识不是显示名称，而是被代码引用的契约；授权覆盖不是一次写入，而是需要先声明作用域；身份与组织不是可以复制的本地数据，而是需要每次去问的外部真源；审计不是一个功能，而是一个接入点。</p>
+<p>这些问题在功能层面都不难绕过——加个字段、加个分支、加张表就能解决眼前的需求。但绕过之后，模型会一点点失去解释力，直到某一天没人能说清楚某个用户为什么有某个权限。</p>
+<p>目前这套设计还处在未定版阶段，上面这些取舍也会随着接入方的反馈继续调整。先把决策和当时的理由记录下来，过一段时间再回来看，哪些站住了、哪些想错了，会比对着一个最终方案清楚得多。</p>
+<h2 id="延伸阅读"><a href="#延伸阅读" class="headerlink" title="延伸阅读"></a>延伸阅读</h2><ul>
+<li><a href="/2026/04/04/enterprise-unified-identity-architecture/">基于 OAuth2&#x2F;OIDC 协议的企业级统一身份治理架构实践</a></li>
+<li><a href="/2026/06/07/per-client-auth-isolation-gateway/">网关层 Per-Client 鉴权隔离：一个 IAM 平台保护多个业务应用</a></li>
+<li><a href="/2026/04/06/why-local-auth-alongside-federation/">为什么企业 IAM 在联合登录之外还需要本地密码认证</a></li>
+<li><a href="/2025/09/27/Unified-Identity/">统一身份管理与授权</a></li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/" rel="tag"># 架构设计</a>
+              <a href="/tags/RBAC/" rel="tag"># RBAC</a>
+              <a href="/tags/%E6%8E%88%E6%9D%83/" rel="tag"># 授权</a>
+              <a href="/tags/%E6%9D%83%E9%99%90%E6%A8%A1%E5%9E%8B/" rel="tag"># 权限模型</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2026/09/13/design-api-context-architecture/" rel="prev" title="从 Figma 到编码 Agent：设计上下文的结构化、缓存与校验">
+      <i class="fa fa-chevron-left"></i> 从 Figma 到编码 Agent：设计上下文的结构化、缓存与校验
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2026/09/20/rbac-starter-design-decisions-en/" rel="next" title="Pulling Permissions Out of the Menu: Design Trade-offs in an Authorization Kernel">
+      Pulling Permissions Out of the Menu: Design Trade-offs in an Authorization Kernel <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%B5%B7%E7%82%B9%EF%BC%9A%E6%9D%83%E9%99%90%E9%95%BF%E5%9C%A8%E8%8F%9C%E5%8D%95%E4%B8%8A"><span class="nav-number">1.</span> <span class="nav-text">起点：权限长在菜单上</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%B3%E7%AD%96%E4%B8%80%EF%BC%9A%E6%9D%83%E9%99%90%E6%88%90%E4%B8%BA%E4%B8%BB%E6%A8%A1%E5%9E%8B%EF%BC%8C%E8%8F%9C%E5%8D%95%E9%80%80%E5%9B%9E%E6%B6%88%E8%B4%B9%E6%96%B9"><span class="nav-number">2.</span> <span class="nav-text">决策一：权限成为主模型，菜单退回消费方</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%B3%E7%AD%96%E4%BA%8C%EF%BC%9A%E7%A8%B3%E5%AE%9A%E6%A0%87%E8%AF%86%E4%B8%8E%E6%98%BE%E7%A4%BA%E5%90%8D%E7%A7%B0%E5%88%86%E7%A6%BB"><span class="nav-number">3.</span> <span class="nav-text">决策二：稳定标识与显示名称分离</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%B3%E7%AD%96%E4%B8%89%EF%BC%9A%E6%8E%88%E6%9D%83%E8%A6%86%E7%9B%96%E8%A6%81%E5%85%88%E5%A3%B0%E6%98%8E%E8%8C%83%E5%9B%B4"><span class="nav-number">4.</span> <span class="nav-text">决策三：授权覆盖要先声明范围</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%B3%E7%AD%96%E5%9B%9B%EF%BC%9Adeny-%E5%8F%AA%E4%BF%9D%E7%95%99%E4%B8%80%E7%A7%8D%E5%9C%BA%E6%99%AF"><span class="nav-number">5.</span> <span class="nav-text">决策四：deny 只保留一种场景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%B3%E7%AD%96%E4%BA%94%EF%BC%9A%E8%BA%AB%E4%BB%BD%E4%B8%8E%E7%BB%84%E7%BB%87%E4%B8%8D%E8%90%BD%E6%9C%AC%E5%9C%B0%EF%BC%8C%E7%BE%A4%E7%BB%84%E6%9D%83%E9%99%90%E4%B8%8D%E7%89%A9%E5%8C%96"><span class="nav-number">6.</span> <span class="nav-text">决策五：身份与组织不落本地，群组权限不物化</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%B3%E7%AD%96%E5%85%AD%EF%BC%9A%E5%AE%A1%E8%AE%A1%E6%98%AF%E6%89%A9%E5%B1%95%E7%82%B9%EF%BC%8C%E4%B8%8D%E6%98%AF%E5%86%85%E7%BD%AE%E5%8A%9F%E8%83%BD"><span class="nav-number">7.</span> <span class="nav-text">决策六：审计是扩展点，不是内置功能</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%A2%AB%E6%98%8E%E7%A1%AE%E6%8E%A8%E8%BF%9F%E7%9A%84%E9%83%A8%E5%88%86"><span class="nav-number">8.</span> <span class="nav-text">被明确推迟的部分</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B0%8F%E7%BB%93"><span class="nav-number">9.</span> <span class="nav-text">小结</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BB%B6%E4%BC%B8%E9%98%85%E8%AF%BB"><span class="nav-number">10.</span> <span class="nav-text">延伸阅读</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yhzhu</p>
+  <div class="site-description" itemprop="description">互联网 分布式 微服务 高并发</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">63</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">104</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/yinghuzhu" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;yinghuzhu" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yzhu@@yzhu.name" title="E-Mail → mailto:yzhu@@yzhu.name" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2026</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yhzhu</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+<script>
+document.querySelectorAll('.pdfobject-container').forEach(element => {
+  let url = element.dataset.target;
+  let pdfOpenParams = {
+    navpanes : 0,
+    toolbar  : 0,
+    statusbar: 0,
+    pagemode : 'thumbs',
+    view     : 'FitH'
+  };
+  let pdfOpenFragment = '#' + Object.entries(pdfOpenParams).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  let fullURL = `/lib/pdf/web/viewer.html?file=${encodeURIComponent(url)}${pdfOpenFragment}`;
+
+  if (NexT.utils.supportsPDFs()) {
+    element.innerHTML = `<embed class="pdfobject" src="${url + pdfOpenFragment}" type="application/pdf" style="height: ${element.dataset.height};">`;
+  } else {
+    element.innerHTML = `<iframe src="${fullURL}" style="height: ${element.dataset.height};" frameborder="0"></iframe>`;
+  }
+});
+</script>
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'default',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+
+</body>
+</html>
