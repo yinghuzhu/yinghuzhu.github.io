@@ -25,11 +25,11 @@
     <lastmod>2026-07-06</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/06/07/per-client-auth-isolation-gateway/</loc>
+    <loc>https://www.yzhu.name/2026/06/07/per-client-auth-isolation-gateway-en/</loc>
     <lastmod>2026-06-07</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/06/07/per-client-auth-isolation-gateway-en/</loc>
+    <loc>https://www.yzhu.name/2026/06/07/per-client-auth-isolation-gateway/</loc>
     <lastmod>2026-06-07</lastmod>
   </url>
   <url>
@@ -45,11 +45,11 @@
     <lastmod>2026-04-06</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture/</loc>
+    <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture-en/</loc>
     <lastmod>2026-04-04</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture-en/</loc>
+    <loc>https://www.yzhu.name/2026/04/04/enterprise-unified-identity-architecture/</loc>
     <lastmod>2026-04-04</lastmod>
   </url>
   <url>
@@ -129,11 +129,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2021/04/13/reliable-message-delivery/</loc>
+    <loc>https://www.yzhu.name/2019/03/01/product-bug/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2019/03/01/product-bug/</loc>
+    <loc>https://www.yzhu.name/2021/04/13/reliable-message-delivery/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -141,15 +141,19 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
+    <loc>https://www.yzhu.name/2020/09/05/The-Silence-City/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
     <loc>https://www.yzhu.name/2020/04/11/ShardingSphere-Springboot/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2019/04/27/Tech-VS-Biz/</loc>
+    <loc>https://www.yzhu.name/2023/12/10/User-Tag/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2020/09/05/The-Silence-City/</loc>
+    <loc>https://www.yzhu.name/2019/04/27/Tech-VS-Biz/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -161,7 +165,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2023/12/10/User-Tag/</loc>
+    <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -169,11 +173,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2019/06/02/gRPC-Go-Java/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2018/09/24/Service-Split/</loc>
+    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -181,7 +181,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2023/11/25/ShardingSphere-JDBC-SQL-Metrics/</loc>
+    <loc>https://www.yzhu.name/2018/09/24/Service-Split/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -193,11 +193,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/06/18/Parepare-Service/</loc>
+    <loc>https://www.yzhu.name/2025/07/08/Nacos-Consul-Zk-Etcd/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2025/07/08/Nacos-Consul-Zk-Etcd/</loc>
+    <loc>https://www.yzhu.name/2018/06/18/Parepare-Service/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -209,6 +209,10 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
+    <loc>https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/</loc>
+    <lastmod>2025-11-11</lastmod>
+  </url>
+  <url>
     <loc>https://www.yzhu.name/2020/03/29/JVM-NEW/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
@@ -217,11 +221,11 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
+    <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2020/05/30/History-Bug-And-Code-Review/</loc>
+    <loc>https://www.yzhu.name/2018/04/30/Microservice-Dubbo-VS-Spring-Cloud/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -229,11 +233,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2022/03/26/Infra-Component-Upgrade/</loc>
-    <lastmod>2025-11-11</lastmod>
-  </url>
-  <url>
-    <loc>https://www.yzhu.name/2018/07/06/Dubbo-Local-RPC-Switch/</loc>
+    <loc>https://www.yzhu.name/2025/04/26/Biometric-Based-Payment-Product/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
@@ -241,7 +241,7 @@
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>
-    <loc>https://www.yzhu.name/2025/04/26/Biometric-Based-Payment-Product/</loc>
+    <loc>https://www.yzhu.name/2018/07/06/Dubbo-Local-RPC-Switch/</loc>
     <lastmod>2025-11-11</lastmod>
   </url>
   <url>

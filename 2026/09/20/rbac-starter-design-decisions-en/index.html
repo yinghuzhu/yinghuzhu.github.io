@@ -262,7 +262,6 @@
 <pre class="mermaid">flowchart LR
     U[User] --> R[Role]
     O[Organization] --> R
-    G[Group] --> R
     R --> P[Permission]
     P -. references .-> M[Menu]</pre>
 
@@ -310,7 +309,6 @@
 <pre class="mermaid">flowchart TD
     A[User direct grant] --> U[Union of roles]
     B[Organization inheritance] --> U
-    C[Group inheritance] --> U
     U --> E[Remove roles hit by user-level deny]
     E --> F[Filter out disabled roles]
     F --> G[Expand into permission set]</pre>
